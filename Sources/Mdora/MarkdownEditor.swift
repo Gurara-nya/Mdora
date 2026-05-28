@@ -68,6 +68,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             height: CGFloat.greatestFiniteMagnitude
         )
         textView.delegate = context.coordinator
+        textView.registerForDraggedTypes([.fileURL])
         textView.onSmartNewline = { [weak textView] in
             guard let textView else { return }
             context.coordinator.parent.text = textView.string
@@ -1019,9 +1020,8 @@ private final class MarkdownNSTextView: NSTextView {
         let source = string as NSString
         let selectedText = selectedRange.length > 0 ? source.substring(with: selectedRange) : ""
 
-        if let fileURL = pasteboardFileURL(from: pasteboard),
-           let replacement = MarkdownPasteTransformer.markdownReplacement(
-               fileURL: fileURL,
+        if let replacement = MarkdownPasteTransformer.markdownReplacement(
+               fileURLs: pasteboardFileURLs(from: pasteboard),
                selectedText: selectedText,
                currentDocumentURL: markdownDocumentURL
            ) {
@@ -1046,11 +1046,50 @@ private final class MarkdownNSTextView: NSTextView {
         onSmartNewline?()
     }
 
-    private func pasteboardFileURL(from pasteboard: NSPasteboard) -> URL? {
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasImageFileURLs(in: sender.draggingPasteboard) ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasImageFileURLs(in: sender.draggingPasteboard) ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let replacement = MarkdownPasteTransformer.markdownReplacement(
+            fileURLs: pasteboardFileURLs(from: sender.draggingPasteboard),
+            selectedText: "",
+            currentDocumentURL: markdownDocumentURL
+        ) else {
+            return super.performDragOperation(sender)
+        }
+
+        let location = insertionLocation(for: sender)
+        super.insertText(replacement, replacementRange: NSRange(location: location, length: 0))
+        setSelectedRange(NSRange(location: location + replacement.utf16.count, length: 0))
+        onSmartNewline?()
+        return true
+    }
+
+    private func hasImageFileURLs(in pasteboard: NSPasteboard) -> Bool {
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURLs: pasteboardFileURLs(from: pasteboard),
+            selectedText: "",
+            currentDocumentURL: markdownDocumentURL
+        ) != nil
+    }
+
+    private func pasteboardFileURLs(from pasteboard: NSPasteboard) -> [URL] {
         let options: [NSPasteboard.ReadingOptionKey: Any] = [
             .urlReadingFileURLsOnly: true
         ]
-        return pasteboard.readObjects(forClasses: [NSURL.self], options: options)?.first as? URL
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) ?? []
+        return urls.compactMap { $0 as? URL }
+    }
+
+    private func insertionLocation(for sender: NSDraggingInfo) -> Int {
+        let point = convert(sender.draggingLocation, from: nil)
+        let length = (string as NSString).length
+        return min(max(0, characterIndexForInsertion(at: point)), length)
     }
 
     override func insertNewline(_ sender: Any?) {

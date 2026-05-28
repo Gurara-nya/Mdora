@@ -170,6 +170,17 @@ func runTests() {
             currentDocumentURL: pasteDocumentURL
         ) == nil
     )
+    assert(
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURLs: [
+                URL(fileURLWithPath: "/tmp/Mdora Notes/Assets/One.png"),
+                URL(fileURLWithPath: "/tmp/Mdora Notes/Assets/Two.jpg"),
+                URL(fileURLWithPath: "/tmp/Mdora Notes/Assets/readme.txt")
+            ],
+            selectedText: "Ignored for multi-file drops",
+            currentDocumentURL: pasteDocumentURL
+        ) == "![One](Assets/One.png)\n![Two](Assets/Two.jpg)"
+    )
     print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
 
     // 8. Test internal preview link navigation targets

@@ -29,6 +29,25 @@ public enum MarkdownPasteTransformer {
         return "![\(escapeLinkLabel(altText))](\(destination))"
     }
 
+    public static func markdownReplacement(
+        fileURLs: [URL],
+        selectedText: String,
+        currentDocumentURL: URL?
+    ) -> String? {
+        let imageURLs = fileURLs.filter { $0.isFileURL && isImageFileURL($0) }
+        guard !imageURLs.isEmpty else { return nil }
+
+        return imageURLs.map { fileURL in
+            markdownReplacement(
+                fileURL: fileURL,
+                selectedText: imageURLs.count == 1 ? selectedText : "",
+                currentDocumentURL: currentDocumentURL
+            ) ?? ""
+        }
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
+    }
+
     private static func isMarkdownURL(_ value: String) -> Bool {
         guard let components = URLComponents(string: value),
               let scheme = components.scheme?.lowercased(),
