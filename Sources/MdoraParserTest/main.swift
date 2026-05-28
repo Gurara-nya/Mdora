@@ -122,7 +122,31 @@ func runTests() {
     assert(escapedPipeTableHTML.contains("<code>x|y</code>"))
     print("✅ GFM tables keep escaped pipes and code-span pipes inside their cells!")
 
-    // 7. Test Recursive Blockquote / Callout Parsing
+    // 7. Test CommonMark parenthesized ordered list markers
+    let parenthesizedOrderedMarkdown = """
+    1) First step
+    2) Second step
+    """
+    let parenthesizedOrderedDocument = MarkdownParser.parse(parenthesizedOrderedMarkdown)
+    guard case .orderedList(let parenthesizedOrderedItems) = parenthesizedOrderedDocument.blocks[0] else {
+        fatalError("❌ Expected parenthesized ordered marker sample to parse as an ordered list")
+    }
+    assert(parenthesizedOrderedItems.map(\.text) == ["First step", "Second step"])
+
+    let parenthesizedTaskMarkdown = """
+    1) [ ] Draft
+    2) [x] Done
+    """
+    let parenthesizedTaskDocument = MarkdownParser.parse(parenthesizedTaskMarkdown)
+    guard case .taskList(let parenthesizedTaskItems) = parenthesizedTaskDocument.blocks[0] else {
+        fatalError("❌ Expected parenthesized task marker sample to parse as a task list")
+    }
+    assert(parenthesizedTaskItems.map(\.text) == ["Draft", "Done"])
+    assert(parenthesizedTaskItems.map(\.state) == [.todo, .done])
+    assert(MarkdownHTMLRenderer.renderFragment(parenthesizedOrderedMarkdown).contains("<ol>"))
+    print("✅ CommonMark parenthesized ordered list markers parse for lists and task lists!")
+
+    // 8. Test Recursive Blockquote / Callout Parsing
     let quoteMarkdown = """
     > [!IMPORTANT]
     > **结论 1**
@@ -151,19 +175,20 @@ func runTests() {
     assert(listItems[0].text == "Sub list item 1")
     print("✅ Recursive blockquote parsing works perfectly!")
 
-    // 8. Test task source editing through source maps
+    // 9. Test task source editing through source maps
     let taskMarkdown = """
     - [ ] Draft outline
     - [/] Review compatibility
       - [!] Keep performance sharp
     4. [x] Ship preview
+    5) [?] Parenthesized follow-up
     """
 
     let taskDocument = MarkdownParser.parse(taskMarkdown)
     guard case .taskList(let taskItems) = taskDocument.blocks[0] else {
         fatalError("❌ Expected block 0 to be a task list")
     }
-    assert(taskItems.count == 4)
+    assert(taskItems.count == 5)
 
     let updatedTasks = MarkdownTaskSourceEditor.updatingTaskState(
         in: taskMarkdown,
@@ -175,16 +200,27 @@ func runTests() {
 
     assert(updatedTasks?.contains("- [x] Review compatibility") == true)
     assert(updatedTasks?.contains("4. [x] Ship preview") == true)
+
+    let updatedParenthesizedTask = MarkdownTaskSourceEditor.updatingTaskState(
+        in: taskMarkdown,
+        document: taskDocument,
+        blockIndex: 0,
+        itemIndex: 4,
+        to: .done
+    )
+    assert(updatedParenthesizedTask?.contains("5) [x] Parenthesized follow-up") == true)
     print("✅ Task source editing updates the targeted Markdown marker!")
 
-    // 9. Test smart typing continuations
+    // 10. Test smart typing continuations
     assert(MarkdownTypingContinuation.continuation(after: "- [/] Review compatibility") == "\n- [ ] ")
     assert(MarkdownTypingContinuation.continuation(after: "  7. [!] Keep performance sharp") == "\n  8. [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "  7) [!] Keep performance sharp") == "\n  8) [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "12) Parenthesized ordered item") == "\n13) ")
     assert(MarkdownTypingContinuation.continuation(after: "> quoted") == "\n> ")
     assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
     print("✅ Smart typing continuation preserves task, quote, ordered, and indentation context!")
 
-    // 10. Test line indentation editing
+    // 11. Test line indentation editing
     let lineEditMarkdown = "- [ ] One\n  - [ ] Two\nPlain"
     let indentEdit = MarkdownLineEditor.indentingLines(
         in: lineEditMarkdown,
@@ -207,7 +243,7 @@ func runTests() {
     assert(cursorOutdent.selectedRange.location == 2)
     print("✅ Markdown line indentation and outdent editing preserves text and selection!")
 
-    // 11. Test smart paste transformations
+    // 12. Test smart paste transformations
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com", selectedText: "Example") == "[Example](https://example.com)")
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "Diagram") == "![Diagram](https://example.com/image.png)")
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "") == "![](https://example.com/image.png)")
@@ -255,7 +291,7 @@ func runTests() {
     )
     print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
 
-    // 12. Test inline HTML recognition without stealing angle autolinks
+    // 13. Test inline HTML recognition without stealing angle autolinks
     let inlineHTMLMarkdown = "Inline <span class=\"badge\">HTML</span>, <br />, and <https://example.com>."
     let inlineHTMLSegments = InlineMarkdownParser.parse(inlineHTMLMarkdown)
     let inlineHTMLTags = inlineHTMLSegments.compactMap { segment -> String? in
@@ -272,7 +308,7 @@ func runTests() {
     assert(inlineHTMLFragment.contains(#"<a href="https://example.com">https://example.com</a>"#))
     print("✅ Inline HTML tags are recognized without breaking angle autolinks!")
 
-    // 13. Test internal preview link navigation targets
+    // 14. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -300,7 +336,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 14. Test cross-file wiki link resolution
+    // 15. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)

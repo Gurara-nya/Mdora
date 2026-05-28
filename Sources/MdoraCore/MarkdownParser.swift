@@ -715,11 +715,11 @@ private struct BlockParser {
             )
         }
 
-        guard let dotIndex = trimmed.firstIndex(of: ".") else { return nil }
-        let numberPart = trimmed[..<dotIndex]
+        guard let delimiterIndex = trimmed.firstIndex(where: { $0 == "." || $0 == ")" }) else { return nil }
+        let numberPart = trimmed[..<delimiterIndex]
         guard !numberPart.isEmpty, numberPart.allSatisfy({ $0.isNumber }) else { return nil }
 
-        let spaceIndex = trimmed.index(after: dotIndex)
+        let spaceIndex = trimmed.index(after: delimiterIndex)
         guard spaceIndex < trimmed.endIndex, trimmed[spaceIndex] == " " else { return nil }
 
         let textStart = trimmed.index(after: spaceIndex)

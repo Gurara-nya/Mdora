@@ -18,6 +18,7 @@
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
 - Parse escaped pipes and code-span pipes correctly inside GFM table cells.
+- Support CommonMark `1)` ordered-list markers across parsing, smart return, and preview task editing.
 - Add richer Obsidian/GitHub callout parsing for aliases, custom titles, and fold markers.
 - Add custom heading anchors for stable outline, table of contents, preview, and HTML export targets.
 - De-duplicate generated heading anchors for stable table of contents, preview navigation, and HTML export ids.

@@ -73,15 +73,16 @@ public enum MarkdownTypingContinuation {
     }
 
     private static func orderedListContinuation(trimmed: String, leading: String) -> String? {
-        guard let dotIndex = trimmed.firstIndex(of: ".") else { return nil }
+        guard let delimiterIndex = trimmed.firstIndex(where: { $0 == "." || $0 == ")" }) else { return nil }
 
-        let numberPart = trimmed[..<dotIndex]
+        let numberPart = trimmed[..<delimiterIndex]
         guard !numberPart.isEmpty, numberPart.allSatisfy({ $0.isNumber }) else { return nil }
 
-        let afterDot = trimmed.index(after: dotIndex)
-        guard afterDot < trimmed.endIndex, trimmed[afterDot] == " " else { return nil }
+        let delimiter = trimmed[delimiterIndex]
+        let afterDelimiter = trimmed.index(after: delimiterIndex)
+        guard afterDelimiter < trimmed.endIndex, trimmed[afterDelimiter] == " " else { return nil }
 
-        let contentStart = trimmed.index(after: afterDot)
+        let contentStart = trimmed.index(after: afterDelimiter)
         let content = trimmed[contentStart...].trimmingCharacters(in: .whitespaces)
         guard !content.isEmpty else {
             return "\n"
@@ -89,10 +90,10 @@ public enum MarkdownTypingContinuation {
 
         let nextNumber = (Int(numberPart) ?? 0) + 1
         if isTaskListContent(content) {
-            return "\n\(leading)\(nextNumber). [ ] "
+            return "\n\(leading)\(nextNumber)\(delimiter) [ ] "
         }
 
-        return "\n\(leading)\(nextNumber). "
+        return "\n\(leading)\(nextNumber)\(delimiter) "
     }
 
     private static func isTaskListContent(_ content: String) -> Bool {

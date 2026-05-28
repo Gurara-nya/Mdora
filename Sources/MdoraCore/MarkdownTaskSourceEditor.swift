@@ -89,7 +89,7 @@ public enum MarkdownTaskSourceEditor {
 
             guard digitEnd > offset,
                   digitEnd + 1 < line.length,
-                  line.character(at: digitEnd) == CharacterCode.period,
+                  isOrderedDelimiter(line.character(at: digitEnd)),
                   line.character(at: digitEnd + 1) == CharacterCode.space else {
                 return nil
             }
@@ -110,6 +110,10 @@ public enum MarkdownTaskSourceEditor {
         value == CharacterCode.hyphen || value == CharacterCode.asterisk || value == CharacterCode.plus
     }
 
+    private static func isOrderedDelimiter(_ value: unichar) -> Bool {
+        value == CharacterCode.period || value == CharacterCode.closeParenthesis
+    }
+
     private static func isDigit(_ value: unichar) -> Bool {
         value >= CharacterCode.zero && value <= CharacterCode.nine
     }
@@ -118,6 +122,7 @@ public enum MarkdownTaskSourceEditor {
 private enum CharacterCode {
     static let space = " ".utf16.first!
     static let period = ".".utf16.first!
+    static let closeParenthesis = ")".utf16.first!
     static let hyphen = "-".utf16.first!
     static let asterisk = "*".utf16.first!
     static let plus = "+".utf16.first!

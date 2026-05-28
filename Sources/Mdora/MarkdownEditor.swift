@@ -770,12 +770,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         private func taskStateMarker(in trimmedLine: String) -> Character? {
-            guard trimmedLine.count >= 6,
-                  ["- ", "* ", "+ "].contains(where: { trimmedLine.hasPrefix($0) }) else {
+            guard let markerOpen = taskMarkerOpenIndex(in: trimmedLine),
+                  trimmedLine.distance(from: markerOpen, to: trimmedLine.endIndex) >= 4 else {
                 return nil
             }
 
-            let markerOpen = trimmedLine.index(trimmedLine.startIndex, offsetBy: 2)
             let markerValue = trimmedLine.index(after: markerOpen)
             let markerClose = trimmedLine.index(markerOpen, offsetBy: 2)
             guard trimmedLine[markerOpen] == "[",
@@ -787,6 +786,30 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             let marker = trimmedLine[markerValue]
             return " xX/->!?".contains(marker) ? marker : nil
+        }
+
+        private func taskMarkerOpenIndex(in trimmedLine: String) -> String.Index? {
+            for marker in ["- ", "* ", "+ "] where trimmedLine.hasPrefix(marker) {
+                return trimmedLine.index(trimmedLine.startIndex, offsetBy: marker.count)
+            }
+
+            var digitEnd = trimmedLine.startIndex
+            while digitEnd < trimmedLine.endIndex, trimmedLine[digitEnd].isNumber {
+                digitEnd = trimmedLine.index(after: digitEnd)
+            }
+
+            guard digitEnd > trimmedLine.startIndex,
+                  digitEnd < trimmedLine.endIndex,
+                  trimmedLine[digitEnd] == "." || trimmedLine[digitEnd] == ")" else {
+                return nil
+            }
+
+            let spaceIndex = trimmedLine.index(after: digitEnd)
+            guard spaceIndex < trimmedLine.endIndex, trimmedLine[spaceIndex] == " " else {
+                return nil
+            }
+
+            return trimmedLine.index(after: spaceIndex)
         }
 
         private func isReferenceDefinition(_ line: String) -> Bool {
