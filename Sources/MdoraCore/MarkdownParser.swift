@@ -767,13 +767,85 @@ private struct BlockParser {
         if trimmed.hasPrefix("|") {
             trimmed.removeFirst()
         }
-        if trimmed.hasSuffix("|") {
+        if hasUnescapedTrailingPipe(trimmed) {
             trimmed.removeLast()
         }
 
-        return trimmed
-            .split(separator: "|", omittingEmptySubsequences: false)
-            .map { String($0).trimmed }
+        var cells: [String] = []
+        var currentCell = ""
+        var cursor = trimmed.startIndex
+        var activeCodeFenceLength = 0
+
+        while cursor < trimmed.endIndex {
+            let character = trimmed[cursor]
+
+            if character == "\\" {
+                let next = trimmed.index(after: cursor)
+                if next < trimmed.endIndex, trimmed[next] == "|" {
+                    currentCell.append("|")
+                    cursor = trimmed.index(after: next)
+                    continue
+                }
+
+                currentCell.append(character)
+                cursor = next
+                continue
+            }
+
+            if character == "`" {
+                let fenceLength = backtickRunLength(in: trimmed, from: cursor)
+                if activeCodeFenceLength == 0 {
+                    activeCodeFenceLength = fenceLength
+                } else if activeCodeFenceLength == fenceLength {
+                    activeCodeFenceLength = 0
+                }
+
+                currentCell.append(String(repeating: "`", count: fenceLength))
+                cursor = trimmed.index(cursor, offsetBy: fenceLength)
+                continue
+            }
+
+            if character == "|", activeCodeFenceLength == 0 {
+                cells.append(currentCell.trimmed)
+                currentCell.removeAll(keepingCapacity: true)
+                cursor = trimmed.index(after: cursor)
+                continue
+            }
+
+            currentCell.append(character)
+            cursor = trimmed.index(after: cursor)
+        }
+
+        cells.append(currentCell.trimmed)
+        return cells
+    }
+
+    private static func hasUnescapedTrailingPipe(_ text: String) -> Bool {
+        guard text.last == "|" else { return false }
+
+        var backslashCount = 0
+        var cursor = text.index(before: text.endIndex)
+
+        while cursor > text.startIndex {
+            let previous = text.index(before: cursor)
+            guard text[previous] == "\\" else { break }
+            backslashCount += 1
+            cursor = previous
+        }
+
+        return backslashCount % 2 == 0
+    }
+
+    private static func backtickRunLength(in text: String, from index: String.Index) -> Int {
+        var cursor = index
+        var count = 0
+
+        while cursor < text.endIndex, text[cursor] == "`" {
+            count += 1
+            cursor = text.index(after: cursor)
+        }
+
+        return count
     }
 
     private static func parseTableAlignments(_ line: String) -> [TableAlignment] {

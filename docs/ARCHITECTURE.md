@@ -75,7 +75,7 @@ The parser currently recognizes:
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
 - Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, code spans, CommonMark hard line breaks, HTML entity references, links, reference links, citations, resolved emoji shortcodes, keyboard tags, inline HTML tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links and embeds with aliases and heading/block targets, tags, mentions, footnotes, images, Markdown Extra abbreviations, and math markers.
 - Block and inline math markers.
-- GFM-style tables and task lists, with extended task states such as `[/]`, `[-]`, `[>]`, `[!]`, and `[?]`.
+- GFM-style tables, including escaped pipes and code-span pipes inside cells, plus task lists with extended states such as `[/]`, `[-]`, `[>]`, `[!]`, and `[?]`.
 - Blockquotes and Obsidian/GitHub-style callouts, including aliases, custom titles, and `+`/`-` fold markers.
 - Footnote definitions and references.
 - Definition lists.
