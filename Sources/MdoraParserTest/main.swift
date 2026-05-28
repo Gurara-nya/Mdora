@@ -112,7 +112,30 @@ func runTests() {
     assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
     print("✅ Smart typing continuation preserves task, quote, ordered, and indentation context!")
 
-    // 6. Test internal preview link navigation targets
+    // 6. Test line indentation editing
+    let lineEditMarkdown = "- [ ] One\n  - [ ] Two\nPlain"
+    let indentEdit = MarkdownLineEditor.indentingLines(
+        in: lineEditMarkdown,
+        selectedRange: NSRange(location: 0, length: 17)
+    )
+    assert(indentEdit.updatedText == "  - [ ] One\n    - [ ] Two\nPlain")
+    assert(indentEdit.selectedRange.location == 0)
+
+    let outdentEdit = MarkdownLineEditor.outdentingLines(
+        in: indentEdit.updatedText,
+        selectedRange: indentEdit.selectedRange
+    )
+    assert(outdentEdit.updatedText == lineEditMarkdown)
+
+    let cursorOutdent = MarkdownLineEditor.outdentingLines(
+        in: "  Plain",
+        selectedRange: NSRange(location: 4, length: 0)
+    )
+    assert(cursorOutdent.updatedText == "Plain")
+    assert(cursorOutdent.selectedRange.location == 2)
+    print("✅ Markdown line indentation and outdent editing preserves text and selection!")
+
+    // 7. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -140,7 +163,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 7. Test cross-file wiki link resolution
+    // 8. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)
@@ -164,7 +187,7 @@ func runTests() {
         fatalError("❌ Failed cross-file wiki link test setup: \(error)")
     }
 
-    // 8. Load & parse real test.md
+    // 9. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 

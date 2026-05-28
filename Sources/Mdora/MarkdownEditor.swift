@@ -1020,6 +1020,20 @@ private final class MarkdownNSTextView: NSTextView {
         }
     }
 
+    override func insertTab(_ sender: Any?) {
+        applyLineEdit(MarkdownLineEditor.indentingLines(in: string, selectedRange: selectedRange()))
+    }
+
+    override func insertBacktab(_ sender: Any?) {
+        applyLineEdit(MarkdownLineEditor.outdentingLines(in: string, selectedRange: selectedRange()))
+    }
+
+    private func applyLineEdit(_ edit: MarkdownLineEdit) {
+        super.insertText(edit.replacement, replacementRange: edit.replacementRange)
+        setSelectedRange(edit.selectedRange)
+        onSmartNewline?()
+    }
+
     private func smartContinuation() -> String? {
         let source = string as NSString
         guard source.length > 0 else { return nil }
