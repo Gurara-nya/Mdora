@@ -28,7 +28,7 @@ The first build includes:
 - Formatting commands for strikethrough, wiki links, math blocks, diagrams, footnotes, and definition lists.
 - Reference link and table-of-contents insertion commands.
 - Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and YAML/TOML/JSON front matter.
-- Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, inline code, links, reference links, inline images, image references, wiki links, citations, emoji shortcodes, keyboard tags, tags, mentions, footnotes, autolinks, email links, and inline math.
+- Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, inline code, links, reference links, inline images, image references, wiki links, citations, emoji shortcodes, keyboard tags, tags, mentions, footnotes, raw and angle-bracket autolinks, email links, and inline math.
 - Reference link definitions and HTML comments are parsed as visible, inspectable structures, with reference links and reference images resolved in preview and HTML export.
 - Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
@@ -65,7 +65,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, highlights, citations, emoji shortcodes, keyboard tags, reference links, image references, email autolinks, and HTML comments.
+- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, highlights, citations, emoji shortcodes, keyboard tags, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
 
 Future stack candidates:
 

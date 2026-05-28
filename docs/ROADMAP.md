@@ -22,6 +22,7 @@
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
+- Add CommonMark angle-bracket autolinks for URLs and email addresses.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.

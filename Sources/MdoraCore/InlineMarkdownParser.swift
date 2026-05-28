@@ -47,6 +47,7 @@ private struct InlineParser {
         if let segment = consumeHighlight() { return segment }
         if let segment = consumeInlineMath() { return segment }
         if let segment = consumeKeyboard() { return segment }
+        if let segment = consumeAngleAutoLink() { return segment }
         if let segment = consumeImage() { return segment }
         if let segment = consumeCitation() { return segment }
         if let segment = consumeLinkOrFootnote() { return segment }
@@ -146,6 +147,30 @@ private struct InlineParser {
 
         index = text.index(close, offsetBy: 6)
         return .keyboard(value)
+    }
+
+    private mutating func consumeAngleAutoLink() -> InlineMarkdownSegment? {
+        guard hasPrefix("<") else { return nil }
+        let valueStart = text.index(after: index)
+        guard let close = closingIndex(for: ">", after: valueStart) else { return nil }
+
+        let value = String(text[valueStart ..< close])
+        guard !value.isEmpty else { return nil }
+        guard !value.contains(where: { $0.isWhitespace || $0.isNewline || $0 == "<" || $0 == ">" }) else {
+            return nil
+        }
+
+        if Self.isAbsoluteURI(value) {
+            index = text.index(after: close)
+            return .autoLink(value)
+        }
+
+        if Self.isEmailAddress(value) {
+            index = text.index(after: close)
+            return .email(value)
+        }
+
+        return nil
     }
 
     private mutating func consumeDelimited(
@@ -432,6 +457,29 @@ private struct InlineParser {
 
         return nil
     }
+
+    private static func isAbsoluteURI(_ value: String) -> Bool {
+        let range = NSRange(value.startIndex ..< value.endIndex, in: value)
+        guard let match = absoluteURIExpression.firstMatch(in: value, range: range) else {
+            return false
+        }
+
+        return match.range == range
+    }
+
+    private static func isEmailAddress(_ value: String) -> Bool {
+        let range = NSRange(value.startIndex ..< value.endIndex, in: value)
+        guard let match = emailExpression.firstMatch(in: value, range: range) else {
+            return false
+        }
+
+        return match.range == range
+    }
+
+    private static let absoluteURIExpression = try! NSRegularExpression(
+        pattern: #"^[A-Z][A-Z0-9+\-.]{1,31}:[^\s<>]+$"#,
+        options: [.caseInsensitive]
+    )
 
     private static let emailExpression = try! NSRegularExpression(
         pattern: #"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}"#,
