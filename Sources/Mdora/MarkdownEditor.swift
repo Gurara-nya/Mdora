@@ -108,6 +108,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             textView.string = text
             textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
             context.coordinator.lastHighlightedText = text
+            context.coordinator.invalidateSelectionCache()
             context.coordinator.scheduleHighlight(in: textView)
         }
 
@@ -117,6 +118,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             DispatchQueue.main.async {
                 text = textView.string
             }
+            context.coordinator.invalidateSelectionCache()
             context.coordinator.scheduleHighlight(in: textView)
         }
 
@@ -151,10 +153,17 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         var lastHighlightedFocusMode: Bool?
         var lastHighlightedText: String?
         private var lastReportedSelection = EditorSelection.start
+        private var lastSelectionComputation: SelectionComputation?
+        private var currentHighlightRange: NSRange?
+        private var lastHighlightedRange: NSRange?
         @MainActor private static var expressionCache: [ExpressionCacheKey: NSRegularExpression] = [:]
 
         init(_ parent: NativeMarkdownTextView) {
             self.parent = parent
+        }
+
+        func invalidateSelectionCache() {
+            lastSelectionComputation = nil
         }
 
         @MainActor
@@ -291,20 +300,27 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         @MainActor
         private func reportSelection(in textView: NSTextView) -> EditorSelection {
-            let selection = Self.selection(in: textView)
+            let selection = selection(in: textView)
             lastReportedSelection = selection
             parent.onSelectionChange(selection)
             return selection
         }
 
         @MainActor
-        private static func selection(in textView: NSTextView) -> EditorSelection {
+        private func selection(in textView: NSTextView) -> EditorSelection {
             let source = textView.string as NSString
             let selectedRange = textView.selectedRange().clamped(toLength: source.length)
             let position = selectedRange.location
-            var line = 1
-            var lineStart = 0
-            var cursor = 0
+            let cached = lastSelectionComputation
+            var line = cached?.line ?? 1
+            var lineStart = cached?.lineStart ?? 0
+            var cursor = cached?.location ?? 0
+
+            if cursor > position || cursor > source.length || lineStart > position {
+                line = 1
+                lineStart = 0
+                cursor = 0
+            }
 
             while cursor < position {
                 let character = source.character(at: cursor)
@@ -322,6 +338,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
                 cursor += 1
             }
+
+            lastSelectionComputation = SelectionComputation(
+                location: position,
+                line: line,
+                lineStart: lineStart
+            )
 
             return EditorSelection(
                 line: line,
@@ -369,6 +391,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             let selectedRange = textView.selectedRange()
             let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
+            let targetRange = Self.highlightRange(in: textView, selectedRange: selectedRange)
+            let resetRange = Self.union(targetRange, lastHighlightedRange).clamped(toLength: fullRange.length)
             let palette = parent.theme.palette
             let baseSize = parent.fontSize
             let baseFont = NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
@@ -378,7 +402,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ]
 
             textStorage.beginEditing()
-            textStorage.setAttributes(baseAttributes, range: fullRange)
+            currentHighlightRange = targetRange
+            textStorage.setAttributes(baseAttributes, range: resetRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
@@ -514,17 +539,59 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightCurrentLine(in: textView, storage: textStorage)
             textStorage.endEditing()
 
+            currentHighlightRange = nil
+            lastHighlightedRange = targetRange
             textView.typingAttributes = baseAttributes
             textView.setSelectedRange(selectedRange.clamped(toLength: fullRange.length))
         }
 
         @MainActor
-        private func highlightLines(in textView: NSTextView, storage: NSTextStorage, baseFont: NSFont) {
+        private static func highlightRange(in textView: NSTextView, selectedRange: NSRange) -> NSRange {
             let nsString = textView.string as NSString
             let fullRange = NSRange(location: 0, length: nsString.length)
+            guard nsString.length > 0 else { return fullRange }
+
+            if nsString.length <= 50_000 {
+                return fullRange
+            }
+
+            let selectedLineRange = nsString.lineRange(for: selectedRange.clamped(toLength: nsString.length))
+            let visibleRange = visibleCharacterRange(in: textView)
+            let anchorRange = visibleRange?.length ?? 0 > 0
+                ? NSUnionRange(visibleRange!, selectedLineRange)
+                : selectedLineRange
+            let margin = 10_000
+            let lowerBound = max(0, anchorRange.location - margin)
+            let upperBound = min(nsString.length, anchorRange.upperBound + margin)
+            return nsString.lineRange(for: NSRange(location: lowerBound, length: upperBound - lowerBound))
+        }
+
+        @MainActor
+        private static func visibleCharacterRange(in textView: NSTextView) -> NSRange? {
+            guard let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else {
+                return nil
+            }
+
+            var visibleRect = textView.visibleRect
+            visibleRect.origin.x -= textView.textContainerInset.width
+            visibleRect.origin.y -= textView.textContainerInset.height
+            let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+            return layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+        }
+
+        private static func union(_ lhs: NSRange, _ rhs: NSRange?) -> NSRange {
+            guard let rhs, rhs.location != NSNotFound else { return lhs }
+            return NSUnionRange(lhs, rhs)
+        }
+
+        @MainActor
+        private func highlightLines(in textView: NSTextView, storage: NSTextStorage, baseFont: NSFont) {
+            let nsString = textView.string as NSString
+            let fullRange = currentHighlightRange ?? NSRange(location: 0, length: nsString.length)
             let palette = parent.theme.palette
             let baseSize = parent.fontSize
-            var isInFence = false
+            var isInFence = isInsideCodeFence(at: fullRange.location, in: nsString)
 
             let selectedRange = textView.selectedRange()
             let clampedLocation = min(selectedRange.location, max(0, nsString.length - 1))
@@ -739,6 +806,32 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             return false
         }
 
+        private func isInsideCodeFence(at location: Int, in string: NSString) -> Bool {
+            guard location > 0, string.length > 0 else { return false }
+            var cursor = 0
+            var openFence: String?
+
+            while cursor < min(location, string.length) {
+                let lineRange = string.lineRange(for: NSRange(location: cursor, length: 0))
+                let line = string.substring(with: lineRange).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if line.hasPrefix("```") || line.hasPrefix("~~~") {
+                    let fence = String(line.prefix(3))
+                    if openFence == fence {
+                        openFence = nil
+                    } else if openFence == nil {
+                        openFence = fence
+                    }
+                }
+
+                let nextCursor = lineRange.upperBound
+                guard nextCursor > cursor else { break }
+                cursor = nextCursor
+            }
+
+            return openFence != nil
+        }
+
         @MainActor
         private func highlightCurrentLine(in textView: NSTextView, storage: NSTextStorage) {
             let selectedRange = textView.selectedRange()
@@ -765,7 +858,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             guard let expression = Self.cachedExpression(pattern: pattern, options: options) else { return }
 
             let text = textView.string
-            let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+            let fullRange = NSRange(text.startIndex ..< text.endIndex, in: text)
+            let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
 
             for match in expression.matches(in: text, range: range) {
                 storage.addAttributes(attributes, range: match.range)
@@ -799,6 +893,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     private struct ExpressionCacheKey: Hashable {
         var pattern: String
         var optionsRawValue: UInt
+    }
+
+    private struct SelectionComputation {
+        var location: Int
+        var line: Int
+        var lineStart: Int
     }
 }
 

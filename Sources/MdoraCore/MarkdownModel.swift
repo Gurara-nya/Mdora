@@ -34,6 +34,8 @@ public struct ParsedMarkdownDocument: Equatable {
     }
 }
 
+extension ParsedMarkdownDocument: @unchecked Sendable {}
+
 public struct MarkdownBlockSourceRange: Equatable, Hashable, Identifiable {
     public var id: Int { blockIndex }
     public var blockIndex: Int

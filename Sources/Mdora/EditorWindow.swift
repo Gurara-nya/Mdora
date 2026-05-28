@@ -82,7 +82,7 @@ struct EditorWindow: View {
 
                     if selectedLayout.wrappedValue.showsPreview {
                         MarkdownPreview(
-                            markdown: document.text,
+                            markdown: parsedMarkdown,
                             document: parsed,
                             theme: theme,
                             style: previewStyle,
@@ -138,20 +138,6 @@ struct EditorWindow: View {
                 .keyboardShortcut("i", modifiers: .command)
 
                 Button {
-                    commandCenter.send(.strikethrough)
-                } label: {
-                    Image(systemName: "strikethrough")
-                }
-                .help("删除线")
-
-                Button {
-                    commandCenter.send(.inlineCode)
-                } label: {
-                    Image(systemName: "chevron.left.forwardslash.chevron.right")
-                }
-                .help("行内代码")
-
-                Button {
                     commandCenter.send(.link)
                 } label: {
                     Image(systemName: "link")
@@ -159,60 +145,46 @@ struct EditorWindow: View {
                 .help("插入超链接 (⌘K)")
                 .keyboardShortcut("k", modifiers: .command)
 
-                Button {
-                    commandCenter.send(.wikiLink)
-                } label: {
-                    Image(systemName: "rectangle.stack.badge.plus")
-                }
-                .help("插入 Wiki 链接 (⌘Shift K)")
-
-                Divider()
-
                 Menu {
-                    ForEach(1 ... 3, id: \.self) { level in
-                        Button("\(level) 级标题") {
-                            commandCenter.send(.heading(level))
-                        }
+                    Button("删除线") {
+                        commandCenter.send(.strikethrough)
+                    }
+
+                    Button("行内代码") {
+                        commandCenter.send(.inlineCode)
+                    }
+
+                    Button("Wiki 链接") {
+                        commandCenter.send(.wikiLink)
                     }
                 } label: {
-                    Image(systemName: "textformat.size")
+                    Image(systemName: "textformat")
                 }
-                .help("标题样式")
+                .help("更多文本格式")
 
-                Button {
-                    commandCenter.send(.unorderedList)
+                Menu {
+                    Button("无序列表") {
+                        commandCenter.send(.unorderedList)
+                    }
+                    .keyboardShortcut("u", modifiers: .command)
+
+                    Button("有序列表") {
+                        commandCenter.send(.orderedList)
+                    }
+                    .keyboardShortcut("o", modifiers: .command)
+
+                    Button("待办列表") {
+                        commandCenter.send(.task)
+                    }
+                    .keyboardShortcut("t", modifiers: .command)
+
+                    Button("块引用") {
+                        commandCenter.send(.quote)
+                    }
                 } label: {
                     Image(systemName: "list.bullet")
                 }
-                .help("无序列表 (⌘U)")
-
-                Button {
-                    commandCenter.send(.orderedList)
-                } label: {
-                    Image(systemName: "list.number")
-                }
-                .help("有序列表 (⌘O)")
-
-                Button {
-                    commandCenter.send(.task)
-                } label: {
-                    Image(systemName: "checklist")
-                }
-                .help("待办列表 (⌘T)")
-
-                Button {
-                    commandCenter.send(.quote)
-                } label: {
-                    Image(systemName: "quote.opening")
-                }
-                .help("块引用")
-
-                Button {
-                    commandCenter.send(.codeBlock)
-                } label: {
-                    Image(systemName: "curlybraces.square")
-                }
-                .help("代码区块 (⌘/)")
+                .help("列表与引用")
 
                 Menu {
                     Button("插入图片...") {
@@ -222,6 +194,11 @@ struct EditorWindow: View {
                     Button("插入表格...") {
                         commandCenter.send(.table)
                     }
+
+                    Button("插入代码区块...") {
+                        commandCenter.send(.codeBlock)
+                    }
+                    .keyboardShortcut("/", modifiers: .command)
 
                     Button("插入数学公式块...") {
                         commandCenter.send(.mathBlock)
@@ -245,26 +222,25 @@ struct EditorWindow: View {
 
                     Divider()
 
-                    ForEach(DiagramKind.allCases, id: \.self) { kind in
-                        Button(kind.title) {
-                            commandCenter.send(.diagram(kind))
+                    Menu("提示框") {
+                        ForEach(CalloutKind.allCases, id: \.self) { kind in
+                            Button(kind.title) {
+                                commandCenter.send(.callout(kind))
+                            }
                         }
                     }
-                } label: {
-                    Image(systemName: "plus.square.on.square")
-                }
-                .help("插入高级区块")
 
-                Menu {
-                    ForEach(CalloutKind.allCases, id: \.self) { kind in
-                        Button(kind.title) {
-                            commandCenter.send(.callout(kind))
+                    Menu("图表") {
+                        ForEach(DiagramKind.allCases, id: \.self) { kind in
+                            Button(kind.title) {
+                                commandCenter.send(.diagram(kind))
+                            }
                         }
                     }
                 } label: {
-                    Image(systemName: "exclamationmark.bubble")
+                    Image(systemName: "plus.square")
                 }
-                .help("插入提示框 (Callout)")
+                .help("插入内容")
             }
 
             ToolbarItemGroup {
@@ -376,15 +352,25 @@ struct EditorWindow: View {
     private func scheduleParsedDocumentUpdate(for markdown: String) {
         pendingParseTask?.cancel()
 
-        pendingParseTask = Task { @MainActor in
+        let delay = parseDebounceDelay(for: markdown)
+        pendingParseTask = Task {
             do {
-                try await Task.sleep(nanoseconds: parseDebounceDelay(for: markdown))
+                try await Task.sleep(nanoseconds: delay)
             } catch {
                 return
             }
 
             guard !Task.isCancelled else { return }
-            refreshParsedDocumentIfNeeded(for: markdown)
+            let parsed = await Task.detached(priority: .userInitiated) {
+                MarkdownParser.parse(markdown)
+            }.value
+
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard parsedMarkdown != markdown else { return }
+                parsedDocument = parsed
+                parsedMarkdown = markdown
+            }
         }
     }
 
@@ -396,7 +382,7 @@ struct EditorWindow: View {
     }
 
     private func parseDebounceDelay(for markdown: String) -> UInt64 {
-        markdown.count > 60_000 ? 180_000_000 : 80_000_000
+        markdown.count > 60_000 ? 450_000_000 : 180_000_000
     }
 
     private func exportToPDF() {
