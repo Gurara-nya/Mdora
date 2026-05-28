@@ -48,6 +48,8 @@ The current app is between level 1 and level 2: it keeps Markdown source as trut
 
 Block source ranges and normalized link reference definitions are part of the parsed document so the app can coordinate editor state with preview state without trying to infer layout from rendered views or reparsing references in each renderer. The preview sync feature uses source ranges as the stable bridge from caret line to rendered block.
 
+Task checkbox interactions use the same source-map bridge. `MarkdownTaskSourceEditor` replaces only the single task marker character in the Markdown source, so preview-side task editing stays round-trippable and does not rebuild unrelated text.
+
 Inline parsing is backed by a bounded, thread-safe cache. Preview redraws, marker extraction, and export often revisit identical inline strings, so the cache cuts repeated tokenization while skipping very large text runs to keep memory predictable.
 
 Local preview images follow the same bounded-resource rule: the UI shows a stable placeholder, decodes a preview-sized thumbnail on a utility task, then reuses that cached `CGImage` for subsequent SwiftUI redraws. This keeps image-heavy notes from stalling the main thread while preserving the original file for open-in-Finder behavior.

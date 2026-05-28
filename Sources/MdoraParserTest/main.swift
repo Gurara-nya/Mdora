@@ -79,7 +79,33 @@ func runTests() {
     assert(listItems[0].text == "Sub list item 1")
     print("✅ Recursive blockquote parsing works perfectly!")
 
-    // 4. Load & parse real test.md
+    // 4. Test task source editing through source maps
+    let taskMarkdown = """
+    - [ ] Draft outline
+    - [/] Review compatibility
+      - [!] Keep performance sharp
+    4. [x] Ship preview
+    """
+
+    let taskDocument = MarkdownParser.parse(taskMarkdown)
+    guard case .taskList(let taskItems) = taskDocument.blocks[0] else {
+        fatalError("❌ Expected block 0 to be a task list")
+    }
+    assert(taskItems.count == 4)
+
+    let updatedTasks = MarkdownTaskSourceEditor.updatingTaskState(
+        in: taskMarkdown,
+        document: taskDocument,
+        blockIndex: 0,
+        itemIndex: 1,
+        to: .done
+    )
+
+    assert(updatedTasks?.contains("- [x] Review compatibility") == true)
+    assert(updatedTasks?.contains("4. [x] Ship preview") == true)
+    print("✅ Task source editing updates the targeted Markdown marker!")
+
+    // 5. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 

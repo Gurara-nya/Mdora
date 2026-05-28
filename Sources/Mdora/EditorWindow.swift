@@ -87,7 +87,8 @@ struct EditorWindow: View {
                             theme: theme,
                             style: previewStyle,
                             activeLine: selectedLayout.wrappedValue.showsEditor ? editorSelection.line : nil,
-                            documentURL: documentURL
+                            documentURL: documentURL,
+                            onTaskStateChange: updateTaskState
                         )
                             .frame(minWidth: 360, idealWidth: 560)
                     }
@@ -346,6 +347,29 @@ struct EditorWindow: View {
     private func updateEditorSelection(_ selection: EditorSelection) {
         guard editorSelection != selection else { return }
         editorSelection = selection
+    }
+
+    private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
+        guard let updatedMarkdown = MarkdownTaskSourceEditor.updatingTaskState(
+            in: document.text,
+            document: parsedDocument,
+            blockIndex: blockIndex,
+            itemIndex: itemIndex,
+            to: state
+        ) else {
+            return
+        }
+
+        pendingParseTask?.cancel()
+        document.text = updatedMarkdown
+        parsedDocument = MarkdownParser.parse(updatedMarkdown)
+        parsedMarkdown = updatedMarkdown
+        editorSelection = EditorSelection(
+            line: parsedDocument.sourceMap.first(where: { $0.blockIndex == blockIndex })?.startLine ?? editorSelection.line,
+            column: editorSelection.column,
+            selectedLength: editorSelection.selectedLength
+        )
+        exportMessage = "任务状态已更新为 \(state.title)"
     }
 
     @MainActor

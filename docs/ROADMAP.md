@@ -39,6 +39,7 @@
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
+- Add source-map-backed task checkbox editing from preview, including extended task states.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

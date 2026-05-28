@@ -57,6 +57,7 @@ struct MarkdownPreview: View {
     let style: MarkdownPreviewStyle
     let activeLine: Int?
     let documentURL: URL?
+    let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
     @State private var updatePulse = false
 
     var body: some View {
@@ -69,8 +70,10 @@ struct MarkdownPreview: View {
                     ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { index, block in
                         MarkdownBlockView(
                             block: block,
+                            blockIndex: index,
                             theme: theme,
-                            isActive: index == activeBlockIndex
+                            isActive: index == activeBlockIndex,
+                            onTaskStateChange: onTaskStateChange
                         )
                         .id(index)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -239,8 +242,10 @@ struct MarkdownPreview: View {
 
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
+    let blockIndex: Int?
     let theme: MdoraTheme
     let isActive: Bool
+    let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
     @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
@@ -284,7 +289,12 @@ private struct MarkdownBlockView: View {
         case let .orderedList(items):
             ListBlockView(items: items, isOrdered: true, theme: theme)
         case let .taskList(items):
-            TaskListBlockView(items: items, theme: theme)
+            TaskListBlockView(
+                items: items,
+                blockIndex: blockIndex,
+                theme: theme,
+                onTaskStateChange: onTaskStateChange
+            )
         case let .codeBlock(language, code):
             CodeBlockView(language: language, code: code, theme: theme)
         case let .diagram(diagram):
@@ -397,7 +407,13 @@ private struct BlockquoteView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                        MarkdownBlockView(block: block, theme: theme, isActive: false)
+                        MarkdownBlockView(
+                            block: block,
+                            blockIndex: nil,
+                            theme: theme,
+                            isActive: false,
+                            onTaskStateChange: nil
+                        )
                     }
                 }
             }
@@ -446,7 +462,13 @@ private struct CalloutView: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                        MarkdownBlockView(block: block, theme: theme, isActive: false)
+                        MarkdownBlockView(
+                            block: block,
+                            blockIndex: nil,
+                            theme: theme,
+                            isActive: false,
+                            onTaskStateChange: nil
+                        )
                     }
                 }
             }
@@ -486,16 +508,15 @@ private struct ListBlockView: View {
 
 private struct TaskListBlockView: View {
     let items: [TaskItem]
+    let blockIndex: Int?
     let theme: MdoraTheme
+    let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            ForEach(Array(items.enumerated()), id: \.offset) { itemIndex, item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Image(systemName: item.state.systemImage)
-                        .foregroundStyle(item.state.tint(theme: theme))
-                        .frame(width: 20)
-                        .padding(.leading, CGFloat(item.depth) * 18)
+                    taskStateControl(for: item, itemIndex: itemIndex)
 
                     InlineMarkdownText(MarkdownBlockIDParser.contentWithoutTrailingIdentifier(item.text), theme: theme)
                         .foregroundStyle(item.state.isMuted ? theme.palette.mutedColor : theme.palette.textColor)
@@ -503,6 +524,38 @@ private struct TaskListBlockView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func taskStateControl(for item: TaskItem, itemIndex: Int) -> some View {
+        if let blockIndex, let onTaskStateChange {
+            Button {
+                onTaskStateChange(blockIndex, itemIndex, item.state.previewToggleState)
+            } label: {
+                taskStateIcon(for: item.state, depth: item.depth)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                ForEach(TaskState.allCases, id: \.self) { state in
+                    Button {
+                        onTaskStateChange(blockIndex, itemIndex, state)
+                    } label: {
+                        Label(state.title, systemImage: state.systemImage)
+                    }
+                }
+            }
+            .help("切换任务状态")
+        } else {
+            taskStateIcon(for: item.state, depth: item.depth)
+        }
+    }
+
+    private func taskStateIcon(for state: TaskState, depth: Int) -> some View {
+        Image(systemName: state.systemImage)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(state.tint(theme: theme))
+            .frame(width: 20)
+            .padding(.leading, CGFloat(depth) * 18)
     }
 }
 
@@ -1801,6 +1854,10 @@ private extension TaskState {
 
     var isStruckThrough: Bool {
         self == .done || self == .canceled
+    }
+
+    var previewToggleState: TaskState {
+        self == .done ? .todo : .done
     }
 
     func tint(theme: MdoraTheme) -> Color {
