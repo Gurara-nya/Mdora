@@ -41,8 +41,8 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderBlock(_ block: MarkdownBlock) -> String {
         switch block {
-        case let .frontMatter(lines):
-            return "<pre class=\"front-matter\"><code>\(escapeHTML(lines.joined(separator: "\n")))</code></pre>"
+        case let .frontMatter(frontMatter):
+            return "<pre class=\"front-matter front-matter-\(frontMatter.kind.rawValue)\"><code>\(escapeHTML(frontMatter.lines.joined(separator: "\n")))</code></pre>"
         case let .heading(level, text, anchor):
             return "<h\(level) id=\"\(escapeHTML(anchor))\">\(renderInline(text))</h\(level)>"
         case let .paragraph(text):

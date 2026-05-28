@@ -171,7 +171,11 @@ private struct CompatibilitySummary: View {
     private var detectedFeatures: [String] {
         var features: [String] = []
 
-        if !document.metadata.isEmpty { features.append("Front Matter") }
+        if let kind = frontMatterKind {
+            features.append("\(kind.title) Front Matter")
+        } else if !document.metadata.isEmpty {
+            features.append("Front Matter")
+        }
         if !document.outline.isEmpty { features.append("Headings") }
         appendIfBlock("Tables", contains: "Table", to: &features)
         appendIfBlock("Tasks", contains: "Task List", to: &features)
@@ -194,6 +198,16 @@ private struct CompatibilitySummary: View {
         if document.stats.blockKinds.contains(where: { $0.kind == kind }) {
             features.append(title)
         }
+    }
+
+    private var frontMatterKind: FrontMatterKind? {
+        document.blocks.compactMap { block in
+            if case let .frontMatter(frontMatter) = block {
+                return frontMatter.kind
+            }
+
+            return nil
+        }.first
     }
 }
 

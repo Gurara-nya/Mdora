@@ -53,7 +53,7 @@ Writing preferences are intentionally stored outside the Markdown file. They aff
 The parser currently recognizes:
 
 - ATX and setext headings.
-- Front matter.
+- YAML, TOML, and JSON front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
 - Inline emphasis, strong text, strikethrough, code spans, links, reference links, autolinks, email links, wiki links, tags, mentions, footnotes, images, and math markers.

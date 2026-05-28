@@ -162,20 +162,66 @@ private struct BlockParser {
         return lines[nextIndex]
     }
 
-    private mutating func parseFrontMatter() -> [String]? {
-        guard index == 0, currentLine.trimmed == "---" else { return nil }
+    private mutating func parseFrontMatter() -> FrontMatterBlock? {
+        guard index == 0 else { return nil }
 
+        let trimmed = currentLine.trimmed
+
+        switch trimmed {
+        case "---":
+            return parseDelimitedFrontMatter(kind: .yaml, marker: "---")
+        case "+++":
+            return parseDelimitedFrontMatter(kind: .toml, marker: "+++")
+        case _ where trimmed.hasPrefix("{"):
+            return parseJSONFrontMatter()
+        default:
+            return nil
+        }
+    }
+
+    private mutating func parseDelimitedFrontMatter(kind: FrontMatterKind, marker: String) -> FrontMatterBlock? {
         var content: [String] = []
-        var cursor = 1
+        var cursor = index + 1
 
         while cursor < lines.count {
             let line = lines[cursor]
-            if line.trimmed == "---" {
+            if line.trimmed == marker {
                 index = cursor + 1
-                return content
+                return FrontMatterBlock(kind: kind, lines: content)
             }
 
             content.append(line)
+            cursor += 1
+        }
+
+        return nil
+    }
+
+    private mutating func parseJSONFrontMatter() -> FrontMatterBlock? {
+        var content: [String] = []
+        var cursor = index
+        var depth = 0
+
+        while cursor < lines.count {
+            let line = lines[cursor]
+            content.append(line)
+
+            for character in line {
+                if character == "{" { depth += 1 }
+                if character == "}" { depth -= 1 }
+            }
+
+            if depth == 0 {
+                let source = content.joined(separator: "\n")
+                guard let data = source.data(using: .utf8),
+                      (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else {
+                    return nil
+                }
+
+                index = cursor + 1
+                return FrontMatterBlock(kind: .json, lines: content)
+            }
+
             cursor += 1
         }
 

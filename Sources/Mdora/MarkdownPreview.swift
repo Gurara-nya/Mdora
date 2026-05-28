@@ -124,8 +124,8 @@ private struct MarkdownBlockView: View {
     @ViewBuilder
     private var blockContent: some View {
         switch block {
-        case let .frontMatter(lines):
-            FrontMatterView(lines: lines, theme: theme)
+        case let .frontMatter(frontMatter):
+            FrontMatterView(frontMatter: frontMatter, theme: theme)
         case let .heading(level, text, _):
             HeadingView(level: level, text: text, theme: theme)
         case let .paragraph(text):
@@ -203,16 +203,16 @@ private struct HeadingView: View {
 }
 
 private struct FrontMatterView: View {
-    let lines: [String]
+    let frontMatter: FrontMatterBlock
     let theme: MdoraTheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Front Matter", systemImage: "switch.2")
+            Label("\(frontMatter.kind.title) Front Matter", systemImage: "switch.2")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.palette.mutedColor)
 
-            Text(lines.joined(separator: "\n"))
+            Text(frontMatter.lines.joined(separator: "\n"))
                 .font(.system(size: 13, design: .monospaced))
                 .textSelection(.enabled)
                 .foregroundStyle(theme.palette.textColor)

@@ -508,13 +508,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         private func isMetadataLine(_ line: String, lineRange: NSRange, in string: NSString) -> Bool {
             guard lineRange.location > 0 else { return false }
-            guard line.contains(":") else { return false }
+            guard line.contains(":") || line.contains("=") else { return false }
             return isInsideFrontMatter(lineRange: lineRange, in: string)
         }
 
         private func isFrontMatterFence(lineRange: NSRange, in string: NSString) -> Bool {
             let line = string.substring(with: lineRange).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard line == "---" else { return false }
+            guard line == "---" || line == "+++" else { return false }
             return lineRange.location == 0 || isInsideFrontMatter(lineRange: lineRange, in: string)
         }
 
@@ -522,7 +522,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             guard string.length > 0 else { return false }
             let firstLineRange = string.lineRange(for: NSRange(location: 0, length: 0))
             let firstLine = string.substring(with: firstLineRange).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard firstLine == "---" else { return false }
+            guard firstLine == "---" || firstLine == "+++" else { return false }
             guard lineRange.location >= firstLineRange.upperBound else { return true }
 
             var cursor = firstLineRange.upperBound
@@ -531,7 +531,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 let candidateRange = string.lineRange(for: NSRange(location: cursor, length: 0))
                 let candidate = string.substring(with: candidateRange).trimmingCharacters(in: .whitespacesAndNewlines)
 
-                if candidate == "---" {
+                if candidate == firstLine {
                     return lineRange.location <= candidateRange.location
                 }
 

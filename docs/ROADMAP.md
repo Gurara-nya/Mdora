@@ -17,7 +17,7 @@
 - Add document outline and marker inspection.
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
-- Add front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
+- Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Add shared inline parsing for preview, marker analysis, and HTML export.

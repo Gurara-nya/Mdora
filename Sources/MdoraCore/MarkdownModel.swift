@@ -46,7 +46,7 @@ public struct MarkdownBlockSourceRange: Equatable, Hashable, Identifiable {
 }
 
 public enum MarkdownBlock: Equatable {
-    case frontMatter([String])
+    case frontMatter(FrontMatterBlock)
     case heading(level: Int, text: String, anchor: String)
     case paragraph(String)
     case blockquote(lines: [String], callout: CalloutKind?)
@@ -64,6 +64,33 @@ public enum MarkdownBlock: Equatable {
     case thematicBreak
     case htmlComment(String)
     case html(String)
+}
+
+public struct FrontMatterBlock: Equatable, Hashable {
+    public var kind: FrontMatterKind
+    public var lines: [String]
+
+    public init(kind: FrontMatterKind, lines: [String]) {
+        self.kind = kind
+        self.lines = lines
+    }
+}
+
+public enum FrontMatterKind: String, Equatable, Hashable, CaseIterable {
+    case yaml
+    case toml
+    case json
+
+    public var title: String {
+        switch self {
+        case .yaml:
+            "YAML"
+        case .toml:
+            "TOML"
+        case .json:
+            "JSON"
+        }
+    }
 }
 
 public enum InlineMarkdownSegment: Equatable, Hashable {

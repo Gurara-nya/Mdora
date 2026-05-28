@@ -12,9 +12,9 @@ public enum MarkdownAnalyzer {
     }
 
     public static func metadata(from blocks: [MarkdownBlock]) -> [MetadataItem] {
-        guard let frontMatter = blocks.compactMap({ block -> [String]? in
-            if case let .frontMatter(lines) = block {
-                return lines
+        guard let frontMatter = blocks.compactMap({ block -> FrontMatterBlock? in
+            if case let .frontMatter(frontMatter) = block {
+                return frontMatter
             }
 
             return nil
@@ -22,7 +22,18 @@ public enum MarkdownAnalyzer {
             return []
         }
 
-        return frontMatter.compactMap { line in
+        switch frontMatter.kind {
+        case .yaml:
+            return yamlMetadata(from: frontMatter.lines)
+        case .toml:
+            return tomlMetadata(from: frontMatter.lines)
+        case .json:
+            return jsonMetadata(from: frontMatter.lines)
+        }
+    }
+
+    private static func yamlMetadata(from lines: [String]) -> [MetadataItem] {
+        lines.compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
             guard let separator = trimmed.firstIndex(of: ":") else { return nil }
@@ -33,6 +44,51 @@ public enum MarkdownAnalyzer {
 
             guard !key.isEmpty else { return nil }
             return MetadataItem(key: key, value: value)
+        }
+    }
+
+    private static func tomlMetadata(from lines: [String]) -> [MetadataItem] {
+        lines.compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.hasPrefix("[") else { return nil }
+            guard let separator = trimmed.firstIndex(of: "=") else { return nil }
+
+            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespaces)
+            var value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+
+            guard !key.isEmpty else { return nil }
+            return MetadataItem(key: key, value: value)
+        }
+    }
+
+    private static func jsonMetadata(from lines: [String]) -> [MetadataItem] {
+        let source = lines.joined(separator: "\n")
+        guard let data = source.data(using: .utf8) else { return [] }
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+
+        return object.keys.sorted().compactMap { key in
+            guard let value = object[key] else { return nil }
+            return MetadataItem(key: key, value: metadataValueDescription(value))
+        }
+    }
+
+    private static func metadataValueDescription(_ value: Any) -> String {
+        switch value {
+        case let string as String:
+            return string
+        case let number as NSNumber:
+            return number.stringValue
+        case let array as [Any]:
+            return array.map(metadataValueDescription).joined(separator: ", ")
+        case let dictionary as [String: Any]:
+            guard let data = try? JSONSerialization.data(withJSONObject: dictionary, options: [.sortedKeys]),
+                  let json = String(data: data, encoding: .utf8) else {
+                return "\(dictionary)"
+            }
+            return json
+        default:
+            return "\(value)"
         }
     }
 
@@ -220,8 +276,8 @@ public enum MarkdownAnalyzer {
 
     private static func kindName(for block: MarkdownBlock) -> String {
         switch block {
-        case .frontMatter:
-            "Front Matter"
+        case let .frontMatter(frontMatter):
+            "\(frontMatter.kind.title) Front Matter"
         case .heading:
             "Heading"
         case .paragraph:
@@ -397,18 +453,42 @@ public enum MarkdownAnalyzer {
         let lines = markdown.components(separatedBy: .newlines)
         var diagnostics: [MarkdownDiagnostic] = []
 
-        if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == "---" {
+        if let firstLine = lines.first?.trimmingCharacters(in: .whitespacesAndNewlines),
+           firstLine == "---" || firstLine == "+++" {
             let hasClosingFrontMatter = lines.dropFirst().contains { line in
-                line.trimmingCharacters(in: .whitespacesAndNewlines) == "---"
+                line.trimmingCharacters(in: .whitespacesAndNewlines) == firstLine
             }
 
             if !hasClosingFrontMatter {
+                let kind = firstLine == "+++" ? "TOML" : "YAML"
                 diagnostics.append(
                     MarkdownDiagnostic(
                         id: "unclosed-front-matter",
                         severity: .warning,
                         title: "Unclosed front matter",
-                        message: "Front matter starts with --- but has no closing ---.",
+                        message: "\(kind) front matter starts with \(firstLine) but has no closing \(firstLine).",
+                        line: 1
+                    )
+                )
+            }
+        }
+
+        if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == "{" {
+            var depth = 0
+            for line in lines {
+                for character in line {
+                    if character == "{" { depth += 1 }
+                    if character == "}" { depth -= 1 }
+                }
+            }
+
+            if depth > 0 {
+                diagnostics.append(
+                    MarkdownDiagnostic(
+                        id: "unclosed-json-front-matter",
+                        severity: .warning,
+                        title: "Unclosed JSON front matter",
+                        message: "JSON front matter starts with { but has no closing }.",
                         line: 1
                     )
                 )
