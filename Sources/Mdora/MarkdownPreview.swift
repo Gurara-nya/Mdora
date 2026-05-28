@@ -1321,70 +1321,72 @@ private struct InlineMarkdownText: View {
     }
 
     private var attributedString: AttributedString {
-        var result = AttributedString()
-        let segments = InlineMarkdownParser.parse(text)
-        for segment in segments {
-            result.append(attributedString(for: segment))
-        }
-        return result
+        let sortedAbbreviations = sortedAbbreviationsForRender
+        return renderInline(text, sortedAbbreviations: sortedAbbreviations)
     }
 
-    private func renderInline(_ source: String) -> AttributedString {
+    private func renderInline(
+        _ source: String,
+        sortedAbbreviations: [AbbreviationDefinition]
+    ) -> AttributedString {
         var result = AttributedString()
         let segments = InlineMarkdownParser.parse(source)
         for segment in segments {
-            result.append(attributedString(for: segment))
+            result.append(attributedString(for: segment, sortedAbbreviations: sortedAbbreviations))
         }
         return result
     }
 
-    private func attributedString(for segment: InlineMarkdownSegment) -> AttributedString {
+    private func attributedString(
+        for segment: InlineMarkdownSegment,
+        sortedAbbreviations: [AbbreviationDefinition]
+    ) -> AttributedString {
         var str: AttributedString
 
         switch segment {
         case let .text(value):
-            str = renderText(value)
+            str = renderText(value, sortedAbbreviations: sortedAbbreviations)
         case .hardBreak:
             str = AttributedString("\n")
         case let .strong(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .emphasis(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.font = .system(size: style.bodyFontSize).italic()
         case let .strikethrough(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.strikethroughStyle = .single
         case let .highlight(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.backgroundColor = theme.palette.accentColor.opacity(0.18)
             str.foregroundColor = theme.palette.accentColor
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .superscript(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
             str.baselineOffset = 5
         case let .subscriptText(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
             str.baselineOffset = -3
         case let .criticAddition(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.foregroundColor = theme.palette.accentColor
             str.underlineStyle = .single
         case let .criticDeletion(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.foregroundColor = theme.palette.mutedColor
             str.strikethroughStyle = .single
         case let .criticSubstitution(original, replacement):
-            var origStr = renderInline(original)
+            var origStr = renderInline(original, sortedAbbreviations: sortedAbbreviations)
             origStr.foregroundColor = theme.palette.mutedColor
             origStr.strikethroughStyle = .single
 
             var separator = AttributedString(" -> ")
             separator.foregroundColor = theme.palette.mutedColor
 
-            var replStr = renderInline(replacement)
+            var replStr = renderInline(replacement, sortedAbbreviations: sortedAbbreviations)
             replStr.foregroundColor = theme.palette.accentColor
             replStr.underlineStyle = .single
 
@@ -1393,7 +1395,7 @@ private struct InlineMarkdownText: View {
             var prefix = AttributedString("[comment: ")
             prefix.foregroundColor = theme.palette.mutedColor
 
-            var content = renderInline(value)
+            var content = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             content.foregroundColor = theme.palette.mutedColor
             content.font = .system(size: style.bodyFontSize).italic()
 
@@ -1402,7 +1404,7 @@ private struct InlineMarkdownText: View {
 
             str = prefix + content + suffix
         case let .criticHighlight(value):
-            str = renderInline(value)
+            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
             str.backgroundColor = Color.yellow.opacity(0.3)
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .code(value):
@@ -1411,7 +1413,7 @@ private struct InlineMarkdownText: View {
             str.foregroundColor = theme.palette.accentColor
             str.backgroundColor = theme.palette.codeColor
         case let .link(label, destination, _):
-            str = renderInline(label)
+            str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
             str.underlineStyle = .single
             str.foregroundColor = theme.palette.accentColor
             if destination.hasPrefix("#") {
@@ -1423,7 +1425,7 @@ private struct InlineMarkdownText: View {
                 str.link = url
             }
         case let .referenceLink(label, reference):
-            str = renderInline(label)
+            str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
             str.underlineStyle = .single
             if let definition = resolvedReference(reference) {
                 str.foregroundColor = theme.palette.accentColor
@@ -1569,14 +1571,21 @@ private struct InlineMarkdownText: View {
         return label
     }
 
-    private func renderText(_ value: String) -> AttributedString {
-        guard !abbreviationDefinitions.isEmpty else { return AttributedString(value) }
+    private func renderText(
+        _ value: String,
+        sortedAbbreviations: [AbbreviationDefinition]
+    ) -> AttributedString {
+        guard !sortedAbbreviations.isEmpty else { return AttributedString(value) }
 
         var rendered = AttributedString()
         var cursor = value.startIndex
 
         while cursor < value.endIndex {
-            if let definition = matchingAbbreviation(in: value, at: cursor) {
+            if let definition = matchingAbbreviation(
+                in: value,
+                at: cursor,
+                sortedAbbreviations: sortedAbbreviations
+            ) {
                 var termStr = AttributedString(definition.term)
                 termStr.underlineStyle = .single
                 termStr.foregroundColor = theme.palette.accentColor
@@ -1592,7 +1601,11 @@ private struct InlineMarkdownText: View {
         return rendered
     }
 
-    private func matchingAbbreviation(in value: String, at index: String.Index) -> AbbreviationDefinition? {
+    private func matchingAbbreviation(
+        in value: String,
+        at index: String.Index,
+        sortedAbbreviations: [AbbreviationDefinition]
+    ) -> AbbreviationDefinition? {
         sortedAbbreviations.first { definition in
             guard value[index...].hasPrefix(definition.term) else { return false }
 
@@ -1602,7 +1615,7 @@ private struct InlineMarkdownText: View {
         }
     }
 
-    private var sortedAbbreviations: [AbbreviationDefinition] {
+    private var sortedAbbreviationsForRender: [AbbreviationDefinition] {
         abbreviationDefinitions.values.sorted { first, second in
             if first.term.count == second.term.count {
                 return first.term < second.term
