@@ -436,7 +436,7 @@ private struct BlockParser {
         if listLines.allSatisfy({ $0.taskDone != nil }) {
             return .taskList(
                 listLines.map { item in
-                    TaskItem(text: item.text, isDone: item.taskDone ?? false, depth: item.depth)
+                    TaskItem(text: item.text, state: item.taskState ?? .todo, depth: item.depth)
                 }
             )
         }
@@ -638,7 +638,7 @@ private struct BlockParser {
                 text: taskText(from: text) ?? text,
                 depth: depth,
                 isOrdered: false,
-                taskDone: taskState(from: text)
+                taskState: taskState(from: text)
             )
         }
 
@@ -656,15 +656,20 @@ private struct BlockParser {
             text: taskText(from: text) ?? text,
             depth: depth,
             isOrdered: true,
-            taskDone: taskState(from: text)
+            taskState: taskState(from: text)
         )
     }
 
-    private static func taskState(from text: String) -> Bool? {
-        let lowercased = text.lowercased()
-        if lowercased.hasPrefix("[x] ") { return true }
-        if lowercased.hasPrefix("[ ] ") { return false }
-        return nil
+    private static func taskState(from text: String) -> TaskState? {
+        guard text.count >= 4,
+              text.first == "[",
+              text[text.index(text.startIndex, offsetBy: 2)] == "]",
+              text[text.index(text.startIndex, offsetBy: 3)] == " " else {
+            return nil
+        }
+
+        let marker = text[text.index(after: text.startIndex)]
+        return TaskState(marker: marker)
     }
 
     private static func taskText(from text: String) -> String? {
@@ -838,7 +843,11 @@ private struct ParsedListLine {
     var text: String
     var depth: Int
     var isOrdered: Bool
-    var taskDone: Bool?
+    var taskState: TaskState?
+
+    var taskDone: Bool? {
+        taskState.map { $0 == .done }
+    }
 }
 
 enum MarkdownHeadingAttributes {

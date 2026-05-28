@@ -560,17 +560,39 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     return
                 }
 
-                if trimmed.hasPrefix("- [x]") || trimmed.hasPrefix("- [X]") {
-                    storage.addAttributes([
-                        .foregroundColor: palette.muted,
-                        .strikethroughStyle: NSUnderlineStyle.single.rawValue
-                    ], range: lineRange)
-                } else if trimmed.hasPrefix("- [ ]") {
-                    storage.addAttributes([
-                        .foregroundColor: palette.accent
-                    ], range: lineRange)
+                if let taskState = self.taskStateMarker(in: trimmed) {
+                    var attributes: [NSAttributedString.Key: Any] = [
+                        .foregroundColor: taskState == " " ? palette.accent : palette.muted,
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
+                    ]
+
+                    if taskState == "x" || taskState == "X" || taskState == "-" {
+                        attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+                    }
+
+                    storage.addAttributes(attributes, range: lineRange)
                 }
             }
+        }
+
+        private func taskStateMarker(in trimmedLine: String) -> Character? {
+            guard trimmedLine.count >= 6,
+                  ["- ", "* ", "+ "].contains(where: { trimmedLine.hasPrefix($0) }) else {
+                return nil
+            }
+
+            let markerOpen = trimmedLine.index(trimmedLine.startIndex, offsetBy: 2)
+            let markerValue = trimmedLine.index(after: markerOpen)
+            let markerClose = trimmedLine.index(markerOpen, offsetBy: 2)
+            guard trimmedLine[markerOpen] == "[",
+                  trimmedLine[markerClose] == "]",
+                  trimmedLine.index(after: markerClose) < trimmedLine.endIndex,
+                  trimmedLine[trimmedLine.index(after: markerClose)] == " " else {
+                return nil
+            }
+
+            let marker = trimmedLine[markerValue]
+            return " xX/->!?".contains(marker) ? marker : nil
         }
 
         private func isReferenceDefinition(_ line: String) -> Bool {
@@ -728,7 +750,7 @@ private final class MarkdownNSTextView: NSTextView {
 
     private func taskListContinuation(trimmed: String, leading: String) -> String? {
         for bullet in ["-", "*", "+"] {
-            for checkbox in ["[ ]", "[x]", "[X]"] {
+            for checkbox in ["[ ]", "[x]", "[X]", "[/]", "[-]", "[>]", "[!]", "[?]"] {
                 let marker = "\(bullet) \(checkbox)"
 
                 if trimmed == marker {

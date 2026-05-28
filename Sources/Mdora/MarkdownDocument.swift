@@ -56,6 +56,8 @@ extension MarkdownDocument {
     - Switch editor, split, and preview modes in the toolbar.
 
     - [ ] Build the editor
+    - [/] Polish richer task states
+    - [!] Keep compatibility sharp
     - [x] Render a live preview
 
     | Feature | Status |

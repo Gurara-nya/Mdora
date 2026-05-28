@@ -78,6 +78,7 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Keyboard", value: document.markers.keyboardShortcuts.count, systemImage: "keyboard", theme: theme)
                         MarkerRow(title: "Diagrams", value: document.markers.diagrams.count, systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
                         MarkerRow(title: "Tokens", value: document.markers.taskTokens.count, systemImage: "flag", theme: theme)
+                        MarkerRow(title: "Task States", value: document.markers.taskStates.reduce(0) { $0 + $1.count }, systemImage: "checklist", theme: theme)
                         MarkerRow(title: "Callouts", value: document.markers.callouts.count, systemImage: "exclamationmark.bubble", theme: theme)
                     }
                 }
@@ -93,6 +94,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Abbreviations", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
                 MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
+                MarkerList(title: "Task States", values: document.markers.taskStates.map { "\($0.state.title): \($0.count)" }, systemImage: "checklist", theme: theme)
                 MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
                 MarkerList(title: "Highlights", values: document.markers.highlights.map { "==\($0)==" }, systemImage: "highlighter", theme: theme)
                 MarkerList(title: "Superscripts", values: document.markers.superscripts.map { "^\($0)^" }, systemImage: "textformat.superscript", theme: theme)
@@ -219,6 +221,7 @@ private struct CompatibilitySummary: View {
         if !document.markers.linkReferences.isEmpty { features.append("References") }
         if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("Autolinks") }
         if !document.markers.taskTokens.isEmpty { features.append("Tokens") }
+        if !document.markers.taskStates.isEmpty { features.append("Task States") }
         if !document.markers.highlights.isEmpty { features.append("Highlights") }
         if !document.markers.superscripts.isEmpty || !document.markers.subscripts.isEmpty { features.append("Super/Subscript") }
         if document.markers.criticMarkupCount > 0 { features.append("CriticMarkup") }

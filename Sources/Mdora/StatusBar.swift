@@ -26,6 +26,7 @@ struct StatusBar: View {
             Text("\(markers.abbreviations.count) abbr")
             Text("\(markers.linkReferences.count) refs")
             Text("\(markers.taskTokens.count) flags")
+            Text("\(markers.taskStates.reduce(0) { $0 + $1.count }) tasks")
             Text("\(markers.criticMarkupCount) edits")
             Text("\(markers.diagrams.count) diagrams")
             Text("\(markers.callouts.count) callouts")

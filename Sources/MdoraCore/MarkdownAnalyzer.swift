@@ -190,6 +190,7 @@ public enum MarkdownAnalyzer {
         markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
         markers.taskTokens = taskTokens(in: markdown)
+        markers.taskStates = taskStateCounts(in: blocks)
         markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))
         markers.highlights = unique(inlineSegments.compactMap { segment in
             if case let .highlight(value) = segment {
@@ -524,6 +525,22 @@ public enum MarkdownAnalyzer {
 
     private static func blockIdentifiers(in blocks: [MarkdownBlock]) -> [String] {
         blocks.flatMap(blockIdentifierTexts(from:)).compactMap(MarkdownBlockIDParser.trailingIdentifier)
+    }
+
+    private static func taskStateCounts(in blocks: [MarkdownBlock]) -> [TaskStateCount] {
+        var counts: [TaskState: Int] = [:]
+
+        for block in blocks {
+            guard case let .taskList(items) = block else { continue }
+            for item in items {
+                counts[item.state, default: 0] += 1
+            }
+        }
+
+        return TaskState.allCases.compactMap { state in
+            guard let count = counts[state], count > 0 else { return nil }
+            return TaskStateCount(state: state, count: count)
+        }
     }
 
     private static func blockIdentifierTexts(from block: MarkdownBlock) -> [String] {

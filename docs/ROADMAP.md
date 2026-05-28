@@ -24,6 +24,7 @@
 - Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
+- Add extended task states for in-progress, canceled, forwarded, important, and question items.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Render common emoji shortcodes as emoji in preview and HTML export.

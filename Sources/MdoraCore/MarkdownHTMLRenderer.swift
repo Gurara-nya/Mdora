@@ -172,11 +172,22 @@ public enum MarkdownHTMLRenderer {
             let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: item.text)
             let content = blockID?.content ?? item.text
             let checked = item.isDone ? " checked" : ""
+            let stateClass = " state-\(item.state.cssClass)"
             let doneClass = item.isDone ? " done" : ""
-            return "<li class=\"task\(doneClass)\"\(blockIDAttributes(blockID?.identifier))><input type=\"checkbox\" disabled\(checked)> \(renderInline(content, context: context))</li>"
+            let stateMarker = taskStateMarker(item.state)
+            return "<li class=\"task\(doneClass)\(stateClass)\"\(blockIDAttributes(blockID?.identifier)) data-task-state=\"\(escapeHTML(item.state.cssClass))\"><input type=\"checkbox\" disabled\(checked)>\(stateMarker) \(renderInline(content, context: context))</li>"
         }.joined(separator: "\n")
 
         return "<ul class=\"task-list\">\n\(renderedItems)\n</ul>"
+    }
+
+    private static func taskStateMarker(_ state: TaskState) -> String {
+        switch state {
+        case .todo, .done:
+            return ""
+        default:
+            return " <span class=\"task-state\" title=\"\(escapeHTML(state.title))\">\(escapeHTML(state.marker))</span>"
+        }
     }
 
     private static func blockIDAttributes(_ identifier: String?) -> String {
@@ -539,7 +550,19 @@ public enum MarkdownHTMLRenderer {
           text-underline-offset: 0.16em;
         }
         .task-list { list-style: none; padding-left: 0; }
-        .task.done { opacity: 0.68; text-decoration: line-through; }
+        .task.done, .task.state-canceled { opacity: 0.68; text-decoration: line-through; }
+        .task-state {
+          display: inline-flex;
+          justify-content: center;
+          min-width: 1.35em;
+          margin-right: 0.25em;
+          border-radius: 999px;
+          background: rgba(127, 127, 127, 0.14);
+          font-size: 0.82em;
+          font-weight: 700;
+        }
+        .task.state-important .task-state { background: rgba(220, 38, 38, 0.16); }
+        .task.state-question .task-state { background: rgba(14, 165, 233, 0.16); }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }
         .tag, .mention, .wikilink, .wiki-embed, .math-inline, .image-ref {
           border-radius: 999px;

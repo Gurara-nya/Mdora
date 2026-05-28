@@ -389,14 +389,14 @@ private struct TaskListBlockView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Image(systemName: item.isDone ? "checkmark.square.fill" : "square")
-                        .foregroundStyle(item.isDone ? theme.palette.accentColor : theme.palette.mutedColor)
+                    Image(systemName: item.state.systemImage)
+                        .foregroundStyle(item.state.tint(theme: theme))
                         .frame(width: 20)
                         .padding(.leading, CGFloat(item.depth) * 18)
 
                     InlineMarkdownText(MarkdownBlockIDParser.contentWithoutTrailingIdentifier(item.text), theme: theme)
-                        .foregroundStyle(item.isDone ? theme.palette.mutedColor : theme.palette.textColor)
-                        .strikethrough(item.isDone)
+                        .foregroundStyle(item.state.isMuted ? theme.palette.mutedColor : theme.palette.textColor)
+                        .strikethrough(item.state.isStruckThrough)
                 }
             }
         }
@@ -1171,6 +1171,54 @@ private extension CalloutKind {
             .red
         case .quote:
             .secondary
+        }
+    }
+}
+
+private extension TaskState {
+    var systemImage: String {
+        switch self {
+        case .todo:
+            "square"
+        case .done:
+            "checkmark.square.fill"
+        case .inProgress:
+            "clock"
+        case .canceled:
+            "minus.square"
+        case .forwarded:
+            "arrowshape.turn.up.right"
+        case .important:
+            "exclamationmark.square.fill"
+        case .question:
+            "questionmark.square"
+        }
+    }
+
+    var isMuted: Bool {
+        self == .done || self == .canceled
+    }
+
+    var isStruckThrough: Bool {
+        self == .done || self == .canceled
+    }
+
+    func tint(theme: MdoraTheme) -> Color {
+        switch self {
+        case .todo:
+            theme.palette.mutedColor
+        case .done:
+            theme.palette.accentColor
+        case .inProgress:
+            .orange
+        case .canceled:
+            theme.palette.mutedColor
+        case .forwarded:
+            .purple
+        case .important:
+            .red
+        case .question:
+            .cyan
         }
     }
 }

@@ -143,13 +143,89 @@ public struct ListItem: Equatable {
 
 public struct TaskItem: Equatable {
     public var text: String
-    public var isDone: Bool
+    public var state: TaskState
     public var depth: Int
 
-    public init(text: String, isDone: Bool, depth: Int = 0) {
+    public var isDone: Bool {
+        state == .done
+    }
+
+    public init(text: String, state: TaskState, depth: Int = 0) {
         self.text = text
-        self.isDone = isDone
+        self.state = state
         self.depth = depth
+    }
+
+    public init(text: String, isDone: Bool, depth: Int = 0) {
+        self.init(text: text, state: isDone ? .done : .todo, depth: depth)
+    }
+}
+
+public enum TaskState: String, Equatable, Hashable, CaseIterable {
+    case todo = " "
+    case done = "x"
+    case inProgress = "/"
+    case canceled = "-"
+    case forwarded = ">"
+    case important = "!"
+    case question = "?"
+
+    public init?(marker: Character) {
+        let normalized = String(marker).lowercased()
+        self.init(rawValue: normalized)
+    }
+
+    public var marker: String {
+        rawValue
+    }
+
+    public var cssClass: String {
+        switch self {
+        case .todo:
+            "todo"
+        case .done:
+            "done"
+        case .inProgress:
+            "in-progress"
+        case .canceled:
+            "canceled"
+        case .forwarded:
+            "forwarded"
+        case .important:
+            "important"
+        case .question:
+            "question"
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .todo:
+            "Todo"
+        case .done:
+            "Done"
+        case .inProgress:
+            "In Progress"
+        case .canceled:
+            "Canceled"
+        case .forwarded:
+            "Forwarded"
+        case .important:
+            "Important"
+        case .question:
+            "Question"
+        }
+    }
+}
+
+public struct TaskStateCount: Equatable, Hashable, Identifiable {
+    public var id: String { state.cssClass }
+    public var state: TaskState
+    public var count: Int
+
+    public init(state: TaskState, count: Int) {
+        self.state = state
+        self.count = count
     }
 }
 
@@ -476,6 +552,7 @@ public struct MarkdownMarkers: Equatable {
     public var linkReferences: [String]
     public var htmlComments: [String]
     public var taskTokens: [TaskToken]
+    public var taskStates: [TaskStateCount]
     public var mathExpressions: [String]
     public var highlights: [String]
     public var superscripts: [String]
@@ -509,6 +586,7 @@ public struct MarkdownMarkers: Equatable {
         linkReferences: [String] = [],
         htmlComments: [String] = [],
         taskTokens: [TaskToken] = [],
+        taskStates: [TaskStateCount] = [],
         mathExpressions: [String] = [],
         highlights: [String] = [],
         superscripts: [String] = [],
@@ -541,6 +619,7 @@ public struct MarkdownMarkers: Equatable {
         self.linkReferences = linkReferences
         self.htmlComments = htmlComments
         self.taskTokens = taskTokens
+        self.taskStates = taskStates
         self.mathExpressions = mathExpressions
         self.highlights = highlights
         self.superscripts = superscripts
