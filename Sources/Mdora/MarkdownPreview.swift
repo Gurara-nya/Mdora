@@ -900,6 +900,10 @@ private struct InlineMarkdownText: View {
             Text(MarkdownWikiLinkReference.parse(value).displayText)
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
+        case let .wikiEmbed(value):
+            Text(MarkdownWikiLinkReference.parse(value).embedPreviewText)
+                .font(.system(size: max(12, style.bodyFontSize - 3), weight: .medium))
+                .foregroundColor(theme.palette.accentColor)
         case let .footnote(identifier):
             Text("[\(identifier)]")
                 .font(.system(size: max(10, style.bodyFontSize - 5)))

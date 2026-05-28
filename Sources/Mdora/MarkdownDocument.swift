@@ -40,6 +40,8 @@ extension MarkdownDocument {
 
     Abbreviations are expanded in preview and export, so HTML can carry a title.
 
+    Obsidian-style embeds are recognized too: ![[Assets/mockup.png|App mockup]].
+
     Review marks are recognized: {++added++}, {--removed--}, {~~draft~>polished~~}, {>>editor note<<}, and {==review highlight==}.
 
     <!-- Comments are parsed and visible in the inspector. -->

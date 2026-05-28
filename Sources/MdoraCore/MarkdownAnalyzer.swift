@@ -174,6 +174,13 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.wikiEmbeds = unique(inlineSegments.compactMap { segment in
+            if case let .wikiEmbed(value) = segment {
+                return value
+            }
+
+            return nil
+        })
         markers.customAnchors = unique(customHeadingAnchors(in: markdown))
         markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending

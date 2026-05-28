@@ -344,20 +344,14 @@ public enum MarkdownHTMLRenderer {
             return "<a href=\"mailto:\(escapeHTML(email))\">\(escapeHTML(email))</a>"
         case let .wikiLink(value):
             let reference = MarkdownWikiLinkReference.parse(value)
-            var attributes = " data-target=\"\(escapeHTML(reference.target))\""
-            if let alias = reference.alias {
-                attributes += " data-alias=\"\(escapeHTML(alias))\""
+            return "<span class=\"wikilink\"\(wikiReferenceAttributes(reference))>\(escapeHTML(reference.displayText))</span>"
+        case let .wikiEmbed(value):
+            let reference = MarkdownWikiLinkReference.parse(value)
+            if reference.isImageEmbed {
+                return "<img class=\"wiki-embed wiki-embed-image\" src=\"\(escapeHTML(reference.target))\" alt=\"\(escapeHTML(reference.embedDisplayText))\"\(wikiReferenceAttributes(reference))>"
             }
-            if !reference.path.isEmpty {
-                attributes += " data-path=\"\(escapeHTML(reference.path))\""
-            }
-            if let heading = reference.heading {
-                attributes += " data-heading=\"\(escapeHTML(heading))\""
-            }
-            if let blockID = reference.blockID {
-                attributes += " data-block-id=\"\(escapeHTML(blockID))\""
-            }
-            return "<span class=\"wikilink\"\(attributes)>\(escapeHTML(reference.displayText))</span>"
+
+            return "<span class=\"wiki-embed\"\(wikiReferenceAttributes(reference))>\(escapeHTML(reference.embedDisplayText))</span>"
         case let .footnote(identifier):
             return "<sup>\(escapeHTML(identifier))</sup>"
         case let .inlineMath(value):
@@ -377,6 +371,23 @@ public enum MarkdownHTMLRenderer {
         case let .mention(value):
             return "<span class=\"mention\">@\(escapeHTML(value))</span>"
         }
+    }
+
+    private static func wikiReferenceAttributes(_ reference: MarkdownWikiLinkReference) -> String {
+        var attributes = " data-target=\"\(escapeHTML(reference.target))\""
+        if let alias = reference.alias {
+            attributes += " data-alias=\"\(escapeHTML(alias))\""
+        }
+        if !reference.path.isEmpty {
+            attributes += " data-path=\"\(escapeHTML(reference.path))\""
+        }
+        if let heading = reference.heading {
+            attributes += " data-heading=\"\(escapeHTML(heading))\""
+        }
+        if let blockID = reference.blockID {
+            attributes += " data-block-id=\"\(escapeHTML(blockID))\""
+        }
+        return attributes
     }
 
     private static func renderText(_ text: String, context: RenderContext) -> String {
@@ -492,10 +503,18 @@ public enum MarkdownHTMLRenderer {
         .task-list { list-style: none; padding-left: 0; }
         .task.done { opacity: 0.68; text-decoration: line-through; }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }
-        .tag, .mention, .wikilink, .math-inline, .image-ref {
+        .tag, .mention, .wikilink, .wiki-embed, .math-inline, .image-ref {
           border-radius: 999px;
           padding: 0.08em 0.45em;
           background: rgba(45, 132, 214, 0.16);
+        }
+        .wiki-embed-image {
+          display: block;
+          max-width: 100%;
+          height: auto;
+          border-radius: 8px;
+          padding: 0;
+          background: transparent;
         }
         mark {
           border-radius: 0.25em;

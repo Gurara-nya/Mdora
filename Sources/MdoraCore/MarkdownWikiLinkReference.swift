@@ -12,6 +12,24 @@ public struct MarkdownWikiLinkReference: Equatable, Hashable {
         alias ?? target
     }
 
+    public var embedDisplayText: String {
+        alias ?? fileName
+    }
+
+    public var embedPreviewText: String {
+        isImageEmbed ? "[image: \(embedDisplayText)]" : "[embed: \(embedDisplayText)]"
+    }
+
+    public var fileName: String {
+        let source = path.isEmpty ? target : path
+        return source.split(separator: "/").last.map(String.init) ?? source
+    }
+
+    public var isImageEmbed: Bool {
+        let extensionName = fileName.split(separator: ".").last.map { String($0).lowercased() }
+        return extensionName.map(Self.imageExtensions.contains) ?? false
+    }
+
     public var inspectorText: String {
         if let alias {
             return "\(alias) -> \(target)"
@@ -101,4 +119,8 @@ public struct MarkdownWikiLinkReference: Equatable, Hashable {
     private static func unescapePipe(_ value: String) -> String {
         value.replacingOccurrences(of: "\\|", with: "|")
     }
+
+    private static let imageExtensions: Set<String> = [
+        "apng", "avif", "bmp", "gif", "heic", "jpeg", "jpg", "png", "svg", "tif", "tiff", "webp"
+    ]
 }

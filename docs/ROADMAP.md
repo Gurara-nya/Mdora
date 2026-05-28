@@ -26,6 +26,7 @@
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Render common emoji shortcodes as emoji in preview and HTML export.
 - Render Obsidian-style wiki link aliases and expose heading/block targets in HTML export metadata.
+- Recognize Obsidian-style `![[...]]` embeds as separate preview, export, inspector, and status markers.
 - Add Typora-style superscript and subscript markers across preview, export, inspector, and editor highlighting.
 - Add CriticMarkup review marks for additions, deletions, substitutions, comments, and editorial highlights.
 - Add CommonMark angle-bracket autolinks for URLs and email addresses.

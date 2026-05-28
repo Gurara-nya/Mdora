@@ -51,6 +51,7 @@ private struct InlineParser {
         if let segment = consumeInlineMath() { return segment }
         if let segment = consumeKeyboard() { return segment }
         if let segment = consumeAngleAutoLink() { return segment }
+        if let segment = consumeWikiEmbed() { return segment }
         if let segment = consumeImage() { return segment }
         if let segment = consumeCitation() { return segment }
         if let segment = consumeLinkOrFootnote() { return segment }
@@ -363,6 +364,19 @@ private struct InlineParser {
 
         index = text.index(close, offsetBy: 2)
         return .wikiLink(value)
+    }
+
+    private mutating func consumeWikiEmbed() -> InlineMarkdownSegment? {
+        guard hasPrefix("![[") else { return nil }
+        let contentStart = text.index(index, offsetBy: 3)
+        guard let close = closingIndex(for: "]]", after: contentStart) else { return nil }
+        let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        let reference = MarkdownWikiLinkReference.parse(value)
+        guard !reference.target.isEmpty else { return nil }
+
+        index = text.index(close, offsetBy: 2)
+        return .wikiEmbed(value)
     }
 
     private mutating func consumeAutoLink() -> InlineMarkdownSegment? {

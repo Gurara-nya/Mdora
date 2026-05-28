@@ -121,6 +121,7 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case autoLink(String)
     case email(String)
     case wikiLink(String)
+    case wikiEmbed(String)
     case footnote(String)
     case inlineMath(String)
     case citation(String)
@@ -394,6 +395,7 @@ public struct MarkdownMarkers: Equatable {
     public var tags: [String]
     public var mentions: [String]
     public var wikiLinks: [String]
+    public var wikiEmbeds: [String]
     public var customAnchors: [String]
     public var abbreviations: [AbbreviationDefinition]
     public var footnotes: [String]
@@ -425,6 +427,7 @@ public struct MarkdownMarkers: Equatable {
         tags: [String] = [],
         mentions: [String] = [],
         wikiLinks: [String] = [],
+        wikiEmbeds: [String] = [],
         customAnchors: [String] = [],
         abbreviations: [AbbreviationDefinition] = [],
         footnotes: [String] = [],
@@ -455,6 +458,7 @@ public struct MarkdownMarkers: Equatable {
         self.tags = tags
         self.mentions = mentions
         self.wikiLinks = wikiLinks
+        self.wikiEmbeds = wikiEmbeds
         self.customAnchors = customAnchors
         self.abbreviations = abbreviations
         self.footnotes = footnotes
