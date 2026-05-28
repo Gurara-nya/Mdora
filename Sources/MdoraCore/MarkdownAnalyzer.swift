@@ -32,6 +32,17 @@ public enum MarkdownAnalyzer {
         }
     }
 
+    public static func referenceDefinitions(from blocks: [MarkdownBlock]) -> [String: LinkReferenceDefinition] {
+        var definitions: [String: LinkReferenceDefinition] = [:]
+
+        for block in blocks {
+            guard case let .linkReferenceDefinition(definition) = block else { continue }
+            definitions[definition.normalizedLabel] = definition
+        }
+
+        return definitions
+    }
+
     private static func yamlMetadata(from lines: [String]) -> [MetadataItem] {
         lines.compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -577,24 +588,16 @@ public enum MarkdownAnalyzer {
     }
 
     private static func referenceDiagnostics(in markdown: String, blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
-        let definitions = Set(
-            blocks.compactMap { block -> String? in
-                if case let .linkReferenceDefinition(definition) = block {
-                    return definition.label.lowercased()
-                }
-
-                return nil
-            }
-        )
+        let definitions = Set(referenceDefinitions(from: blocks).keys)
 
         let referencedLabels = Set(
             matches(in: markdown, pattern: #"(?<!\!)\[[^\]]+\]\[([^\]]+)\]"#, group: 1)
-                .map { $0.lowercased() }
+                .map(LinkReferenceDefinition.normalizedLabel)
         )
 
         let imageLabels = Set(
             matches(in: markdown, pattern: #"\!\[[^\]]*\]\[([^\]]+)\]"#, group: 1)
-                .map { $0.lowercased() }
+                .map(LinkReferenceDefinition.normalizedLabel)
         )
 
         let missing = referencedLabels.union(imageLabels).subtracting(definitions).sorted()

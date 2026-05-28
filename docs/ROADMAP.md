@@ -24,6 +24,7 @@
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
+- Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

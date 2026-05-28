@@ -29,7 +29,7 @@ The first build includes:
 - Reference link and table-of-contents insertion commands.
 - Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and YAML/TOML/JSON front matter.
 - Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, inline code, links, reference links, inline images, image references, wiki links, citations, emoji shortcodes, keyboard tags, tags, mentions, footnotes, autolinks, email links, and inline math.
-- Reference link definitions and HTML comments are parsed as visible, inspectable structures.
+- Reference link definitions and HTML comments are parsed as visible, inspectable structures, with reference links and reference images resolved in preview and HTML export.
 - Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.

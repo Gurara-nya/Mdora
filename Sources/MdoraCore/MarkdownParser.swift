@@ -8,6 +8,7 @@ public enum MarkdownParser {
         let outline = MarkdownAnalyzer.outline(from: blocks)
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
         let markers = MarkdownAnalyzer.markers(in: markdown, blocks: blocks)
+        let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
         let diagnostics = MarkdownAnalyzer.diagnostics(
             in: markdown,
             blocks: blocks,
@@ -21,6 +22,7 @@ public enum MarkdownParser {
             outline: outline,
             metadata: metadata,
             markers: markers,
+            referenceDefinitions: referenceDefinitions,
             diagnostics: diagnostics,
             stats: stats
         )

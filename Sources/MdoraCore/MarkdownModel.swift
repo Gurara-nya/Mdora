@@ -6,6 +6,7 @@ public struct ParsedMarkdownDocument: Equatable {
     public var outline: [DocumentSymbol]
     public var metadata: [MetadataItem]
     public var markers: MarkdownMarkers
+    public var referenceDefinitions: [String: LinkReferenceDefinition]
     public var diagnostics: [MarkdownDiagnostic]
     public var stats: MarkdownStats
 
@@ -15,6 +16,7 @@ public struct ParsedMarkdownDocument: Equatable {
         outline: [DocumentSymbol],
         metadata: [MetadataItem] = [],
         markers: MarkdownMarkers,
+        referenceDefinitions: [String: LinkReferenceDefinition] = [:],
         diagnostics: [MarkdownDiagnostic] = [],
         stats: MarkdownStats
     ) {
@@ -23,6 +25,7 @@ public struct ParsedMarkdownDocument: Equatable {
         self.outline = outline
         self.metadata = metadata
         self.markers = markers
+        self.referenceDefinitions = referenceDefinitions
         self.diagnostics = diagnostics
         self.stats = stats
     }
@@ -212,7 +215,7 @@ public struct DefinitionItem: Equatable {
     }
 }
 
-public struct LinkReferenceDefinition: Equatable {
+public struct LinkReferenceDefinition: Equatable, Sendable {
     public var label: String
     public var destination: String
     public var title: String?
@@ -221,6 +224,20 @@ public struct LinkReferenceDefinition: Equatable {
         self.label = label
         self.destination = destination
         self.title = title
+    }
+
+    public var normalizedLabel: String {
+        Self.normalizedLabel(label)
+    }
+
+    public static func normalizedLabel(_ label: String) -> String {
+        label
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split { character in
+                character.isWhitespace || character.isNewline
+            }
+            .joined(separator: " ")
+            .lowercased()
     }
 }
 

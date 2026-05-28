@@ -19,6 +19,17 @@ private extension EnvironmentValues {
     }
 }
 
+private struct MarkdownReferenceDefinitionsKey: EnvironmentKey {
+    static let defaultValue: [String: LinkReferenceDefinition] = [:]
+}
+
+private extension EnvironmentValues {
+    var mdoraReferenceDefinitions: [String: LinkReferenceDefinition] {
+        get { self[MarkdownReferenceDefinitionsKey.self] }
+        set { self[MarkdownReferenceDefinitionsKey.self] = newValue }
+    }
+}
+
 struct MarkdownPreview: View {
     let markdown: String
     let theme: MdoraTheme
@@ -53,6 +64,7 @@ struct MarkdownPreview: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .environment(\.mdoraPreviewStyle, style)
+            .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .background(theme.palette.previewColor)
             .overlay(alignment: .top) {
                 Rectangle()
@@ -744,6 +756,7 @@ private struct InlineMarkdownText: View {
     private let text: String
     private let theme: MdoraTheme
     @Environment(\.mdoraPreviewStyle) private var style
+    @Environment(\.mdoraReferenceDefinitions) private var referenceDefinitions
 
     init(_ text: String, theme: MdoraTheme) {
         self.text = text
@@ -784,18 +797,22 @@ private struct InlineMarkdownText: View {
             Text(value)
                 .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))
                 .foregroundColor(theme.palette.accentColor)
-        case let .link(label, _, _), let .referenceLink(label, _):
+        case let .link(label, _, _):
             renderInline(label)
                 .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .referenceLink(label, reference):
+            renderInline(label)
+                .foregroundColor(resolvedReference(reference) == nil ? theme.palette.mutedColor : theme.palette.accentColor)
                 .underline()
         case let .image(alt, source, _):
             Text("[image: \(alt.isEmpty ? source : alt)]")
                 .font(.system(size: max(11, style.bodyFontSize - 4)))
                 .foregroundColor(theme.palette.accentColor)
         case let .imageReference(alt, label):
-            Text("[image: \(alt.isEmpty ? label : alt)]")
+            Text("[image: \(imageReferenceTitle(alt: alt, label: label))]")
                 .font(.system(size: max(11, style.bodyFontSize - 4)))
-                .foregroundColor(theme.palette.accentColor)
+                .foregroundColor(resolvedReference(label) == nil ? theme.palette.mutedColor : theme.palette.accentColor)
         case let .autoLink(url):
             Text(url)
                 .foregroundColor(theme.palette.accentColor)
@@ -838,6 +855,22 @@ private struct InlineMarkdownText: View {
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         }
+    }
+
+    private func resolvedReference(_ label: String) -> LinkReferenceDefinition? {
+        referenceDefinitions[LinkReferenceDefinition.normalizedLabel(label)]
+    }
+
+    private func imageReferenceTitle(alt: String, label: String) -> String {
+        if !alt.isEmpty {
+            return alt
+        }
+
+        if let reference = resolvedReference(label) {
+            return reference.title ?? reference.destination
+        }
+
+        return label
     }
 }
 
