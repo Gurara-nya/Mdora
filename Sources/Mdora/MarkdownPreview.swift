@@ -1516,6 +1516,8 @@ private struct InlineMarkdownText: View {
             str.font = .system(size: max(11, style.bodyFontSize - 3), design: .monospaced)
             str.foregroundColor = theme.palette.mutedColor
             str.backgroundColor = theme.palette.codeColor
+        case let .htmlEntity(_, character):
+            str = AttributedString(character)
         case let .tag(value):
             str = AttributedString("#\(value)")
             str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)

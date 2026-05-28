@@ -27,6 +27,7 @@
 - Add extended task states for in-progress, canceled, forwarded, important, and question items.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Preserve CommonMark hard line breaks in preview and HTML export.
+- Decode and inspect HTML entity references in preview and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Add inline HTML tag recognition across preview, export, inspector, and editor highlighting.
 - Render common emoji shortcodes as emoji in preview and HTML export.

@@ -196,6 +196,13 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.htmlEntities = unique(inlineSegments.compactMap { segment in
+            if case let .htmlEntity(source, _) = segment {
+                return source
+            }
+
+            return nil
+        })
         markers.taskTokens = taskTokens(in: markdown)
         markers.taskStates = taskStateCounts(in: blocks)
         markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))

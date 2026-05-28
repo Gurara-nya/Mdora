@@ -416,6 +416,8 @@ public enum MarkdownHTMLRenderer {
             return "<kbd>\(escapeHTML(value))</kbd>"
         case let .htmlInline(value):
             return "<code class=\"html-inline\">\(escapeHTML(value))</code>"
+        case let .htmlEntity(_, character):
+            return escapeHTML(character)
         case let .tag(value):
             return "<span class=\"tag\">#\(escapeHTML(value))</span>"
         case let .mention(value):

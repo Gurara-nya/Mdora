@@ -102,6 +102,7 @@ private struct InlineParser {
         if let segment = consumeKeyboard() { return segment }
         if let segment = consumeAngleAutoLink() { return segment }
         if let segment = consumeInlineHTML() { return segment }
+        if let segment = consumeHTMLEntity() { return segment }
         if let segment = consumeWikiEmbed() { return segment }
         if let segment = consumeImage() { return segment }
         if let segment = consumeCitation() { return segment }
@@ -359,6 +360,25 @@ private struct InlineParser {
 
         index = text.index(after: close)
         return .htmlInline(raw)
+    }
+
+    private mutating func consumeHTMLEntity() -> InlineMarkdownSegment? {
+        guard hasPrefix("&") else { return nil }
+        let entityStart = index
+        let bodyStart = text.index(after: index)
+        guard bodyStart < text.endIndex,
+              let close = text[bodyStart...].firstIndex(of: ";") else {
+            return nil
+        }
+
+        let length = text.distance(from: entityStart, to: close) + 1
+        guard length <= 48 else { return nil }
+
+        let source = String(text[entityStart ... close])
+        guard let character = MarkdownHTMLEntity.character(for: source) else { return nil }
+
+        index = text.index(after: close)
+        return .htmlEntity(source: source, character: character)
     }
 
     private mutating func consumeDelimited(

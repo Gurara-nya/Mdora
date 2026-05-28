@@ -166,6 +166,7 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case emojiShortcode(String)
     case keyboard(String)
     case htmlInline(String)
+    case htmlEntity(source: String, character: String)
     case tag(String)
     case mention(String)
 }
@@ -591,6 +592,7 @@ public struct MarkdownMarkers: Equatable {
     public var linkReferences: [String]
     public var htmlComments: [String]
     public var inlineHTML: [String]
+    public var htmlEntities: [String]
     public var taskTokens: [TaskToken]
     public var taskStates: [TaskStateCount]
     public var mathExpressions: [String]
@@ -626,6 +628,7 @@ public struct MarkdownMarkers: Equatable {
         linkReferences: [String] = [],
         htmlComments: [String] = [],
         inlineHTML: [String] = [],
+        htmlEntities: [String] = [],
         taskTokens: [TaskToken] = [],
         taskStates: [TaskStateCount] = [],
         mathExpressions: [String] = [],
@@ -660,6 +663,7 @@ public struct MarkdownMarkers: Equatable {
         self.linkReferences = linkReferences
         self.htmlComments = htmlComments
         self.inlineHTML = inlineHTML
+        self.htmlEntities = htmlEntities
         self.taskTokens = taskTokens
         self.taskStates = taskStates
         self.mathExpressions = mathExpressions
