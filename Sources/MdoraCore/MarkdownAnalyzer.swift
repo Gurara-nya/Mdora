@@ -118,69 +118,89 @@ public enum MarkdownAnalyzer {
         var markers = MarkdownMarkers()
         let inlineSegments = inlineSegments(from: blocks)
 
-        markers.links = unique(inlineSegments.compactMap { segment in
-            if case let .link(_, destination, _) = segment {
-                return destination
-            }
+        var links: [String] = []
+        var autoLinks: [String] = []
+        var emailLinks: [String] = []
+        var images: [String] = []
+        var imageReferences: [String] = []
+        var tags: [String] = []
+        var mentions: [String] = []
+        var wikiLinks: [String] = []
+        var wikiEmbeds: [String] = []
+        var inlineHTML: [String] = []
+        var htmlEntities: [String] = []
+        var highlights: [String] = []
+        var superscripts: [String] = []
+        var subscripts: [String] = []
+        var criticAdditions: [String] = []
+        var criticDeletions: [String] = []
+        var criticSubstitutions: [CriticSubstitution] = []
+        var criticComments: [String] = []
+        var criticHighlights: [String] = []
+        var citations: [String] = []
+        var emojiShortcodes: [String] = []
+        var keyboardShortcuts: [String] = []
 
-            return nil
-        })
-        markers.autoLinks = unique(inlineSegments.compactMap { segment in
-            if case let .autoLink(url) = segment {
-                return url
+        for segment in inlineSegments {
+            switch segment {
+            case let .link(_, destination, _):
+                links.append(destination)
+            case let .autoLink(url):
+                autoLinks.append(url)
+            case let .email(email):
+                emailLinks.append(email)
+            case let .image(_, source, _):
+                images.append(source)
+            case let .imageReference(_, label):
+                imageReferences.append(label)
+            case let .tag(tag):
+                tags.append(tag)
+            case let .mention(mention):
+                mentions.append(mention)
+            case let .wikiLink(value):
+                wikiLinks.append(value)
+            case let .wikiEmbed(value):
+                wikiEmbeds.append(value)
+            case let .htmlInline(value):
+                inlineHTML.append(value)
+            case let .htmlEntity(source, _):
+                htmlEntities.append(source)
+            case let .highlight(value):
+                highlights.append(value)
+            case let .superscript(value):
+                superscripts.append(value)
+            case let .subscriptText(value):
+                subscripts.append(value)
+            case let .criticAddition(value):
+                criticAdditions.append(value)
+            case let .criticDeletion(value):
+                criticDeletions.append(value)
+            case let .criticSubstitution(original, replacement):
+                criticSubstitutions.append(CriticSubstitution(original: original, replacement: replacement))
+            case let .criticComment(value):
+                criticComments.append(value)
+            case let .criticHighlight(value):
+                criticHighlights.append(value)
+            case let .citation(identifier):
+                citations.append(identifier)
+            case let .emojiShortcode(name):
+                emojiShortcodes.append(name)
+            case let .keyboard(value):
+                keyboardShortcuts.append(value)
+            case .text, .hardBreak, .strong, .emphasis, .strikethrough, .code, .referenceLink, .footnote, .inlineMath:
+                break
             }
+        }
 
-            return nil
-        })
-        markers.emailLinks = unique(inlineSegments.compactMap { segment in
-            if case let .email(email) = segment {
-                return email
-            }
-
-            return nil
-        })
-        markers.images = unique(inlineSegments.compactMap { segment in
-            if case let .image(_, source, _) = segment {
-                return source
-            }
-
-            return nil
-        })
-        markers.imageReferences = unique(inlineSegments.compactMap { segment in
-            if case let .imageReference(_, label) = segment {
-                return label
-            }
-
-            return nil
-        })
-        markers.tags = unique(inlineSegments.compactMap { segment in
-            if case let .tag(tag) = segment {
-                return tag
-            }
-
-            return nil
-        })
-        markers.mentions = unique(inlineSegments.compactMap { segment in
-            if case let .mention(mention) = segment {
-                return mention
-            }
-
-            return nil
-        })
-        markers.wikiLinks = unique(inlineSegments.compactMap { segment in
-            if case let .wikiLink(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.wikiEmbeds = unique(inlineSegments.compactMap { segment in
-            if case let .wikiEmbed(value) = segment {
-                return value
-            }
-
-            return nil
-        })
+        markers.links = unique(links)
+        markers.autoLinks = unique(autoLinks)
+        markers.emailLinks = unique(emailLinks)
+        markers.images = unique(images)
+        markers.imageReferences = unique(imageReferences)
+        markers.tags = unique(tags)
+        markers.mentions = unique(mentions)
+        markers.wikiLinks = unique(wikiLinks)
+        markers.wikiEmbeds = unique(wikiEmbeds)
         markers.blockIDs = unique(blockIdentifiers(in: blocks))
         markers.customAnchors = unique(customHeadingAnchors(in: markdown))
         markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
@@ -189,100 +209,22 @@ public enum MarkdownAnalyzer {
         markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
         markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
-        markers.inlineHTML = unique(inlineSegments.compactMap { segment in
-            if case let .htmlInline(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.htmlEntities = unique(inlineSegments.compactMap { segment in
-            if case let .htmlEntity(source, _) = segment {
-                return source
-            }
-
-            return nil
-        })
+        markers.inlineHTML = unique(inlineHTML)
+        markers.htmlEntities = unique(htmlEntities)
         markers.taskTokens = taskTokens(in: markdown)
         markers.taskStates = taskStateCounts(in: blocks)
         markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))
-        markers.highlights = unique(inlineSegments.compactMap { segment in
-            if case let .highlight(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.superscripts = unique(inlineSegments.compactMap { segment in
-            if case let .superscript(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.subscripts = unique(inlineSegments.compactMap { segment in
-            if case let .subscriptText(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.criticAdditions = unique(inlineSegments.compactMap { segment in
-            if case let .criticAddition(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.criticDeletions = unique(inlineSegments.compactMap { segment in
-            if case let .criticDeletion(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.criticSubstitutions = unique(inlineSegments.compactMap { segment in
-            if case let .criticSubstitution(original, replacement) = segment {
-                return CriticSubstitution(original: original, replacement: replacement)
-            }
-
-            return nil
-        })
-        markers.criticComments = unique(inlineSegments.compactMap { segment in
-            if case let .criticComment(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.criticHighlights = unique(inlineSegments.compactMap { segment in
-            if case let .criticHighlight(value) = segment {
-                return value
-            }
-
-            return nil
-        })
-        markers.citations = unique(inlineSegments.compactMap { segment in
-            if case let .citation(identifier) = segment {
-                return identifier
-            }
-
-            return nil
-        })
-        markers.emojiShortcodes = unique(inlineSegments.compactMap { segment in
-            if case let .emojiShortcode(name) = segment {
-                return name
-            }
-
-            return nil
-        })
-        markers.keyboardShortcuts = unique(inlineSegments.compactMap { segment in
-            if case let .keyboard(value) = segment {
-                return value
-            }
-
-            return nil
-        })
+        markers.highlights = unique(highlights)
+        markers.superscripts = unique(superscripts)
+        markers.subscripts = unique(subscripts)
+        markers.criticAdditions = unique(criticAdditions)
+        markers.criticDeletions = unique(criticDeletions)
+        markers.criticSubstitutions = unique(criticSubstitutions)
+        markers.criticComments = unique(criticComments)
+        markers.criticHighlights = unique(criticHighlights)
+        markers.citations = unique(citations)
+        markers.emojiShortcodes = unique(emojiShortcodes)
+        markers.keyboardShortcuts = unique(keyboardShortcuts)
 
         markers.codeLanguages = unique(
             blocks.compactMap { block in

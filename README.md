@@ -41,7 +41,7 @@ The first build includes:
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, hard line breaks, HTML entities, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, inline HTML tags, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Smart paste and drag-and-drop convert URL clipboard text into Markdown links for selected text, and image URLs or local image files into Markdown image syntax with relative paths when possible.
 - Selection-aware preview feedback highlights the block that contains the editor caret through binary source-map lookup and can keep that block scrolled into view, with cancellable sync-scroll coalescing to avoid jitter during fast cursor movement.
-- Bounded inline parsing cache reduces repeated inline Markdown work across preview redraws, marker analysis, and export.
+- Bounded inline parsing cache and single-pass marker collection reduce repeated inline Markdown work across preview redraws, marker analysis, and export.
 - Smart return and Tab/Shift-Tab handling that continues and reshapes lists, task lists, ordered task lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate explicit heading anchors, and duplicate block ids.
 - Optional preview update animation and animated layout changes.
