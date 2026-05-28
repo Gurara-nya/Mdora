@@ -1048,6 +1048,8 @@ private struct ImageBlockView: View {
     let theme: MdoraTheme
     @Environment(\.mdoraAssetBaseURL) private var assetBaseURL
     @State private var isHovered = false
+    @State private var loadedLocalImage: CGImage?
+    @State private var loadedLocalImageURL: URL?
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
@@ -1106,14 +1108,26 @@ private struct ImageBlockView: View {
             }
             .frame(maxWidth: 760, maxHeight: 420)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-        } else if let image = localImage {
-            Image(nsImage: image)
+        } else if let url = localImageURL {
+            localImageView(for: url)
+        } else {
+            imagePlaceholder
+        }
+    }
+
+    @ViewBuilder
+    private func localImageView(for url: URL) -> some View {
+        if let image = cachedOrLoadedImage(for: url) {
+            Image(decorative: image, scale: 1, orientation: .up)
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: 760, maxHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
             imagePlaceholder
+                .task(id: url) {
+                    await loadLocalImage(from: url)
+                }
         }
     }
 
@@ -1121,9 +1135,27 @@ private struct ImageBlockView: View {
         MarkdownAssetResolver.localFileURL(for: source, relativeTo: assetBaseURL)
     }
 
-    private var localImage: NSImage? {
-        guard let url = localImageURL else { return nil }
-        return NSImage(contentsOf: url)
+    private func cachedOrLoadedImage(for url: URL) -> CGImage? {
+        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url) {
+            return cachedImage
+        }
+
+        guard loadedLocalImageURL == url else { return nil }
+        return loadedLocalImage
+    }
+
+    @MainActor
+    private func loadLocalImage(from url: URL) async {
+        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url) {
+            loadedLocalImageURL = url
+            loadedLocalImage = cachedImage
+            return
+        }
+
+        let image = await MarkdownLocalImageCache.shared.loadPreviewImageInBackground(for: url)
+        guard !Task.isCancelled, localImageURL == url else { return }
+        loadedLocalImageURL = url
+        loadedLocalImage = image
     }
 
     private var imagePlaceholder: some View {

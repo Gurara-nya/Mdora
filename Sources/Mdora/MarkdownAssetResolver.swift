@@ -1,4 +1,6 @@
 import Foundation
+import CoreGraphics
+import ImageIO
 
 enum MarkdownAssetResolver {
     static func remoteURL(for source: String) -> URL? {
@@ -32,5 +34,80 @@ enum MarkdownAssetResolver {
 
         guard let baseURL else { return nil }
         return baseURL.appendingPathComponent(path).standardizedFileURL
+    }
+}
+
+final class MarkdownLocalImageCache: @unchecked Sendable {
+    static let shared = MarkdownLocalImageCache()
+
+    private final class CachedImage: @unchecked Sendable {
+        let image: CGImage
+
+        init(_ image: CGImage) {
+            self.image = image
+        }
+    }
+
+    private let cache = NSCache<NSURL, CachedImage>()
+    private let previewMaxPixelDimension = 1_600
+
+    private init() {
+        cache.countLimit = 128
+        cache.totalCostLimit = 256 * 1024 * 1024
+    }
+
+    func cachedPreviewImage(for url: URL) -> CGImage? {
+        let key = url.standardizedFileURL as NSURL
+        if let cached = cache.object(forKey: key) {
+            return cached.image
+        }
+
+        return nil
+    }
+
+    func loadPreviewImage(for url: URL) -> CGImage? {
+        let key = url.standardizedFileURL as NSURL
+        if let cached = cache.object(forKey: key) {
+            return cached.image
+        }
+
+        guard let image = Self.loadThumbnail(from: url, maxPixelDimension: previewMaxPixelDimension) else { return nil }
+        cache.setObject(CachedImage(image), forKey: key, cost: cost(for: image))
+        return image
+    }
+
+    func loadPreviewImageInBackground(for url: URL) async -> CGImage? {
+        if let cached = cachedPreviewImage(for: url) {
+            return cached
+        }
+
+        return await Task.detached(priority: .utility) { [self] in
+            loadPreviewImage(for: url)
+        }.value
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    private static func loadThumbnail(from url: URL, maxPixelDimension: Int) -> CGImage? {
+        let sourceOptions = [
+            kCGImageSourceShouldCache: false
+        ] as CFDictionary
+
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
+
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelDimension
+        ] as CFDictionary
+
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions)
+    }
+
+    private func cost(for image: CGImage) -> Int {
+        max(1, image.bytesPerRow * image.height)
     }
 }

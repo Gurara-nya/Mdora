@@ -22,7 +22,7 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 7. `@AppStorage` writing preferences tune editor typography, preview typography, preview line width, focus mode, inspector visibility, preview animation, and preview/editor sync.
 8. `MarkdownHTMLRenderer` uses the same block and inline parsers for HTML export, resolving reference links and reference images through the parsed document's shared reference table.
 
-The preview layer resolves remote images directly and local image paths relative to the open Markdown file, including standalone wiki image embeds.
+The preview layer resolves remote images directly and local image paths relative to the open Markdown file, including standalone wiki image embeds. Local images are downsampled into preview thumbnails through a bounded cache, and first loads run off the main thread so repeated preview redraws do not re-read or re-decode the same file.
 
 This keeps preview, inspection, and export aligned around one parser.
 
@@ -49,6 +49,8 @@ The current app is between level 1 and level 2: it keeps Markdown source as trut
 Block source ranges and normalized link reference definitions are part of the parsed document so the app can coordinate editor state with preview state without trying to infer layout from rendered views or reparsing references in each renderer. The preview sync feature uses source ranges as the stable bridge from caret line to rendered block.
 
 Inline parsing is backed by a bounded, thread-safe cache. Preview redraws, marker extraction, and export often revisit identical inline strings, so the cache cuts repeated tokenization while skipping very large text runs to keep memory predictable.
+
+Local preview images follow the same bounded-resource rule: the UI shows a stable placeholder, decodes a preview-sized thumbnail on a utility task, then reuses that cached `CGImage` for subsequent SwiftUI redraws. This keeps image-heavy notes from stalling the main thread while preserving the original file for open-in-Finder behavior.
 
 Writing preferences are intentionally stored outside the Markdown file. They affect the editing and reading surface without mutating source text, which keeps Markdown round-tripping predictable.
 
