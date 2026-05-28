@@ -37,6 +37,7 @@
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
+- Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

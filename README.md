@@ -37,6 +37,7 @@ The first build includes:
 - Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, wiki embeds, block ids, custom heading anchors, abbreviations, citations, resolved emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, CriticMarkup review marks, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Selection-aware preview feedback highlights the block that contains the editor caret and can keep that block scrolled into view.
+- Bounded inline parsing cache reduces repeated inline Markdown work across preview redraws, marker analysis, and export.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate heading anchors, and duplicate block ids.
 - Optional preview update animation and animated layout changes.

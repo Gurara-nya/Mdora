@@ -2,8 +2,57 @@ import Foundation
 
 public enum InlineMarkdownParser {
     public static func parse(_ text: String) -> [InlineMarkdownSegment] {
+        if let cached = cache.segments(for: text) {
+            return cached
+        }
+
         var parser = InlineParser(text: text)
-        return parser.parse()
+        let segments = parser.parse()
+        cache.store(segments, for: text)
+        return segments
+    }
+
+    public static func clearCache() {
+        cache.removeAll()
+    }
+
+    private static let cache = InlineMarkdownParseCache()
+}
+
+private final class InlineMarkdownParseCache: @unchecked Sendable {
+    private let cache = NSCache<NSString, InlineMarkdownSegmentBox>()
+    private let maxCacheableTextLength = 16_384
+
+    init() {
+        cache.countLimit = 4_096
+        cache.totalCostLimit = 4_000_000
+    }
+
+    func segments(for text: String) -> [InlineMarkdownSegment]? {
+        guard shouldCache(text) else { return nil }
+        return cache.object(forKey: text as NSString)?.segments
+    }
+
+    func store(_ segments: [InlineMarkdownSegment], for text: String) {
+        guard shouldCache(text) else { return }
+        let cost = text.utf16.count + segments.count * 32
+        cache.setObject(InlineMarkdownSegmentBox(segments), forKey: text as NSString, cost: cost)
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    private func shouldCache(_ text: String) -> Bool {
+        !text.isEmpty && text.utf16.count <= maxCacheableTextLength
+    }
+}
+
+private final class InlineMarkdownSegmentBox: @unchecked Sendable {
+    let segments: [InlineMarkdownSegment]
+
+    init(_ segments: [InlineMarkdownSegment]) {
+        self.segments = segments
     }
 }
 
