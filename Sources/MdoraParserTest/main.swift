@@ -445,7 +445,30 @@ func runTests() {
     }
     assert(listItems.count == 2)
     assert(listItems[0].text == "Sub list item 1")
-    print("✅ Recursive blockquote parsing works perfectly!")
+
+    let lazyQuoteMarkdown = """
+    > Lazy quote starts
+    continues without marker
+    > - quoted bullet
+
+    Outside paragraph
+    """
+    let lazyQuoteDocument = MarkdownParser.parse(lazyQuoteMarkdown)
+    guard case .blockquote(let lazyQuoteBlocks, nil) = lazyQuoteDocument.blocks[0] else {
+        fatalError("❌ Expected lazy continuation sample to start with a blockquote")
+    }
+    guard case .paragraph("Lazy quote starts continues without marker") = lazyQuoteBlocks[0],
+          case .unorderedList(let lazyQuoteItems) = lazyQuoteBlocks[1] else {
+        fatalError("❌ Expected unmarked text to lazily continue the quoted paragraph")
+    }
+    assert(lazyQuoteItems.map(\.text) == ["quoted bullet"])
+    guard case .paragraph("Outside paragraph") = lazyQuoteDocument.blocks[1] else {
+        fatalError("❌ Expected paragraph after blank line to stay outside the blockquote")
+    }
+    let lazyQuoteHTML = MarkdownHTMLRenderer.renderFragment(lazyQuoteMarkdown)
+    assert(lazyQuoteHTML.contains("<blockquote>"))
+    assert(lazyQuoteHTML.contains("<p>Lazy quote starts continues without marker</p>"))
+    print("✅ Recursive blockquote and lazy continuation parsing works perfectly!")
 
     // 9. Test task source editing through source maps
     let taskMarkdown = """

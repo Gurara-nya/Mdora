@@ -459,14 +459,28 @@ private struct BlockParser {
         guard currentLine.trimmed.hasPrefix(">") else { return nil }
 
         var quoteLines: [String] = []
+        var acceptsLazyContinuation = false
 
-        while index < lines.count, currentLine.trimmed.hasPrefix(">") {
+        while index < lines.count {
+            if !currentLine.trimmed.hasPrefix(">") {
+                guard acceptsLazyContinuation,
+                      Self.isLazyBlockquoteContinuation(currentLine) else {
+                    break
+                }
+
+                quoteLines.append(currentLine)
+                acceptsLazyContinuation = true
+                index += 1
+                continue
+            }
+
             let trimmed = currentLine.trimmed
             var content = String(trimmed.dropFirst())
             if content.hasPrefix(" ") {
                 content.removeFirst()
             }
             quoteLines.append(content)
+            acceptsLazyContinuation = Self.canAcceptLazyBlockquoteContinuation(after: content)
             index += 1
         }
 
@@ -480,6 +494,38 @@ private struct BlockParser {
         let subBlocks = subParser.parseBlocks().blocks
 
         return .blockquote(blocks: subBlocks, callout: callout)
+    }
+
+    private static func canAcceptLazyBlockquoteContinuation(after content: String) -> Bool {
+        let trimmed = content.trimmed
+        guard !trimmed.isEmpty else { return false }
+        return !isBlockStartLine(content)
+    }
+
+    private static func isLazyBlockquoteContinuation(_ line: String) -> Bool {
+        guard !line.trimmed.isEmpty else { return false }
+        return !isBlockStartLine(line)
+    }
+
+    private static func isBlockStartLine(_ line: String) -> Bool {
+        let trimmed = line.trimmed
+        guard !trimmed.isEmpty else { return false }
+
+        if line.hasPrefix("    ") || line.hasPrefix("\t") { return true }
+        if MarkdownCodeFenceScanner.delimiter(in: line) != nil { return true }
+        if trimmed == "$$" || trimmed.hasPrefix("$$ ") { return true }
+        if isThematicBreakLine(line) { return true }
+        if isTableSeparator(line) { return true }
+        if parseListLine(line) != nil { return true }
+        if isFootnoteDefinition(line) { return true }
+        if isDefinitionLine(trimmed) { return true }
+        if parseLinkReferenceDefinitionLine(trimmed) != nil { return true }
+        if parseAbbreviationDefinitionLine(trimmed) != nil { return true }
+        if trimmed.hasPrefix("<!--") { return true }
+        if trimmed.hasPrefix(">") { return true }
+        if headingLevel(line) != nil { return true }
+
+        return false
     }
 
     private mutating func parseList() -> MarkdownBlock? {

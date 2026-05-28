@@ -79,7 +79,7 @@ The parser currently recognizes:
 - Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, CommonMark code spans with multi-backtick delimiters and spacing normalization, CommonMark hard line breaks, HTML entity references, links and images with balanced parentheses in destinations and nested brackets in labels, reference links, citations, resolved emoji shortcodes, keyboard tags, inline HTML tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links and embeds with aliases and heading/block targets, tags, mentions, footnotes, images, Markdown Extra abbreviations, and math markers.
 - Block and inline math markers.
 - Ordered lists with both `1.` and `1)` markers, GFM-style tables including escaped pipes and code-span pipes inside cells, plus task lists with extended states such as `[/]`, `[-]`, `[>]`, `[!]`, and `[?]`.
-- Blockquotes and Obsidian/GitHub-style callouts, including aliases, custom titles, and `+`/`-` fold markers.
+- Blockquotes with lazy paragraph continuation lines and Obsidian/GitHub-style callouts, including aliases, custom titles, and `+`/`-` fold markers.
 - Footnote definitions and references.
 - Definition lists.
 - Abbreviation definitions, resolved into inline abbreviation rendering for preview and HTML export.
