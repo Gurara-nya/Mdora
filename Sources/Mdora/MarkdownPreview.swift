@@ -5,6 +5,7 @@ struct MarkdownPreviewStyle: Equatable {
     var bodyFontSize: CGFloat = 16
     var lineWidth: CGFloat = 820
     var animationsEnabled = true
+    var syncsToEditor = true
 }
 
 private struct MarkdownPreviewStyleKey: EnvironmentKey {
@@ -33,37 +34,49 @@ struct MarkdownPreview: View {
         let parsed = document
         let activeBlockIndex = activeBlockIndex(in: parsed)
 
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 14) {
-                ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { index, block in
-                    MarkdownBlockView(
-                        block: block,
-                        theme: theme,
-                        isActive: index == activeBlockIndex
-                    )
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { index, block in
+                        MarkdownBlockView(
+                            block: block,
+                            theme: theme,
+                            isActive: index == activeBlockIndex
+                        )
+                        .id(index)
                         .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+                .frame(maxWidth: style.lineWidth, alignment: .leading)
+                .padding(.horizontal, 34)
+                .padding(.vertical, 30)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .environment(\.mdoraPreviewStyle, style)
+            .background(theme.palette.previewColor)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(theme.palette.accentColor)
+                    .frame(height: 2)
+                    .opacity(style.animationsEnabled && updatePulse ? 0.75 : 0)
+                    .animation(style.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
+            }
+            .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: markdown)
+            .onChange(of: markdown) { _, _ in
+                guard style.animationsEnabled else { return }
+                updatePulse = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+                    updatePulse = false
                 }
             }
-            .frame(maxWidth: style.lineWidth, alignment: .leading)
-            .padding(.horizontal, 34)
-            .padding(.vertical, 30)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .environment(\.mdoraPreviewStyle, style)
-        .background(theme.palette.previewColor)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(theme.palette.accentColor)
-                .frame(height: 2)
-                .opacity(style.animationsEnabled && updatePulse ? 0.75 : 0)
-                .animation(style.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
-        }
-        .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: markdown)
-        .onChange(of: markdown) { _, _ in
-            guard style.animationsEnabled else { return }
-            updatePulse = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
-                updatePulse = false
+            .onChange(of: activeBlockIndex) { _, blockIndex in
+                scrollToActiveBlock(blockIndex, proxy: proxy)
+            }
+            .onChange(of: style.syncsToEditor) { _, _ in
+                scrollToActiveBlock(activeBlockIndex, proxy: proxy)
+            }
+            .onAppear {
+                scrollToActiveBlock(activeBlockIndex, proxy: proxy)
             }
         }
     }
@@ -73,6 +86,14 @@ struct MarkdownPreview: View {
         return document.sourceMap.first { range in
             range.contains(line: activeLine)
         }?.blockIndex
+    }
+
+    private func scrollToActiveBlock(_ blockIndex: Int?, proxy: ScrollViewProxy) {
+        guard style.syncsToEditor, let blockIndex else { return }
+
+        withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil) {
+            proxy.scrollTo(blockIndex, anchor: .center)
+        }
     }
 }
 

@@ -32,10 +32,10 @@ The first build includes:
 - Reference link definitions and HTML comments are parsed as visible, inspectable structures.
 - Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
-- Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, and preview animation.
+- Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.
 - Inspector for outline, metadata, block distribution, tags, mentions, wiki links, links, automatic links, email links, images, image references, footnotes, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for front matter, bold, italic, images, links, footnotes, URLs, emails, tables, comments, and more.
-- Selection-aware preview feedback highlights the block that contains the editor caret.
+- Selection-aware preview feedback highlights the block that contains the editor caret and can keep that block scrolled into view.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
 - Optional preview update animation and animated layout changes.

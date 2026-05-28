@@ -11,6 +11,7 @@ struct EditorWindow: View {
     @AppStorage("previewFontSize") private var previewFontSize = 16.0
     @AppStorage("previewLineWidth") private var previewLineWidth = 820.0
     @AppStorage("previewAnimations") private var previewAnimations = true
+    @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var exportMessage: String?
@@ -46,7 +47,8 @@ struct EditorWindow: View {
         MarkdownPreviewStyle(
             bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
-            animationsEnabled: previewAnimations
+            animationsEnabled: previewAnimations,
+            syncsToEditor: syncPreviewWithEditor
         )
     }
 
@@ -281,6 +283,7 @@ struct EditorWindow: View {
 
                 Menu {
                     Toggle("Preview Animation", isOn: $previewAnimations)
+                    Toggle("Sync Preview", isOn: $syncPreviewWithEditor)
                     Toggle("Focus Mode", isOn: $focusMode)
 
                     Divider()

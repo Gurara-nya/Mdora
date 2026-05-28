@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("previewFontSize") private var previewFontSize = 16.0
     @AppStorage("previewLineWidth") private var previewLineWidth = 820.0
     @AppStorage("previewAnimations") private var previewAnimations = true
+    @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
 
     private var selectedTheme: Binding<MdoraTheme> {
         Binding(
@@ -34,6 +35,7 @@ struct SettingsView: View {
                 Toggle("Inspector", isOn: $showInspector)
                 Toggle("Focus mode", isOn: $focusMode)
                 Toggle("Preview animation", isOn: $previewAnimations)
+                Toggle("Sync preview", isOn: $syncPreviewWithEditor)
             }
 
             Section("Typography") {
