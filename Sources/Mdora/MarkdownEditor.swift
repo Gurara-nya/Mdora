@@ -6,12 +6,14 @@ struct MarkdownEditor: View {
     @Binding var text: String
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
+    let fontSize: CGFloat
 
     var body: some View {
         NativeMarkdownTextView(
             text: $text,
             commandCenter: commandCenter,
-            theme: theme
+            theme: theme,
+            fontSize: fontSize
         )
         .background(theme.palette.editorColor)
     }
@@ -21,6 +23,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     @Binding var text: String
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
+    let fontSize: CGFloat
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -35,7 +38,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.font = .monospacedSystemFont(ofSize: 15, weight: .regular)
+        textView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainerInset = NSSize(width: 20, height: 18)
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -92,6 +95,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
     private func applyTheme(to textView: NSTextView, scrollView: NSScrollView) {
         let palette = theme.palette
+        textView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.backgroundColor = palette.editor
         textView.textColor = palette.text
         textView.insertionPointColor = palette.accent
@@ -262,7 +266,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let selectedRange = textView.selectedRange()
             let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
             let palette = parent.theme.palette
-            let baseFont = NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
+            let baseSize = parent.fontSize
+            let baseFont = NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
             let baseAttributes: [NSAttributedString.Key: Any] = [
                 .font: baseFont,
                 .foregroundColor: palette.text
@@ -285,11 +290,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ])
             highlightInline(pattern: #"\*\*[^*\n]+\*\*|__[^_\n]+__"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
-                .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .bold)
+                .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .bold)
             ])
             highlightInline(pattern: #"(?<!\*)\*[^*\n]+\*(?!\*)|(?<!_)_[^_\n]+_(?!_)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
-                .font: italicFont(size: 15)
+                .font: italicFont(size: baseSize)
             ])
             highlightInline(pattern: #"~~[^~]+~~"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
@@ -314,7 +319,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"\[\^[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .baselineOffset: 3,
-                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+                .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
             ])
             highlightInline(pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
@@ -332,7 +337,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ])
             highlightInline(pattern: #"(?im)^\s*(?:[-*]\s+)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
-                .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
             ])
             highlightCurrentLine(in: textView, storage: textStorage)
             textStorage.endEditing()
@@ -346,6 +351,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let nsString = textView.string as NSString
             let fullRange = NSRange(location: 0, length: nsString.length)
             let palette = parent.theme.palette
+            let baseSize = parent.fontSize
             var isInFence = false
 
             nsString.enumerateSubstrings(in: fullRange, options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
@@ -355,7 +361,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
                     ], range: lineRange)
                     isInFence.toggle()
                     return
@@ -364,7 +370,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if trimmed == "$$" || trimmed.hasPrefix("$$ ") {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
                     ], range: lineRange)
                     return
                 }
@@ -372,7 +378,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if self.isFrontMatterFence(lineRange: lineRange, in: nsString) {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ], range: lineRange)
                     return
                 }
@@ -390,7 +396,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     let level = trimmed.prefix { character in
                         character == "#"
                     }.count
-                    let size = max(15, 22 - CGFloat(level * 2))
+                    let size = max(baseSize, baseSize + 7 - CGFloat(level * 2))
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
                         .font: NSFont.monospacedSystemFont(ofSize: size, weight: .semibold)
@@ -401,7 +407,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if self.isReferenceDefinition(trimmed) {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ], range: lineRange)
                     return
                 }
@@ -409,7 +415,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if self.isMetadataLine(trimmed, lineRange: lineRange, in: nsString) {
                     storage.addAttributes([
                         .foregroundColor: palette.muted,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ], range: lineRange)
                     return
                 }
@@ -417,7 +423,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if trimmed.hasPrefix("<!--") {
                     storage.addAttributes([
                         .foregroundColor: palette.muted,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
                     ], range: lineRange)
                     return
                 }
@@ -425,7 +431,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if trimmed.hasPrefix("|") {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ], range: lineRange)
                     return
                 }
@@ -433,7 +439,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if trimmed.hasPrefix("> [!") {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
                     ], range: lineRange)
                     return
                 }

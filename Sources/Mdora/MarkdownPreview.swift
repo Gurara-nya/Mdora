@@ -1,9 +1,27 @@
 import MdoraCore
 import SwiftUI
 
+struct MarkdownPreviewStyle: Equatable {
+    var bodyFontSize: CGFloat = 16
+    var lineWidth: CGFloat = 820
+    var animationsEnabled = true
+}
+
+private struct MarkdownPreviewStyleKey: EnvironmentKey {
+    static let defaultValue = MarkdownPreviewStyle()
+}
+
+private extension EnvironmentValues {
+    var mdoraPreviewStyle: MarkdownPreviewStyle {
+        get { self[MarkdownPreviewStyleKey.self] }
+        set { self[MarkdownPreviewStyleKey.self] = newValue }
+    }
+}
+
 struct MarkdownPreview: View {
     let markdown: String
     let theme: MdoraTheme
+    let style: MarkdownPreviewStyle
     @State private var updatePulse = false
 
     private var document: ParsedMarkdownDocument {
@@ -20,21 +38,23 @@ struct MarkdownPreview: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .frame(maxWidth: 820, alignment: .leading)
+            .frame(maxWidth: style.lineWidth, alignment: .leading)
             .padding(.horizontal, 34)
             .padding(.vertical, 30)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .environment(\.mdoraPreviewStyle, style)
         .background(theme.palette.previewColor)
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(theme.palette.accentColor)
                 .frame(height: 2)
-                .opacity(updatePulse ? 0.75 : 0)
-                .animation(.easeOut(duration: 0.28), value: updatePulse)
+                .opacity(style.animationsEnabled && updatePulse ? 0.75 : 0)
+                .animation(style.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
         }
-        .animation(.easeInOut(duration: 0.18), value: markdown)
+        .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: markdown)
         .onChange(of: markdown) { _, _ in
+            guard style.animationsEnabled else { return }
             updatePulse = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
                 updatePulse = false
@@ -46,6 +66,7 @@ struct MarkdownPreview: View {
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         switch block {
@@ -55,7 +76,7 @@ private struct MarkdownBlockView: View {
             HeadingView(level: level, text: text, theme: theme)
         case let .paragraph(text):
             InlineMarkdownText(text, theme: theme)
-                .font(.system(size: 16))
+                .font(.system(size: style.bodyFontSize))
                 .lineSpacing(5)
         case let .blockquote(lines, callout):
             BlockquoteView(lines: lines, callout: callout, theme: theme)
@@ -97,6 +118,7 @@ private struct HeadingView: View {
     let level: Int
     let text: String
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         InlineMarkdownText(text, theme: theme)
@@ -106,17 +128,18 @@ private struct HeadingView: View {
     }
 
     private var fontSize: CGFloat {
+        let base = style.bodyFontSize
         switch level {
         case 1:
-            32
+            return base + 16
         case 2:
-            25
+            return base + 9
         case 3:
-            21
+            return base + 5
         case 4:
-            18
+            return base + 2
         default:
-            16
+            return base
         }
     }
 
@@ -666,6 +689,7 @@ private struct HTMLBlockView: View {
 private struct InlineMarkdownText: View {
     private let text: String
     private let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     init(_ text: String, theme: MdoraTheme) {
         self.text = text
@@ -700,7 +724,7 @@ private struct InlineMarkdownText: View {
             renderInline(value).strikethrough()
         case let .code(value):
             Text(value)
-                .font(.system(size: 14, design: .monospaced))
+                .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))
                 .foregroundColor(theme.palette.accentColor)
         case let .link(label, _, _), let .referenceLink(label, _):
             renderInline(label)
@@ -708,11 +732,11 @@ private struct InlineMarkdownText: View {
                 .underline()
         case let .image(alt, source, _):
             Text("[image: \(alt.isEmpty ? source : alt)]")
-                .font(.caption)
+                .font(.system(size: max(11, style.bodyFontSize - 4)))
                 .foregroundColor(theme.palette.accentColor)
         case let .imageReference(alt, label):
             Text("[image: \(alt.isEmpty ? label : alt)]")
-                .font(.caption)
+                .font(.system(size: max(11, style.bodyFontSize - 4)))
                 .foregroundColor(theme.palette.accentColor)
         case let .autoLink(url):
             Text(url)
@@ -724,24 +748,24 @@ private struct InlineMarkdownText: View {
                 .underline()
         case let .wikiLink(value):
             Text("[[\(value)]]")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         case let .footnote(identifier):
             Text("[\(identifier)]")
-                .font(.caption)
+                .font(.system(size: max(10, style.bodyFontSize - 5)))
                 .baselineOffset(4)
                 .foregroundColor(theme.palette.accentColor)
         case let .inlineMath(value):
             Text(value)
-                .font(.system(size: 15, weight: .medium, design: .serif))
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium, design: .serif))
                 .foregroundColor(theme.palette.accentColor)
         case let .tag(value):
             Text("#\(value)")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         case let .mention(value):
             Text("@\(value)")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         }
     }

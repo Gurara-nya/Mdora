@@ -21,6 +21,7 @@
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
+- Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

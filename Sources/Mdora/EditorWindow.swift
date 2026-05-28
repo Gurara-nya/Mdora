@@ -6,6 +6,11 @@ struct EditorWindow: View {
     @AppStorage("editorLayoutMode") private var layoutMode = LayoutMode.split.rawValue
     @AppStorage("mdoraTheme") private var themeName = MdoraTheme.system.rawValue
     @AppStorage("showInspector") private var showInspector = true
+    @AppStorage("focusMode") private var focusMode = false
+    @AppStorage("editorFontSize") private var editorFontSize = 15.0
+    @AppStorage("previewFontSize") private var previewFontSize = 16.0
+    @AppStorage("previewLineWidth") private var previewLineWidth = 820.0
+    @AppStorage("previewAnimations") private var previewAnimations = true
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var exportMessage: String?
@@ -36,6 +41,14 @@ struct EditorWindow: View {
         MarkdownParser.parse(document.text)
     }
 
+    private var previewStyle: MarkdownPreviewStyle {
+        MarkdownPreviewStyle(
+            bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
+            lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
+            animationsEnabled: previewAnimations
+        )
+    }
+
     var body: some View {
         let parsed = parsedDocument
 
@@ -45,17 +58,22 @@ struct EditorWindow: View {
                     MarkdownEditor(
                         text: $document.text,
                         commandCenter: commandCenter,
-                        theme: theme
+                        theme: theme,
+                        fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22))
                     )
                         .frame(minWidth: 360, idealWidth: 560)
                 }
 
                 if selectedLayout.wrappedValue.showsPreview {
-                    MarkdownPreview(markdown: document.text, theme: theme)
+                    MarkdownPreview(
+                        markdown: document.text,
+                        theme: theme,
+                        style: previewStyle
+                    )
                         .frame(minWidth: 360, idealWidth: 560)
                 }
 
-                if showInspector {
+                if showInspector && !focusMode {
                     DocumentInspector(document: parsed, theme: theme)
                         .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -68,6 +86,7 @@ struct EditorWindow: View {
                 markers: parsed.markers,
                 diagnostics: parsed.diagnostics,
                 theme: theme,
+                focusMode: focusMode,
                 message: exportMessage
             )
         }
@@ -248,6 +267,51 @@ struct EditorWindow: View {
                 .help("Toggle inspector")
 
                 Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        focusMode.toggle()
+                    }
+                } label: {
+                    Image(systemName: focusMode ? "viewfinder.circle.fill" : "viewfinder.circle")
+                }
+                .help("Focus mode")
+
+                Menu {
+                    Toggle("Preview Animation", isOn: $previewAnimations)
+                    Toggle("Focus Mode", isOn: $focusMode)
+
+                    Divider()
+
+                    Button("Editor Font Larger") {
+                        editorFontSize = (editorFontSize + 1).clamped(to: 12 ... 22)
+                    }
+
+                    Button("Editor Font Smaller") {
+                        editorFontSize = (editorFontSize - 1).clamped(to: 12 ... 22)
+                    }
+
+                    Button("Preview Font Larger") {
+                        previewFontSize = (previewFontSize + 1).clamped(to: 13 ... 22)
+                    }
+
+                    Button("Preview Font Smaller") {
+                        previewFontSize = (previewFontSize - 1).clamped(to: 13 ... 22)
+                    }
+
+                    Divider()
+
+                    Button("Narrow Preview") {
+                        previewLineWidth = (previewLineWidth - 80).clamped(to: 620 ... 1040)
+                    }
+
+                    Button("Wide Preview") {
+                        previewLineWidth = (previewLineWidth + 80).clamped(to: 620 ... 1040)
+                    }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                }
+                .help("Writing view options")
+
+                Button {
                     isExportingHTML = true
                 } label: {
                     Label("Export HTML", systemImage: "square.and.arrow.up")
@@ -306,5 +370,11 @@ enum LayoutMode: String, CaseIterable, Identifiable {
 
     var showsPreview: Bool {
         self == .preview || self == .split
+    }
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

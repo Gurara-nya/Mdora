@@ -6,6 +6,7 @@ struct StatusBar: View {
     let markers: MarkdownMarkers
     let diagnostics: [MarkdownDiagnostic]
     let theme: MdoraTheme
+    let focusMode: Bool
     let message: String?
 
     var body: some View {
@@ -13,6 +14,7 @@ struct StatusBar: View {
             Text("\(stats.words) words")
             Text("\(stats.characters) characters")
             Text("\(stats.lines) lines")
+            Text("\(stats.readingMinutes) min read")
             Text("\(stats.blockKinds.count) kinds")
             Text("\(markers.links.count) links")
             Text("\(markers.emailLinks.count) emails")
@@ -21,6 +23,10 @@ struct StatusBar: View {
             Text("\(markers.taskTokens.count) flags")
             Text("\(markers.diagrams.count) diagrams")
             Text("\(diagnostics.count) diagnostics")
+
+            if focusMode {
+                Text("focus")
+            }
 
             Spacer()
 

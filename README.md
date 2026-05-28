@@ -31,12 +31,13 @@ The first build includes:
 - Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, inline code, links, reference links, inline images, image references, wiki links, tags, mentions, footnotes, autolinks, email links, and inline math.
 - Reference link definitions and HTML comments are parsed as visible, inspectable structures.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
+- Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, and preview animation.
 - Inspector for outline, metadata, block distribution, tags, mentions, wiki links, links, automatic links, email links, images, image references, footnotes, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for front matter, bold, italic, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
-- Subtle preview update animation and animated layout changes.
-- Status bar with word, character, line, link, tag, flag, diagram, and diagnostic counts.
+- Optional preview update animation and animated layout changes.
+- Status bar with word, character, line, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
 - HTML export.
 
 ## Product Direction
