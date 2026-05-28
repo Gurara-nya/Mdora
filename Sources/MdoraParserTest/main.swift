@@ -81,6 +81,30 @@ func runTests() {
     assert((unclosedFenceMarkdown as NSString).substring(with: unclosedFenceRanges[0]) == unclosedFenceMarkdown)
     print("✅ Editor syntax highlighting can skip fenced code ranges without coloring inner backticks!")
 
+    // 3c. Test variable-length CommonMark code fences
+    let variableFenceMarkdown = #"""
+    ````swift
+    ```text
+    inner fence stays code
+    ```
+    ````
+    """#
+    let variableFenceDocument = MarkdownParser.parse(variableFenceMarkdown)
+    guard case .codeBlock(let variableFenceLanguage, let variableFenceCode) = variableFenceDocument.blocks[0] else {
+        fatalError("❌ Expected variable-length fence sample to parse as a code block")
+    }
+    assert(variableFenceLanguage == "swift")
+    assert(variableFenceCode == "```text\ninner fence stays code\n```")
+
+    let tildeFenceMarkdown = "~~~~mermaid\nflowchart LR\n~~~\n~~~~"
+    let tildeFenceDocument = MarkdownParser.parse(tildeFenceMarkdown)
+    guard case .diagram(let tildeDiagram) = tildeFenceDocument.blocks[0] else {
+        fatalError("❌ Expected long tilde fence to parse as a diagram block")
+    }
+    assert(tildeDiagram.kind == .mermaid)
+    assert(tildeDiagram.source == "flowchart LR\n~~~")
+    print("✅ Variable-length CommonMark code fences do not close on shorter inner fences!")
+
     // 4. Test HTML entity references
     let entityMarkdown = "AT&amp;T &copy; &#169; &#x1F680; &notanentity;"
     let entitySegments = InlineMarkdownParser.parse(entityMarkdown)

@@ -1,6 +1,36 @@
 import Foundation
 
 public enum MarkdownCodeFenceScanner {
+    public static func delimiter(in line: String) -> MarkdownCodeFenceDelimiter? {
+        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let marker = trimmedLine.first, marker == "`" || marker == "~" else { return nil }
+
+        var cursor = trimmedLine.startIndex
+        var length = 0
+        while cursor < trimmedLine.endIndex, trimmedLine[cursor] == marker {
+            length += 1
+            cursor = trimmedLine.index(after: cursor)
+        }
+
+        guard length >= 3 else { return nil }
+        let info = String(trimmedLine[cursor...])
+        return MarkdownCodeFenceDelimiter(
+            marker: marker,
+            length: length,
+            info: info.trimmingCharacters(in: .whitespacesAndNewlines),
+            canClose: info.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
+    }
+
+    public static func isClosingDelimiter(
+        _ delimiter: MarkdownCodeFenceDelimiter,
+        for openingDelimiter: MarkdownCodeFenceDelimiter
+    ) -> Bool {
+        delimiter.marker == openingDelimiter.marker &&
+            delimiter.length >= openingDelimiter.length &&
+            delimiter.canClose
+    }
+
     public static func fencedLineRanges(in markdown: String) -> [NSRange] {
         let source = markdown as NSString
         guard source.length > 0 else { return [] }
@@ -14,17 +44,14 @@ public enum MarkdownCodeFenceScanner {
             let line = source.substring(with: lineRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if let candidate = fenceCandidate(in: line) {
+            if let candidate = delimiter(in: line) {
                 if let open = openFence,
-                   candidate.marker == open.marker,
-                   candidate.length >= open.length,
-                   candidate.canClose {
+                   isClosingDelimiter(candidate, for: open.delimiter) {
                     ranges.append(NSRange(location: open.location, length: lineRange.upperBound - open.location))
                     openFence = nil
                 } else if openFence == nil {
                     openFence = Fence(
-                        marker: candidate.marker,
-                        length: candidate.length,
+                        delimiter: candidate,
                         location: lineRange.location
                     )
                 }
@@ -41,35 +68,23 @@ public enum MarkdownCodeFenceScanner {
 
         return ranges
     }
+}
 
-    private static func fenceCandidate(in trimmedLine: String) -> FenceCandidate? {
-        guard let marker = trimmedLine.first, marker == "`" || marker == "~" else { return nil }
+public struct MarkdownCodeFenceDelimiter: Equatable {
+    public var marker: Character
+    public var length: Int
+    public var info: String
+    public var canClose: Bool
 
-        var cursor = trimmedLine.startIndex
-        var length = 0
-        while cursor < trimmedLine.endIndex, trimmedLine[cursor] == marker {
-            length += 1
-            cursor = trimmedLine.index(after: cursor)
-        }
-
-        guard length >= 3 else { return nil }
-        let rest = String(trimmedLine[cursor...])
-        return FenceCandidate(
-            marker: marker,
-            length: length,
-            canClose: rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        )
+    public init(marker: Character, length: Int, info: String, canClose: Bool) {
+        self.marker = marker
+        self.length = length
+        self.info = info
+        self.canClose = canClose
     }
 }
 
 private struct Fence {
-    var marker: Character
-    var length: Int
+    var delimiter: MarkdownCodeFenceDelimiter
     var location: Int
-}
-
-private struct FenceCandidate {
-    var marker: Character
-    var length: Int
-    var canClose: Bool
 }

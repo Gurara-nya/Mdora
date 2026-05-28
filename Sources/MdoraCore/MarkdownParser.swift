@@ -245,17 +245,17 @@ private struct BlockParser {
 
     private mutating func parseCodeFence() -> MarkdownBlock? {
         let trimmed = currentLine.trimmed
-        guard trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") else { return nil }
+        guard let openingDelimiter = MarkdownCodeFenceScanner.delimiter(in: trimmed) else { return nil }
 
-        let fence = String(trimmed.prefix(3))
-        let language = String(trimmed.dropFirst(3)).trimmed.nilIfEmpty
+        let language = openingDelimiter.info.nilIfEmpty
         var codeLines: [String] = []
 
         index += 1
 
         while index < lines.count {
             let line = currentLine
-            if line.trimmed.hasPrefix(fence) {
+            if let closingDelimiter = MarkdownCodeFenceScanner.delimiter(in: line),
+               MarkdownCodeFenceScanner.isClosingDelimiter(closingDelimiter, for: openingDelimiter) {
                 index += 1
                 break
             }
