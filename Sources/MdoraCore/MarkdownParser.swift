@@ -244,8 +244,7 @@ private struct BlockParser {
     }
 
     private mutating func parseCodeFence() -> MarkdownBlock? {
-        let trimmed = currentLine.trimmed
-        guard let openingDelimiter = MarkdownCodeFenceScanner.delimiter(in: trimmed) else { return nil }
+        guard let openingDelimiter = MarkdownCodeFenceScanner.delimiter(in: currentLine) else { return nil }
 
         let language = openingDelimiter.info.nilIfEmpty
         var codeLines: [String] = []
@@ -646,7 +645,7 @@ private struct BlockParser {
         while index < lines.count {
             let line = currentLine
             if line.trimmed.isEmpty { break }
-            if line.trimmed.hasPrefix("```") || line.trimmed.hasPrefix("~~~") { break }
+            if MarkdownCodeFenceScanner.delimiter(in: line) != nil { break }
             if line.trimmed == "$$" || line.trimmed.hasPrefix("$$ ") { break }
             if Self.isTableSeparator(line) { break }
             if Self.parseListLine(line) != nil { break }

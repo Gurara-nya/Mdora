@@ -2,18 +2,28 @@ import Foundation
 
 public enum MarkdownCodeFenceScanner {
     public static func delimiter(in line: String) -> MarkdownCodeFenceDelimiter? {
-        let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let marker = trimmedLine.first, marker == "`" || marker == "~" else { return nil }
+        let line = line.trimmingCharacters(in: .newlines)
+        var cursor = line.startIndex
+        var leadingSpaces = 0
 
-        var cursor = trimmedLine.startIndex
+        while cursor < line.endIndex, line[cursor] == " " {
+            leadingSpaces += 1
+            guard leadingSpaces <= 3 else { return nil }
+            cursor = line.index(after: cursor)
+        }
+
+        guard cursor < line.endIndex else { return nil }
+        let marker = line[cursor]
+        guard marker == "`" || marker == "~" else { return nil }
+
         var length = 0
-        while cursor < trimmedLine.endIndex, trimmedLine[cursor] == marker {
+        while cursor < line.endIndex, line[cursor] == marker {
             length += 1
-            cursor = trimmedLine.index(after: cursor)
+            cursor = line.index(after: cursor)
         }
 
         guard length >= 3 else { return nil }
-        let info = String(trimmedLine[cursor...])
+        let info = String(line[cursor...])
         return MarkdownCodeFenceDelimiter(
             marker: marker,
             length: length,
@@ -58,7 +68,6 @@ public enum MarkdownCodeFenceScanner {
 
             let lineRange = source.lineRange(for: NSRange(location: cursor, length: 0))
             let line = source.substring(with: lineRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
 
             if let candidate = delimiter(in: line) {
                 if let open = openFence,

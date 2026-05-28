@@ -73,7 +73,7 @@ The parser currently recognizes:
 - ATX and setext headings, including empty ATX headings, single-character setext underlines, de-duplicated generated anchors, and Markdown Extra/Pandoc-style custom heading anchors.
 - Obsidian-style block ids such as `^block-id`, stripped from visible preview text and exported as HTML block anchors.
 - YAML, TOML, and JSON front matter.
-- Fenced code blocks with variable-length backtick or tilde delimiters, plus indented code blocks.
+- Fenced code blocks with variable-length backtick or tilde delimiters, CommonMark's zero-to-three-space indentation rule, plus indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
 - Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, CommonMark code spans with multi-backtick delimiters and spacing normalization, CommonMark hard line breaks, HTML entity references, links and images with balanced parentheses in destinations and nested brackets in labels, reference links, citations, resolved emoji shortcodes, keyboard tags, inline HTML tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links and embeds with aliases and heading/block targets, tags, mentions, footnotes, images, Markdown Extra abbreviations, and math markers.
 - Block and inline math markers.

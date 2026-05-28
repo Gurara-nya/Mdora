@@ -95,6 +95,35 @@ func runTests() {
     print("✅ Editor syntax highlighting can skip fenced code ranges without coloring inner backticks!")
 
     // 3c. Test variable-length CommonMark code fences
+    let indentedFenceMarkdown = "    ```text\n    not a fence\n    ```"
+    let indentedFenceDocument = MarkdownParser.parse(indentedFenceMarkdown)
+    guard case .codeBlock(let indentedFenceLanguage, let indentedFenceCode) = indentedFenceDocument.blocks[0] else {
+        fatalError("❌ Expected four-space indented fence to parse as an indented code block")
+    }
+    assert(indentedFenceLanguage == nil)
+    assert(indentedFenceCode == "```text\nnot a fence\n```")
+    assert(MarkdownCodeFenceScanner.fencedLineRanges(in: indentedFenceMarkdown).isEmpty)
+    assert(!indentedFenceDocument.diagnostics.contains { $0.id.hasPrefix("unclosed-code-fence") })
+
+    let threeSpaceFenceMarkdown = "   ```text\ncode\n   ```"
+    let threeSpaceFenceDocument = MarkdownParser.parse(threeSpaceFenceMarkdown)
+    guard case .codeBlock(let threeSpaceFenceLanguage, let threeSpaceFenceCode) = threeSpaceFenceDocument.blocks[0] else {
+        fatalError("❌ Expected three-space indented fence to parse as a fenced code block")
+    }
+    assert(threeSpaceFenceLanguage == "text")
+    assert(threeSpaceFenceCode == "code")
+    assert(MarkdownCodeFenceScanner.fencedLineRanges(in: threeSpaceFenceMarkdown).count == 1)
+
+    let fourSpaceClosingFenceMarkdown = "```text\n    ```"
+    let fourSpaceClosingFenceDocument = MarkdownParser.parse(fourSpaceClosingFenceMarkdown)
+    guard case .codeBlock(let fourSpaceClosingLanguage, let fourSpaceClosingCode) = fourSpaceClosingFenceDocument.blocks[0] else {
+        fatalError("❌ Expected four-space closing fence to remain code content")
+    }
+    assert(fourSpaceClosingLanguage == "text")
+    assert(fourSpaceClosingCode == "    ```")
+    assert(fourSpaceClosingFenceDocument.diagnostics.contains { $0.id == "unclosed-code-fence-1" })
+    print("✅ CommonMark code fences only open or close after up to three leading spaces!")
+
     let variableFenceMarkdown = #"""
     ````swift
     ```text
