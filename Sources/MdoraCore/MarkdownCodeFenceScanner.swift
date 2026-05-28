@@ -130,6 +130,9 @@ public struct MarkdownCodeFenceDelimiter: Equatable {
     public var info: String
     public var canClose: Bool
     public var leadingSpaces: Int
+    public var language: String? {
+        info.split { $0.isWhitespace || $0.isNewline }.first.map(String.init)
+    }
 
     public init(
         marker: Character,

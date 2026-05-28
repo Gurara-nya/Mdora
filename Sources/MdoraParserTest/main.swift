@@ -155,6 +155,26 @@ func runTests() {
     }
     assert(tildeInfoLanguage == "lang`ok")
     assert(tildeInfoCode == "content")
+
+    let infoStringLanguageMarkdown = "```swift linenos start=3\nlet value = 1\n```"
+    let infoStringLanguageDocument = MarkdownParser.parse(infoStringLanguageMarkdown)
+    guard case .codeBlock(let infoStringLanguage, let infoStringCode) = infoStringLanguageDocument.blocks[0] else {
+        fatalError("❌ Expected fenced code info string to parse as a code block")
+    }
+    assert(infoStringLanguage == "swift")
+    assert(infoStringCode == "let value = 1")
+    assert(infoStringLanguageDocument.markers.codeLanguages == ["swift"])
+    let infoStringLanguageHTML = MarkdownHTMLRenderer.renderFragment(infoStringLanguageMarkdown)
+    assert(infoStringLanguageHTML.contains(#"class="language-swift""#))
+    assert(!infoStringLanguageHTML.contains("language-swift linenos"))
+
+    let diagramInfoStringMarkdown = "```mermaid theme=dark\nflowchart LR\nA-->B\n```"
+    let diagramInfoStringDocument = MarkdownParser.parse(diagramInfoStringMarkdown)
+    guard case .diagram(let diagramInfoStringBlock) = diagramInfoStringDocument.blocks[0] else {
+        fatalError("❌ Expected diagram fence to use first info-string word for kind detection")
+    }
+    assert(diagramInfoStringBlock.kind == .mermaid)
+    assert(diagramInfoStringBlock.source == "flowchart LR\nA-->B")
     print("✅ CommonMark code fences honor indentation, content de-indentation, and info-string rules!")
 
     let variableFenceMarkdown = #"""

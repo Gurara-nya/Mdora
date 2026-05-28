@@ -246,7 +246,7 @@ private struct BlockParser {
     private mutating func parseCodeFence() -> MarkdownBlock? {
         guard let openingDelimiter = MarkdownCodeFenceScanner.delimiter(in: currentLine) else { return nil }
 
-        let language = openingDelimiter.info.nilIfEmpty
+        let language = openingDelimiter.language
         var codeLines: [String] = []
 
         index += 1

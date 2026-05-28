@@ -32,6 +32,7 @@
 - Apply CommonMark zero-to-three-space indentation rules to code fence parsing, diagnostics, and editor highlighting.
 - De-indent fenced code content by the opening fence indentation so preview and export match CommonMark.
 - Reject backtick-fence info strings that contain backticks while preserving tilde-fence info strings.
+- Use the first fence info-string word for code language classes, inspector language stats, and diagram detection.
 - Use shared code fence delimiter logic for editor highlighting, parsing, and unclosed fence diagnostics.
 - Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
