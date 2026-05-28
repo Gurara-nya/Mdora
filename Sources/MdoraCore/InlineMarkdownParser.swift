@@ -100,6 +100,7 @@ private struct InlineParser {
         if let segment = consumeInlineMath() { return segment }
         if let segment = consumeKeyboard() { return segment }
         if let segment = consumeAngleAutoLink() { return segment }
+        if let segment = consumeInlineHTML() { return segment }
         if let segment = consumeWikiEmbed() { return segment }
         if let segment = consumeImage() { return segment }
         if let segment = consumeCitation() { return segment }
@@ -329,6 +330,28 @@ private struct InlineParser {
         }
 
         return nil
+    }
+
+    private mutating func consumeInlineHTML() -> InlineMarkdownSegment? {
+        guard hasPrefix("<") else { return nil }
+
+        if hasPrefix("<!--") {
+            let contentStart = text.index(index, offsetBy: 4)
+            guard let close = closingIndex(for: "-->", after: contentStart) else { return nil }
+            let raw = String(text[index ..< text.index(close, offsetBy: 3)])
+            guard !raw.contains(where: \.isNewline) else { return nil }
+
+            index = text.index(close, offsetBy: 3)
+            return .htmlInline(raw)
+        }
+
+        let valueStart = text.index(after: index)
+        guard let close = closingIndex(for: ">", after: valueStart) else { return nil }
+        let raw = String(text[index ... close])
+        guard Self.isInlineHTMLTag(raw) else { return nil }
+
+        index = text.index(after: close)
+        return .htmlInline(raw)
     }
 
     private mutating func consumeDelimited(
@@ -647,6 +670,36 @@ private struct InlineParser {
         }
 
         return match.range == range
+    }
+
+    private static func isInlineHTMLTag(_ value: String) -> Bool {
+        guard value.hasPrefix("<"), value.hasSuffix(">") else { return false }
+        guard !value.contains(where: \.isNewline) else { return false }
+
+        let inner = value
+            .dropFirst()
+            .dropLast()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !inner.isEmpty else { return false }
+
+        if inner.hasPrefix("!"), inner.count > 1 {
+            return true
+        }
+
+        if inner.hasPrefix("?"), inner.hasSuffix("?") {
+            return true
+        }
+
+        let tagSource = inner.hasPrefix("/") ? inner.dropFirst() : inner[...]
+        guard let first = tagSource.first, first.isLetter else { return false }
+
+        let name = tagSource.prefix { character in
+            character.isLetter || character.isNumber || character == "-"
+        }
+
+        guard !name.isEmpty else { return false }
+        let next = tagSource.dropFirst(name.count).first
+        return next == nil || next?.isWhitespace == true || next == "/" || next == ">"
     }
 
     private static let absoluteURIExpression = try! NSRegularExpression(

@@ -66,6 +66,7 @@ struct DocumentInspector: View {
                         MarkerRow(title: "图片参考定义", value: document.markers.imageReferences.count, systemImage: "photo.badge.arrow.down", theme: theme)
                         MarkerRow(title: "脚注定义", value: document.markers.footnotes.count, systemImage: "text.badge.checkmark", theme: theme)
                         MarkerRow(title: "HTML 注释", value: document.markers.htmlComments.count, systemImage: "text.bubble", theme: theme)
+                        MarkerRow(title: "行内 HTML", value: document.markers.inlineHTML.count, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
                         MarkerRow(title: "数学公式数", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
                         MarkerRow(title: "高亮标记数", value: document.markers.highlights.count, systemImage: "highlighter", theme: theme)
                         MarkerRow(title: "上标文本", value: document.markers.superscripts.count, systemImage: "textformat.superscript", theme: theme)
@@ -112,6 +113,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "图片链接列表", values: document.markers.images, systemImage: "photo", theme: theme)
                 MarkerList(title: "图片参考定义列表", values: document.markers.imageReferences.map { "![...][\($0)]" }, systemImage: "photo.badge.arrow.down", theme: theme)
                 MarkerList(title: "HTML 注释列表", values: document.markers.htmlComments, systemImage: "text.bubble", theme: theme)
+                MarkerList(title: "行内 HTML 列表", values: document.markers.inlineHTML, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
 
                 InspectorSection(title: "分块分布", systemImage: "square.stack.3d.up", theme: theme) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -228,6 +230,7 @@ private struct CompatibilitySummary: View {
         if !document.markers.keyboardShortcuts.isEmpty { features.append("键盘键帽") }
         if !document.markers.callouts.isEmpty { features.append("提示框") }
         if !document.markers.htmlComments.isEmpty { features.append("注释") }
+        if !document.markers.inlineHTML.isEmpty { features.append("行内 HTML") }
 
         return features.isEmpty ? ["基础 Markdown"] : features
     }

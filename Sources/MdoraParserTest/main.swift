@@ -183,7 +183,24 @@ func runTests() {
     )
     print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
 
-    // 8. Test internal preview link navigation targets
+    // 8. Test inline HTML recognition without stealing angle autolinks
+    let inlineHTMLMarkdown = "Inline <span class=\"badge\">HTML</span>, <br />, and <https://example.com>."
+    let inlineHTMLSegments = InlineMarkdownParser.parse(inlineHTMLMarkdown)
+    let inlineHTMLTags = inlineHTMLSegments.compactMap { segment -> String? in
+        if case .htmlInline(let value) = segment { return value }
+        return nil
+    }
+    assert(inlineHTMLTags == ["<span class=\"badge\">", "</span>", "<br />"])
+    assert(inlineHTMLSegments.contains(.autoLink("https://example.com")))
+
+    let inlineHTMLDocument = MarkdownParser.parse(inlineHTMLMarkdown)
+    assert(inlineHTMLDocument.markers.inlineHTML == inlineHTMLTags)
+    let inlineHTMLFragment = MarkdownHTMLRenderer.renderFragment(inlineHTMLMarkdown)
+    assert(inlineHTMLFragment.contains(#"<code class="html-inline">&lt;span class=&quot;badge&quot;&gt;</code>"#))
+    assert(inlineHTMLFragment.contains(#"<a href="https://example.com">https://example.com</a>"#))
+    print("✅ Inline HTML tags are recognized without breaking angle autolinks!")
+
+    // 9. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -211,7 +228,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 9. Test cross-file wiki link resolution
+    // 10. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)

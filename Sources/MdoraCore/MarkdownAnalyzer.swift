@@ -189,6 +189,13 @@ public enum MarkdownAnalyzer {
         markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
         markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
+        markers.inlineHTML = unique(inlineSegments.compactMap { segment in
+            if case let .htmlInline(value) = segment {
+                return value
+            }
+
+            return nil
+        })
         markers.taskTokens = taskTokens(in: markdown)
         markers.taskStates = taskStateCounts(in: blocks)
         markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))

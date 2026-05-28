@@ -412,6 +412,8 @@ public enum MarkdownHTMLRenderer {
             return "<span class=\"emoji-shortcode\">:\(escapeHTML(name)):</span>"
         case let .keyboard(value):
             return "<kbd>\(escapeHTML(value))</kbd>"
+        case let .htmlInline(value):
+            return "<code class=\"html-inline\">\(escapeHTML(value))</code>"
         case let .tag(value):
             return "<span class=\"tag\">#\(escapeHTML(value))</span>"
         case let .mention(value):
@@ -512,6 +514,10 @@ public enum MarkdownHTMLRenderer {
         code {
           font-family: "SF Mono", ui-monospace, Menlo, monospace;
           font-size: 0.92em;
+        }
+        .html-inline {
+          opacity: 0.78;
+          color: GrayText;
         }
         table { width: 100%; border-collapse: collapse; margin: 1.1em 0; }
         th, td { border: 1px solid rgba(127, 127, 127, 0.32); padding: 8px 10px; }

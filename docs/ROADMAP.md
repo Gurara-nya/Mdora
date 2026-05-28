@@ -27,6 +27,7 @@
 - Add extended task states for in-progress, canceled, forwarded, important, and question items.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
+- Add inline HTML tag recognition across preview, export, inspector, and editor highlighting.
 - Render common emoji shortcodes as emoji in preview and HTML export.
 - Render Obsidian-style wiki link aliases and expose heading/block targets in HTML export metadata.
 - Recognize Obsidian-style `![[...]]` embeds as separate preview, export, inspector, and status markers.
