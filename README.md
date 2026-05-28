@@ -28,13 +28,13 @@ The first build includes:
 - Formatting commands for strikethrough, wiki links, math blocks, diagrams, footnotes, and definition lists.
 - Reference link and table-of-contents insertion commands.
 - Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and YAML/TOML/JSON front matter.
-- Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, superscript, subscript, inline code, links, reference links, inline images, image references, wiki links, citations, emoji shortcodes, keyboard tags, tags, mentions, footnotes, raw and angle-bracket autolinks, email links, and inline math.
+- Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, inline code, links, reference links, inline images, image references, wiki links, citations, emoji shortcodes, keyboard tags, tags, mentions, footnotes, raw and angle-bracket autolinks, email links, and inline math.
 - Reference link definitions and HTML comments are parsed as visible, inspectable structures, with reference links and reference images resolved in preview and HTML export.
 - Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.
-- Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, citations, emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
-- Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
+- Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, citations, emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, CriticMarkup review marks, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
+- Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Selection-aware preview feedback highlights the block that contains the editor caret and can keep that block scrolled into view.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
@@ -65,7 +65,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, highlights, superscript, subscript, citations, emoji shortcodes, keyboard tags, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
+- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, highlights, superscript, subscript, CriticMarkup additions/deletions/substitutions/comments/highlights, citations, emoji shortcodes, keyboard tags, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
 
 Future stack candidates:
 

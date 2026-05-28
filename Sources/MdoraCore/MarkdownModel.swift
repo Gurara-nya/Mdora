@@ -104,6 +104,11 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case highlight(String)
     case superscript(String)
     case subscriptText(String)
+    case criticAddition(String)
+    case criticDeletion(String)
+    case criticSubstitution(original: String, replacement: String)
+    case criticComment(String)
+    case criticHighlight(String)
     case code(String)
     case link(text: String, destination: String, title: String?)
     case referenceLink(text: String, label: String)
@@ -243,6 +248,16 @@ public struct LinkReferenceDefinition: Equatable, Sendable {
     }
 }
 
+public struct CriticSubstitution: Equatable, Hashable {
+    public var original: String
+    public var replacement: String
+
+    public init(original: String, replacement: String) {
+        self.original = original
+        self.replacement = replacement
+    }
+}
+
 public struct MetadataItem: Equatable, Hashable, Identifiable {
     public var id: String { key }
     public var key: String
@@ -360,6 +375,11 @@ public struct MarkdownMarkers: Equatable {
     public var highlights: [String]
     public var superscripts: [String]
     public var subscripts: [String]
+    public var criticAdditions: [String]
+    public var criticDeletions: [String]
+    public var criticSubstitutions: [CriticSubstitution]
+    public var criticComments: [String]
+    public var criticHighlights: [String]
     public var citations: [String]
     public var emojiShortcodes: [String]
     public var keyboardShortcuts: [String]
@@ -384,6 +404,11 @@ public struct MarkdownMarkers: Equatable {
         highlights: [String] = [],
         superscripts: [String] = [],
         subscripts: [String] = [],
+        criticAdditions: [String] = [],
+        criticDeletions: [String] = [],
+        criticSubstitutions: [CriticSubstitution] = [],
+        criticComments: [String] = [],
+        criticHighlights: [String] = [],
         citations: [String] = [],
         emojiShortcodes: [String] = [],
         keyboardShortcuts: [String] = [],
@@ -407,12 +432,25 @@ public struct MarkdownMarkers: Equatable {
         self.highlights = highlights
         self.superscripts = superscripts
         self.subscripts = subscripts
+        self.criticAdditions = criticAdditions
+        self.criticDeletions = criticDeletions
+        self.criticSubstitutions = criticSubstitutions
+        self.criticComments = criticComments
+        self.criticHighlights = criticHighlights
         self.citations = citations
         self.emojiShortcodes = emojiShortcodes
         self.keyboardShortcuts = keyboardShortcuts
         self.codeLanguages = codeLanguages
         self.diagrams = diagrams
         self.callouts = callouts
+    }
+
+    public var criticMarkupCount: Int {
+        criticAdditions.count
+            + criticDeletions.count
+            + criticSubstitutions.count
+            + criticComments.count
+            + criticHighlights.count
     }
 }
 

@@ -339,6 +339,26 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.text,
                 .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.22)
             ])
+            highlightInline(pattern: #"\{\+\+[^\n]*?\+\+\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .underlineStyle: NSUnderlineStyle.single.rawValue
+            ])
+            highlightInline(pattern: #"\{--[^\n]*?--\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.muted,
+                .strikethroughStyle: NSUnderlineStyle.single.rawValue
+            ])
+            highlightInline(pattern: #"\{~~[^\n]*?~>[^\n]*?~~\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.code
+            ])
+            highlightInline(pattern: #"\{>>[^\n]*?<<\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.muted,
+                .backgroundColor: palette.surface
+            ])
+            highlightInline(pattern: #"\{==[^\n]*?==\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.text,
+                .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.28)
+            ])
             highlightInline(pattern: #"(?<!\^)\^[^^\n]+\^(?!\^)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .baselineOffset: 4,

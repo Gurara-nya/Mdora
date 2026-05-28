@@ -275,6 +275,16 @@ public enum MarkdownHTMLRenderer {
             return "<sup>\(renderInline(value, references: references))</sup>"
         case let .subscriptText(value):
             return "<sub>\(renderInline(value, references: references))</sub>"
+        case let .criticAddition(value):
+            return "<ins class=\"critic-addition\">\(renderInline(value, references: references))</ins>"
+        case let .criticDeletion(value):
+            return "<del class=\"critic-deletion\">\(renderInline(value, references: references))</del>"
+        case let .criticSubstitution(original, replacement):
+            return "<span class=\"critic-substitution\"><del>\(renderInline(original, references: references))</del><ins>\(renderInline(replacement, references: references))</ins></span>"
+        case let .criticComment(value):
+            return "<span class=\"critic-comment\">\(renderInline(value, references: references))</span>"
+        case let .criticHighlight(value):
+            return "<mark class=\"critic-highlight\">\(renderInline(value, references: references))</mark>"
         case let .code(value):
             return "<code>\(escapeHTML(value))</code>"
         case let .link(label, destination, title):
@@ -381,6 +391,40 @@ public enum MarkdownHTMLRenderer {
           padding: 0.04em 0.22em;
           background: rgba(255, 212, 64, 0.45);
           color: inherit;
+        }
+        ins.critic-addition,
+        .critic-substitution ins {
+          border-radius: 0.25em;
+          padding: 0.02em 0.18em;
+          background: rgba(45, 180, 96, 0.18);
+          color: inherit;
+          text-decoration-thickness: 0.08em;
+        }
+        del.critic-deletion,
+        .critic-substitution del {
+          color: rgba(127, 127, 127, 0.92);
+          text-decoration-thickness: 0.08em;
+        }
+        .critic-substitution {
+          display: inline-flex;
+          gap: 0.35em;
+          align-items: baseline;
+        }
+        .critic-substitution del::after {
+          content: "->";
+          margin-left: 0.35em;
+          color: rgba(127, 127, 127, 0.72);
+          text-decoration: none;
+        }
+        .critic-comment {
+          border-radius: 0.25em;
+          padding: 0.04em 0.36em;
+          background: rgba(127, 127, 127, 0.14);
+          color: rgba(127, 127, 127, 0.96);
+          font-style: italic;
+        }
+        .critic-highlight {
+          outline: 1px solid rgba(255, 212, 64, 0.4);
         }
         kbd {
           border: 1px solid rgba(127, 127, 127, 0.36);

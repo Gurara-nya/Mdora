@@ -38,6 +38,8 @@ extension MarkdownDocument {
 
     Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized.
 
+    Review marks are recognized: {++added++}, {--removed--}, {~~draft~>polished~~}, {>>editor note<<}, and {==review highlight==}.
+
     <!-- Comments are parsed and visible in the inspector. -->
 
     > [!NOTE]

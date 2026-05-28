@@ -801,6 +801,35 @@ private struct InlineMarkdownText: View {
             renderInline(value)
                 .font(.system(size: max(10, style.bodyFontSize - 5), weight: .medium))
                 .baselineOffset(-3)
+        case let .criticAddition(value):
+            renderInline(value)
+                .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .criticDeletion(value):
+            renderInline(value)
+                .foregroundColor(theme.palette.mutedColor)
+                .strikethrough()
+        case let .criticSubstitution(original, replacement):
+            renderInline(original)
+                .foregroundColor(theme.palette.mutedColor)
+                .strikethrough()
+            + Text(" -> ")
+                .foregroundColor(theme.palette.mutedColor)
+            + renderInline(replacement)
+                .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .criticComment(value):
+            Text("[comment: ")
+                .foregroundColor(theme.palette.mutedColor)
+            + renderInline(value)
+                .italic()
+                .foregroundColor(theme.palette.mutedColor)
+            + Text("]")
+                .foregroundColor(theme.palette.mutedColor)
+        case let .criticHighlight(value):
+            renderInline(value)
+                .bold()
+                .foregroundColor(.yellow)
         case let .code(value):
             Text(value)
                 .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))

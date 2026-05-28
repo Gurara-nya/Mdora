@@ -22,6 +22,7 @@ struct StatusBar: View {
             Text("\(markers.tags.count) tags")
             Text("\(markers.linkReferences.count) refs")
             Text("\(markers.taskTokens.count) flags")
+            Text("\(markers.criticMarkupCount) edits")
             Text("\(markers.diagrams.count) diagrams")
             Text("\(diagnostics.count) diagnostics")
             Text("L\(selection.line):C\(selection.column)")

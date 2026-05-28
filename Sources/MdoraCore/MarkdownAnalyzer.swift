@@ -189,6 +189,41 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.criticAdditions = unique(inlineSegments.compactMap { segment in
+            if case let .criticAddition(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.criticDeletions = unique(inlineSegments.compactMap { segment in
+            if case let .criticDeletion(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.criticSubstitutions = unique(inlineSegments.compactMap { segment in
+            if case let .criticSubstitution(original, replacement) = segment {
+                return CriticSubstitution(original: original, replacement: replacement)
+            }
+
+            return nil
+        })
+        markers.criticComments = unique(inlineSegments.compactMap { segment in
+            if case let .criticComment(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.criticHighlights = unique(inlineSegments.compactMap { segment in
+            if case let .criticHighlight(value) = segment {
+                return value
+            }
+
+            return nil
+        })
         markers.citations = unique(inlineSegments.compactMap { segment in
             if case let .citation(identifier) = segment {
                 return identifier

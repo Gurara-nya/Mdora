@@ -41,6 +41,7 @@ private struct InlineParser {
 
     private mutating func consumeNextSegment() -> InlineMarkdownSegment? {
         if let segment = consumeCode() { return segment }
+        if let segment = consumeCriticMarkup() { return segment }
         if let segment = consumeStrong() { return segment }
         if let segment = consumeStrikethrough() { return segment }
         if let segment = consumeEmphasis() { return segment }
@@ -100,6 +101,83 @@ private struct InlineParser {
 
         index = text.index(after: close)
         return .code(value)
+    }
+
+    private mutating func consumeCriticMarkup() -> InlineMarkdownSegment? {
+        if let segment = consumeCriticDelimited(
+            open: "{++",
+            close: "++}",
+            as: InlineMarkdownSegment.criticAddition
+        ) {
+            return segment
+        }
+
+        if let segment = consumeCriticDelimited(
+            open: "{--",
+            close: "--}",
+            as: InlineMarkdownSegment.criticDeletion
+        ) {
+            return segment
+        }
+
+        if let segment = consumeCriticSubstitution() {
+            return segment
+        }
+
+        if let segment = consumeCriticDelimited(
+            open: "{>>",
+            close: "<<}",
+            as: InlineMarkdownSegment.criticComment
+        ) {
+            return segment
+        }
+
+        return consumeCriticDelimited(
+            open: "{==",
+            close: "==}",
+            as: InlineMarkdownSegment.criticHighlight
+        )
+    }
+
+    private mutating func consumeCriticDelimited(
+        open: String,
+        close: String,
+        as factory: (String) -> InlineMarkdownSegment
+    ) -> InlineMarkdownSegment? {
+        guard hasPrefix(open) else { return nil }
+        let contentStart = text.index(index, offsetBy: open.count)
+        guard let closeIndex = closingIndex(for: close, after: contentStart) else { return nil }
+
+        let value = String(text[contentStart ..< closeIndex])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !value.contains(where: \.isNewline) else { return nil }
+
+        index = text.index(closeIndex, offsetBy: close.count)
+        return factory(value)
+    }
+
+    private mutating func consumeCriticSubstitution() -> InlineMarkdownSegment? {
+        let open = "{~~"
+        let close = "~~}"
+
+        guard hasPrefix(open) else { return nil }
+        let contentStart = text.index(index, offsetBy: open.count)
+        guard let closeIndex = closingIndex(for: close, after: contentStart) else { return nil }
+
+        let rawValue = String(text[contentStart ..< closeIndex])
+        guard !rawValue.contains(where: \.isNewline),
+              let separator = rawValue.range(of: "~>") else {
+            return nil
+        }
+
+        let original = String(rawValue[..<separator.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacement = String(rawValue[separator.upperBound...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !original.isEmpty, !replacement.isEmpty else { return nil }
+
+        index = text.index(closeIndex, offsetBy: close.count)
+        return .criticSubstitution(original: original, replacement: replacement)
     }
 
     private mutating func consumeStrong() -> InlineMarkdownSegment? {
