@@ -535,8 +535,22 @@ private struct BlockParser {
         index += 1
 
         while index < lines.count {
-            guard let parsed = Self.parseListLine(currentLine) else { break }
-            listLines.append(parsed)
+            if let parsed = Self.parseListLine(currentLine) {
+                listLines.append(parsed)
+                index += 1
+                continue
+            }
+
+            guard !currentLine.trimmed.isEmpty,
+                  !Self.isBlockStartLine(currentLine),
+                  !listLines.isEmpty else {
+                break
+            }
+
+            listLines[listLines.count - 1].text = Self.appendingListContinuation(
+                currentLine,
+                to: listLines[listLines.count - 1].text
+            )
             index += 1
         }
 
@@ -550,6 +564,22 @@ private struct BlockParser {
 
         let items = listLines.map { ListItem(text: $0.text, depth: $0.depth) }
         return first.isOrdered ? .orderedList(items) : .unorderedList(items)
+    }
+
+    private static func appendingListContinuation(_ line: String, to text: String) -> String {
+        let continuation = paragraphLine(from: line)
+        var result = text
+
+        if !result.isEmpty, !result.hasSuffix("\n") {
+            result += " "
+        }
+
+        result += continuation.text
+        if continuation.endsWithHardBreak {
+            result += "\n"
+        }
+
+        return result
     }
 
     private mutating func parseImage() -> MarkdownBlock? {

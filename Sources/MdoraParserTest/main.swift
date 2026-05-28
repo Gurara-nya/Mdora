@@ -416,7 +416,36 @@ func runTests() {
     assert(parenthesizedTaskItems.map(\.text) == ["Draft", "Done"])
     assert(parenthesizedTaskItems.map(\.state) == [.todo, .done])
     assert(MarkdownHTMLRenderer.renderFragment(parenthesizedOrderedMarkdown).contains("<ol>"))
-    print("✅ CommonMark parenthesized ordered list markers parse for lists and task lists!")
+
+    let continuedListMarkdown = """
+    - First line
+      continues lazily
+    - Second line
+
+    Paragraph outside
+    """
+    let continuedListDocument = MarkdownParser.parse(continuedListMarkdown)
+    guard case .unorderedList(let continuedListItems) = continuedListDocument.blocks[0] else {
+        fatalError("❌ Expected continued unordered list to parse as one list block")
+    }
+    assert(continuedListItems.map(\.text) == ["First line continues lazily", "Second line"])
+    guard case .paragraph("Paragraph outside") = continuedListDocument.blocks[1] else {
+        fatalError("❌ Expected paragraph after blank line to stay outside the list")
+    }
+    let continuedTaskMarkdown = """
+    - [ ] Draft outline
+      with more detail
+    - [x] Done item
+    """
+    let continuedTaskDocument = MarkdownParser.parse(continuedTaskMarkdown)
+    guard case .taskList(let continuedTaskItems) = continuedTaskDocument.blocks[0] else {
+        fatalError("❌ Expected continued task list to stay a task list")
+    }
+    assert(continuedTaskItems.map(\.text) == ["Draft outline with more detail", "Done item"])
+    assert(continuedTaskItems.map(\.state) == [.todo, .done])
+    let continuedListHTML = MarkdownHTMLRenderer.renderFragment(continuedListMarkdown)
+    assert(continuedListHTML.contains("<li>First line continues lazily</li>"))
+    print("✅ CommonMark parenthesized ordered markers and lazy list continuations parse cleanly!")
 
     // 8. Test Recursive Blockquote / Callout Parsing
     let quoteMarkdown = """
