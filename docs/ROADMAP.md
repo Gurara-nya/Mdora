@@ -2,17 +2,19 @@
 
 ## Phase 0: Project Foundation
 
-- Choose app shell: Tauri or Electron.
-- Choose editor base: CodeMirror 6, Milkdown, or ProseMirror.
+- Choose app shell: native macOS SwiftUI.
+- Choose editor base: AppKit `NSTextView` wrapped in SwiftUI.
 - Define file model, document state, and save behavior.
 - Create design principles for reading, writing, and exporting.
 
 ## Phase 1: Markdown Editor MVP
 
 - Open and save local Markdown files.
-- Add editor, preview, and synchronized scroll.
-- Add syntax highlighting and keyboard shortcuts.
+- Add editor and preview layout modes.
+- Add editor formatting controls.
+- Add block-based preview for common Markdown structures.
 - Add basic theming.
+- Add document outline and marker inspection.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

@@ -4,14 +4,29 @@
 
 Mdora should keep Markdown as the source of truth for as long as possible. Rich editing features should be layered on top of Markdown instead of replacing it too early with a proprietary document model.
 
+The first implementation is a native macOS SwiftUI app. It uses Apple's document architecture so file ownership, open, save, duplicate, and close behavior feel familiar on macOS from the start.
+
 ## Proposed Modules
 
-- `app-shell`: desktop window, menus, file permissions, native dialogs.
+- `Sources/Mdora`: native SwiftUI app, document scene, editor, preview, export UI.
+- `Sources/MdoraCore`: Markdown parser, document model, marker analyzer, and HTML renderer that can run without launching the app.
+
+## Current Runtime Flow
+
+1. `MarkdownDocument` owns the editable Markdown source.
+2. `MarkdownParser` converts source into `ParsedMarkdownDocument`.
+3. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
+4. `DocumentInspector` reads the same parsed document for outline and marker recognition.
+5. `MarkdownHTMLRenderer` uses the same parser for HTML export.
+
+This keeps preview, inspection, and export aligned around one parser.
+
+Future modules:
+
 - `editor`: editing surface, shortcuts, selection, history.
 - `markdown`: parsing, rendering, serialization, extensions.
 - `preview`: document rendering, synchronized scroll, print styles.
 - `workspace`: file tree, recent files, tabs, dirty state.
-- `export`: HTML, PDF, and future DOCX/Pandoc paths.
 - `theme`: editor themes, preview themes, typography tokens.
 
 ## Editing Strategy
@@ -24,6 +39,8 @@ There are three viable levels:
 
 The recommended path is to ship level 1, grow into level 2, and only adopt level 3 if the product needs complex block manipulation.
 
+The current app is between level 1 and level 2: it keeps Markdown source as truth, but the preview already has block-level semantics for tables, callouts, tasks, code languages, front matter, images, and document markers.
+
 ## Risks
 
 - Round-trip Markdown fidelity can break when rich editing mutates source text.
@@ -33,7 +50,7 @@ The recommended path is to ship level 1, grow into level 2, and only adopt level
 
 ## Early Decisions To Make
 
-- Tauri or Electron.
-- CodeMirror-first or Milkdown-first.
-- Whether HTML inside Markdown is supported in MVP.
+- How far the custom parser should go before adopting a CommonMark-compatible library.
+- Whether inline preview should be built inside `NSTextView` or through a richer custom text system.
+- How HTML inside Markdown should be rendered and sandboxed.
 - Whether the first release prioritizes writing, reading, or exporting.

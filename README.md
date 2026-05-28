@@ -4,6 +4,33 @@ Mdora is a Typora-inspired Markdown editor project: local-first, distraction-fre
 
 The goal is not to copy Typora's product or interface, but to build a personal Markdown workspace with a clear architecture, open roadmap, and room for experiments.
 
+## Current App
+
+Mdora now starts as a native macOS SwiftUI document app.
+
+Run it from the repository root:
+
+```sh
+swift run Mdora
+```
+
+Build it:
+
+```sh
+swift build
+```
+
+The first build includes:
+
+- Native macOS document open/save behavior for Markdown text files.
+- Editor, split, and preview layout modes.
+- Native text editor with formatting commands for headings, lists, tasks, links, code, tables, images, and callouts.
+- Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, HTML blocks, and front matter.
+- Themes for system, paper, graphite, dusk, and high contrast writing modes.
+- Inspector for outline, tags, mentions, links, images, footnotes, code languages, and callouts.
+- Status bar with word, character, line, link, and tag counts.
+- HTML export.
+
 ## Product Direction
 
 - Local-first Markdown files, with no account required.
@@ -21,11 +48,17 @@ For a first public version, avoid starting with a full WYSIWYG engine. A practic
 2. Add inline live preview for headings, emphasis, links, code, math, and images.
 3. Move toward a block-based editor only after the Markdown parser, file model, and export pipeline are stable.
 
-Recommended stack candidates:
+Chosen first stack:
 
-- Desktop shell: Tauri for a small native app, or Electron for faster ecosystem support.
-- UI: React + TypeScript + Vite.
-- Markdown editor: CodeMirror 6.
+- Native macOS: SwiftUI.
+- Package/build system: Swift Package Manager.
+- Document model: SwiftUI `DocumentGroup` and `FileDocument`.
+- Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
+- Parser: MdoraCore line-oriented Markdown block parser for preview, export, and marker detection.
+
+Future stack candidates:
+
+- Editor engine: extend the current AppKit `NSTextView` with syntax highlighting and inline decorations.
 - Markdown pipeline: unified, remark, rehype, markdown-it, or micromark.
 - Rich document model later: ProseMirror, Lexical, or Milkdown.
 - Export: headless browser PDF first, then Pandoc integration if needed.
