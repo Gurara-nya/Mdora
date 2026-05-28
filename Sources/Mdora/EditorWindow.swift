@@ -3,6 +3,7 @@ import SwiftUI
 
 struct EditorWindow: View {
     @Binding var document: MarkdownDocument
+    let documentURL: URL?
     @AppStorage("editorLayoutMode") private var layoutMode = LayoutMode.split.rawValue
     @AppStorage("mdoraTheme") private var themeName = MdoraTheme.system.rawValue
     @AppStorage("showInspector") private var showInspector = true
@@ -73,7 +74,8 @@ struct EditorWindow: View {
                         markdown: document.text,
                         theme: theme,
                         style: previewStyle,
-                        activeLine: selectedLayout.wrappedValue.showsEditor ? editorSelection.line : nil
+                        activeLine: selectedLayout.wrappedValue.showsEditor ? editorSelection.line : nil,
+                        documentURL: documentURL
                     )
                         .frame(minWidth: 360, idealWidth: 560)
                 }

@@ -1,4 +1,5 @@
 import MdoraCore
+import AppKit
 import SwiftUI
 
 struct MarkdownPreviewStyle: Equatable {
@@ -27,6 +28,10 @@ private struct MarkdownAbbreviationDefinitionsKey: EnvironmentKey {
     static let defaultValue: [String: AbbreviationDefinition] = [:]
 }
 
+private struct MarkdownAssetBaseURLKey: EnvironmentKey {
+    static let defaultValue: URL? = nil
+}
+
 private extension EnvironmentValues {
     var mdoraReferenceDefinitions: [String: LinkReferenceDefinition] {
         get { self[MarkdownReferenceDefinitionsKey.self] }
@@ -37,6 +42,11 @@ private extension EnvironmentValues {
         get { self[MarkdownAbbreviationDefinitionsKey.self] }
         set { self[MarkdownAbbreviationDefinitionsKey.self] = newValue }
     }
+
+    var mdoraAssetBaseURL: URL? {
+        get { self[MarkdownAssetBaseURLKey.self] }
+        set { self[MarkdownAssetBaseURLKey.self] = newValue }
+    }
 }
 
 struct MarkdownPreview: View {
@@ -44,6 +54,7 @@ struct MarkdownPreview: View {
     let theme: MdoraTheme
     let style: MarkdownPreviewStyle
     let activeLine: Int?
+    let documentURL: URL?
     @State private var updatePulse = false
 
     private var document: ParsedMarkdownDocument {
@@ -75,6 +86,7 @@ struct MarkdownPreview: View {
             .environment(\.mdoraPreviewStyle, style)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .environment(\.mdoraAbbreviationDefinitions, parsed.abbreviationDefinitions)
+            .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
             .background(theme.palette.previewColor)
             .overlay(alignment: .top) {
                 Rectangle()
@@ -151,9 +163,13 @@ private struct MarkdownBlockView: View {
         case let .heading(level, text, _):
             HeadingView(level: level, text: text, theme: theme)
         case let .paragraph(text):
-            InlineMarkdownText(text, theme: theme)
-                .font(.system(size: style.bodyFontSize))
-                .lineSpacing(5)
+            if let embed = standaloneWikiEmbed(in: text) {
+                WikiEmbedBlockView(value: embed, theme: theme)
+            } else {
+                InlineMarkdownText(text, theme: theme)
+                    .font(.system(size: style.bodyFontSize))
+                    .lineSpacing(5)
+            }
         case let .blockquote(lines, callout):
             BlockquoteView(lines: lines, callout: callout, theme: theme)
         case let .unorderedList(items):
@@ -189,6 +205,12 @@ private struct MarkdownBlockView: View {
         case let .html(html):
             HTMLBlockView(html: html, theme: theme)
         }
+    }
+
+    private func standaloneWikiEmbed(in text: String) -> String? {
+        let segments = InlineMarkdownParser.parse(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard segments.count == 1, case let .wikiEmbed(value) = segments[0] else { return nil }
+        return value
     }
 }
 
@@ -701,10 +723,11 @@ private struct ImageBlockView: View {
     let source: String
     let title: String?
     let theme: MdoraTheme
+    @Environment(\.mdoraAssetBaseURL) private var assetBaseURL
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
-            if let url = URL(string: source), ["http", "https"].contains(url.scheme?.lowercased()) {
+            if let url = MarkdownAssetResolver.remoteURL(for: source) {
                 AsyncImage(url: url) { image in
                     image
                         .resizable()
@@ -713,6 +736,12 @@ private struct ImageBlockView: View {
                     imagePlaceholder
                 }
                 .frame(maxWidth: 760, maxHeight: 420)
+            } else if let image = localImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 760, maxHeight: 420)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 imagePlaceholder
             }
@@ -724,6 +753,14 @@ private struct ImageBlockView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var localImage: NSImage? {
+        guard let url = MarkdownAssetResolver.localFileURL(for: source, relativeTo: assetBaseURL) else {
+            return nil
+        }
+
+        return NSImage(contentsOf: url)
     }
 
     private var imagePlaceholder: some View {
@@ -738,6 +775,39 @@ private struct ImageBlockView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(theme.palette.borderColor.opacity(0.45), lineWidth: 1)
             )
+    }
+}
+
+private struct WikiEmbedBlockView: View {
+    let value: String
+    let theme: MdoraTheme
+
+    private var reference: MarkdownWikiLinkReference {
+        MarkdownWikiLinkReference.parse(value)
+    }
+
+    var body: some View {
+        if reference.isImageEmbed {
+            ImageBlockView(
+                alt: reference.embedDisplayText,
+                source: reference.target,
+                title: reference.alias,
+                theme: theme
+            )
+        } else {
+            Label(reference.embedDisplayText, systemImage: "paperclip")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(theme.palette.accentColor)
+                .lineLimit(2)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(theme.palette.surfaceColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(theme.palette.borderColor.opacity(0.45), lineWidth: 1)
+                )
+        }
     }
 }
 

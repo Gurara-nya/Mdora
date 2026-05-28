@@ -22,6 +22,8 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 7. `@AppStorage` writing preferences tune editor typography, preview typography, preview line width, focus mode, inspector visibility, preview animation, and preview/editor sync.
 8. `MarkdownHTMLRenderer` uses the same block and inline parsers for HTML export, resolving reference links and reference images through the parsed document's shared reference table.
 
+The preview layer resolves remote images directly and local image paths relative to the open Markdown file, including standalone wiki image embeds.
+
 This keeps preview, inspection, and export aligned around one parser.
 
 Future modules:
