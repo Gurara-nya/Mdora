@@ -308,7 +308,29 @@ func runTests() {
     assert(inlineHTMLFragment.contains(#"<a href="https://example.com">https://example.com</a>"#))
     print("✅ Inline HTML tags are recognized without breaking angle autolinks!")
 
-    // 14. Test internal preview link navigation targets
+    // 14. Test TODO-style marker recognition across Markdown prefixes
+    let taskTokenMarkdown = """
+    TODO: Root marker
+    + FIXME: Plus marker
+    1. BUG: Ordered dot marker
+    2) HACK: Ordered paren marker
+    - [ ] NOTE: Task checkbox marker
+    3) [!] IMPORTANT: Ordered task marker
+    <!-- QUESTION: Hidden comment marker -->
+    """
+    let taskTokenDocument = MarkdownParser.parse(taskTokenMarkdown)
+    assert(taskTokenDocument.markers.taskTokens.map { "\($0.kind.title): \($0.text)" } == [
+        "TODO: Root marker",
+        "FIXME: Plus marker",
+        "BUG: Ordered dot marker",
+        "HACK: Ordered paren marker",
+        "NOTE: Task checkbox marker",
+        "IMPORTANT: Ordered task marker",
+        "QUESTION: Hidden comment marker"
+    ])
+    print("✅ TODO-style markers are recognized in plain, list, task, ordered, and comment lines!")
+
+    // 15. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -336,7 +358,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 15. Test cross-file wiki link resolution
+    // 16. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)

@@ -83,7 +83,7 @@ The parser currently recognizes:
 - Reference link definitions and references, including normalized lookup across preview, diagnostics, and export.
 - Image reference syntax with resolved reference definitions, plus email autolinks.
 - HTML comments.
-- Images, links, automatic links, wiki links, wiki embeds, block ids, tags, mentions, and TODO-style tokens.
+- Images, links, automatic links, wiki links, wiki embeds, block ids, tags, mentions, and TODO-style tokens in plain, commented, unordered-list, ordered-list, and task-list lines.
 - Diagnostics for missing references, missing footnotes, duplicate explicit heading anchors, duplicate block ids, and unclosed front matter, code fences, or math blocks.
 
 ## Risks

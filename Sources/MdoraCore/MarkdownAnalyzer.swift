@@ -387,7 +387,7 @@ public enum MarkdownAnalyzer {
     }
 
     private static func taskTokens(in markdown: String) -> [TaskToken] {
-        let pattern = #"(?im)^\s*(?:[-*]\s+)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b[:：]?\s*(.*)"#
+        let pattern = #"(?im)^\s*(?:(?:[-*+]\s+|\d+[.)]\s+)(?:\[(?: |x|X|/|-|>|!|\?)\]\s+)?)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b[:：]?\s*(.*?)(?:\s*-->)?\s*$"#
         guard let expression = try? NSRegularExpression(pattern: pattern) else {
             return []
         }

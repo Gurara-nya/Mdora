@@ -16,6 +16,7 @@
 - Add basic theming.
 - Add document outline and marker inspection.
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
+- Recognize TODO-style markers after unordered, ordered, parenthesized ordered, task-list, and HTML comment prefixes.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
 - Parse escaped pipes and code-span pipes correctly inside GFM table cells.
 - Support CommonMark `1)` ordered-list markers across parsing, smart return, and preview task editing.

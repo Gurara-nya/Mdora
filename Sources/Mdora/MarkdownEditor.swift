@@ -564,7 +564,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
             ])
-            highlightInline(pattern: #"(?im)^\s*(?:[-*]\s+)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*"#, in: textView, storage: textStorage, attributes: [
+            highlightInline(pattern: #"(?im)^\s*(?:(?:[-*+]\s+|\d+[.)]\s+)(?:\[(?: |x|X|/|-|>|!|\?)\]\s+)?)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*$"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
             ])
