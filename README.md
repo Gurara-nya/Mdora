@@ -32,7 +32,7 @@ The first build includes:
 - Reference link definitions, abbreviation definitions, and HTML comments are parsed as visible, inspectable structures, with references, reference images, and abbreviations resolved in preview and HTML export.
 - Remote images and local image files are rendered in preview, with relative paths resolved from the current Markdown file location. Standalone wiki image embeds such as `![[Assets/mockup.png|App mockup]]` use the same preview path.
 - Local preview images are downsampled and cached with bounded cost, and first loads happen off the main thread so scrolling and hover redraws do not repeatedly read or decode the same files.
-- Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination, with custom heading anchors such as `{#section-id}` and Obsidian-style block ids such as `^block-id` preserved for outlines, table of contents entries, inspection, and HTML export.
+- Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination, with generated heading anchors de-duplicated for stable links, custom heading anchors such as `{#section-id}` and Obsidian-style block ids such as `^block-id` preserved for outlines, table of contents entries, inspection, and HTML export.
 - Internal preview navigation resolves heading anchors, Obsidian wiki heading/block references, footnotes, tags, and @mentions back to the matching rendered block, and cross-file wiki links can open neighboring Markdown files.
 - Preview task checkboxes can update the underlying Markdown task marker directly, with a context menu for extended states such as in-progress, forwarded, important, and question.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
@@ -43,7 +43,7 @@ The first build includes:
 - Selection-aware preview feedback highlights the block that contains the editor caret through binary source-map lookup and can keep that block scrolled into view, with cancellable sync-scroll coalescing to avoid jitter during fast cursor movement.
 - Bounded inline parsing cache reduces repeated inline Markdown work across preview redraws, marker analysis, and export.
 - Smart return and Tab/Shift-Tab handling that continues and reshapes lists, task lists, ordered task lists, quotes, and indentation while writing.
-- Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate heading anchors, and duplicate block ids.
+- Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate explicit heading anchors, and duplicate block ids.
 - Optional preview update animation and animated layout changes.
 - Status bar with word, character, line, caret position, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
 - HTML export.
@@ -71,7 +71,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks plus extended task states, Obsidian/GitHub callouts with aliases, custom titles, and fold markers, CommonMark hard line breaks, HTML entity references, math, diagrams, setext headings, custom heading anchors, Obsidian-style block ids, indented code, footnotes, definition lists, Markdown Extra abbreviations, highlights, superscript, subscript, CriticMarkup additions/deletions/substitutions/comments/highlights, citations, resolved emoji shortcodes, keyboard tags, inline HTML tags, wiki link aliases and embeds, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
+- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks plus extended task states, Obsidian/GitHub callouts with aliases, custom titles, and fold markers, de-duplicated generated heading anchors, CommonMark hard line breaks, HTML entity references, math, diagrams, setext headings, custom heading anchors, Obsidian-style block ids, indented code, footnotes, definition lists, Markdown Extra abbreviations, highlights, superscript, subscript, CriticMarkup additions/deletions/substitutions/comments/highlights, citations, resolved emoji shortcodes, keyboard tags, inline HTML tags, wiki link aliases and embeds, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
 
 Future stack candidates:
 

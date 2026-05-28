@@ -79,7 +79,24 @@ func runTests() {
     assert(MarkdownHTMLRenderer.renderFragment(entityMarkdown).contains("<p>AT&amp;T © © 🚀 &amp;notanentity;</p>"))
     print("✅ HTML entity references decode for preview/export and remain inspectable!")
 
-    // 5. Test Recursive Blockquote / Callout Parsing
+    // 5. Test generated heading anchor de-duplication
+    let duplicateHeadingMarkdown = """
+    # Repeat
+    # Repeat
+    # Repeat {#repeat}
+    # Repeat
+    """
+    let duplicateHeadingDocument = MarkdownParser.parse(duplicateHeadingMarkdown)
+    assert(duplicateHeadingDocument.outline.map(\.anchor) == ["repeat", "repeat-1", "repeat", "repeat-2"])
+    assert(duplicateHeadingDocument.diagnostics.contains { $0.id == "duplicate-heading-repeat" })
+
+    let duplicateHeadingHTML = MarkdownHTMLRenderer.renderFragment(duplicateHeadingMarkdown)
+    assert(duplicateHeadingHTML.contains(#"<h1 id="repeat">Repeat</h1>"#))
+    assert(duplicateHeadingHTML.contains(#"<h1 id="repeat-1">Repeat</h1>"#))
+    assert(duplicateHeadingHTML.contains(#"<h1 id="repeat-2">Repeat</h1>"#))
+    print("✅ Generated heading anchors are de-duplicated while explicit duplicate anchors stay diagnostic!")
+
+    // 6. Test Recursive Blockquote / Callout Parsing
     let quoteMarkdown = """
     > [!IMPORTANT]
     > **结论 1**
@@ -108,7 +125,7 @@ func runTests() {
     assert(listItems[0].text == "Sub list item 1")
     print("✅ Recursive blockquote parsing works perfectly!")
 
-    // 6. Test task source editing through source maps
+    // 7. Test task source editing through source maps
     let taskMarkdown = """
     - [ ] Draft outline
     - [/] Review compatibility
@@ -134,14 +151,14 @@ func runTests() {
     assert(updatedTasks?.contains("4. [x] Ship preview") == true)
     print("✅ Task source editing updates the targeted Markdown marker!")
 
-    // 7. Test smart typing continuations
+    // 8. Test smart typing continuations
     assert(MarkdownTypingContinuation.continuation(after: "- [/] Review compatibility") == "\n- [ ] ")
     assert(MarkdownTypingContinuation.continuation(after: "  7. [!] Keep performance sharp") == "\n  8. [ ] ")
     assert(MarkdownTypingContinuation.continuation(after: "> quoted") == "\n> ")
     assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
     print("✅ Smart typing continuation preserves task, quote, ordered, and indentation context!")
 
-    // 8. Test line indentation editing
+    // 9. Test line indentation editing
     let lineEditMarkdown = "- [ ] One\n  - [ ] Two\nPlain"
     let indentEdit = MarkdownLineEditor.indentingLines(
         in: lineEditMarkdown,
@@ -164,7 +181,7 @@ func runTests() {
     assert(cursorOutdent.selectedRange.location == 2)
     print("✅ Markdown line indentation and outdent editing preserves text and selection!")
 
-    // 9. Test smart paste transformations
+    // 10. Test smart paste transformations
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com", selectedText: "Example") == "[Example](https://example.com)")
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "Diagram") == "![Diagram](https://example.com/image.png)")
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "") == "![](https://example.com/image.png)")
@@ -212,7 +229,7 @@ func runTests() {
     )
     print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
 
-    // 10. Test inline HTML recognition without stealing angle autolinks
+    // 11. Test inline HTML recognition without stealing angle autolinks
     let inlineHTMLMarkdown = "Inline <span class=\"badge\">HTML</span>, <br />, and <https://example.com>."
     let inlineHTMLSegments = InlineMarkdownParser.parse(inlineHTMLMarkdown)
     let inlineHTMLTags = inlineHTMLSegments.compactMap { segment -> String? in
@@ -229,7 +246,7 @@ func runTests() {
     assert(inlineHTMLFragment.contains(#"<a href="https://example.com">https://example.com</a>"#))
     print("✅ Inline HTML tags are recognized without breaking angle autolinks!")
 
-    // 11. Test internal preview link navigation targets
+    // 12. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -257,7 +274,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 12. Test cross-file wiki link resolution
+    // 13. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)

@@ -44,6 +44,7 @@ private struct BlockParser {
 
     private let lines: [String]
     private var index = 0
+    private var assignedHeadingAnchors: Set<String> = []
 
     init(markdown: String) {
         lines = markdown.components(separatedBy: .newlines)
@@ -401,7 +402,7 @@ private struct BlockParser {
         return .heading(
             level: hashes,
             text: parsed.text,
-            anchor: parsed.anchor ?? Self.anchor(for: parsed.text)
+            anchor: anchor(for: parsed)
         )
     }
 
@@ -417,7 +418,7 @@ private struct BlockParser {
         return .heading(
             level: level,
             text: parsed.text,
-            anchor: parsed.anchor ?? Self.anchor(for: parsed.text)
+            anchor: anchor(for: parsed)
         )
     }
 
@@ -896,7 +897,30 @@ private struct BlockParser {
         return Callout(kind: kind, title: title.isEmpty ? nil : title, fold: foldMarker)
     }
 
-    private static func anchor(for text: String) -> String {
+    private mutating func anchor(for parsed: (text: String, anchor: String?)) -> String {
+        if let anchor = parsed.anchor {
+            assignedHeadingAnchors.insert(anchor)
+            return anchor
+        }
+
+        return uniqueGeneratedAnchor(for: parsed.text)
+    }
+
+    private mutating func uniqueGeneratedAnchor(for text: String) -> String {
+        let base = Self.baseAnchor(for: text)
+        var candidate = base
+        var suffix = 1
+
+        while assignedHeadingAnchors.contains(candidate) {
+            candidate = "\(base)-\(suffix)"
+            suffix += 1
+        }
+
+        assignedHeadingAnchors.insert(candidate)
+        return candidate
+    }
+
+    private static func baseAnchor(for text: String) -> String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_ "))
         let filtered = text.unicodeScalars.map { scalar -> Character in
             allowed.contains(scalar) ? Character(scalar) : "-"

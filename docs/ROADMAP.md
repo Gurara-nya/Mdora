@@ -19,6 +19,7 @@
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
 - Add richer Obsidian/GitHub callout parsing for aliases, custom titles, and fold markers.
 - Add custom heading anchors for stable outline, table of contents, preview, and HTML export targets.
+- De-duplicate generated heading anchors for stable table of contents, preview navigation, and HTML export ids.
 - Add Obsidian-style block ids for block references, preview cleanup, inspector recognition, and HTML export anchors.
 - Add Markdown Extra abbreviation definitions with preview, export, and inspector support.
 - Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
