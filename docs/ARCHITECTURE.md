@@ -56,12 +56,13 @@ The parser currently recognizes:
 - YAML, TOML, and JSON front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
-- Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, code spans, links, reference links, citations, emoji shortcodes, keyboard tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links, tags, mentions, footnotes, images, and math markers.
+- Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, code spans, links, reference links, citations, emoji shortcodes, keyboard tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links, tags, mentions, footnotes, images, Markdown Extra abbreviations, and math markers.
 - Block and inline math markers.
 - GFM-style tables and task lists.
 - Blockquotes and GitHub-style callouts.
 - Footnote definitions and references.
 - Definition lists.
+- Abbreviation definitions, resolved into inline abbreviation rendering for preview and HTML export.
 - Reference link definitions and references, including normalized lookup across preview, diagnostics, and export.
 - Image reference syntax with resolved reference definitions, plus email autolinks.
 - HTML comments.

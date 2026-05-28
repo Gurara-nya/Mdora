@@ -21,6 +21,7 @@ struct StatusBar: View {
             Text("\(markers.emailLinks.count) emails")
             Text("\(markers.tags.count) tags")
             Text("\(markers.customAnchors.count) anchors")
+            Text("\(markers.abbreviations.count) abbr")
             Text("\(markers.linkReferences.count) refs")
             Text("\(markers.taskTokens.count) flags")
             Text("\(markers.criticMarkupCount) edits")

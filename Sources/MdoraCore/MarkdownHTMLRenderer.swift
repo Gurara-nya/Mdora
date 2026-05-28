@@ -1,6 +1,21 @@
 import Foundation
 
 public enum MarkdownHTMLRenderer {
+    private struct RenderContext {
+        var references: [String: LinkReferenceDefinition]
+        var abbreviations: [String: AbbreviationDefinition]
+
+        var sortedAbbreviations: [AbbreviationDefinition] {
+            abbreviations.values.sorted { first, second in
+                if first.term.count == second.term.count {
+                    return first.term < second.term
+                }
+
+                return first.term.count > second.term.count
+            }
+        }
+    }
+
     public static func renderDocument(_ markdown: String, title: String) -> String {
         let fragment = renderFragment(markdown)
         let escapedTitle = escapeHTML(title)
@@ -27,8 +42,13 @@ public enum MarkdownHTMLRenderer {
 
     public static func renderFragment(_ markdown: String) -> String {
         let document = MarkdownParser.parse(markdown)
+        let context = RenderContext(
+            references: document.referenceDefinitions,
+            abbreviations: document.abbreviationDefinitions
+        )
+
         return document.blocks.map { block in
-            renderBlock(block, references: document.referenceDefinitions)
+            renderBlock(block, context: context)
         }.joined(separator: "\n")
     }
 
@@ -43,23 +63,23 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderBlock(
         _ block: MarkdownBlock,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         switch block {
         case let .frontMatter(frontMatter):
             return "<pre class=\"front-matter front-matter-\(frontMatter.kind.rawValue)\"><code>\(escapeHTML(frontMatter.lines.joined(separator: "\n")))</code></pre>"
         case let .heading(level, text, anchor):
-            return "<h\(level) id=\"\(escapeHTML(anchor))\">\(renderInline(text, references: references))</h\(level)>"
+            return "<h\(level) id=\"\(escapeHTML(anchor))\">\(renderInline(text, context: context))</h\(level)>"
         case let .paragraph(text):
-            return "<p>\(renderInline(text, references: references))</p>"
+            return "<p>\(renderInline(text, context: context))</p>"
         case let .blockquote(lines, callout):
-            return renderBlockquote(lines: lines, callout: callout, references: references)
+            return renderBlockquote(lines: lines, callout: callout, context: context)
         case let .unorderedList(items):
-            return renderList(tag: "ul", items: items, references: references)
+            return renderList(tag: "ul", items: items, context: context)
         case let .orderedList(items):
-            return renderList(tag: "ol", items: items, references: references)
+            return renderList(tag: "ol", items: items, context: context)
         case let .taskList(items):
-            return renderTaskList(items, references: references)
+            return renderTaskList(items, context: context)
         case let .codeBlock(language, code):
             return renderCodeBlock(language: language, code: code)
         case let .diagram(diagram):
@@ -67,15 +87,17 @@ public enum MarkdownHTMLRenderer {
         case let .mathBlock(expression):
             return renderMathBlock(expression)
         case let .table(table):
-            return renderTable(table, references: references)
+            return renderTable(table, context: context)
         case let .definitionList(items):
-            return renderDefinitionList(items, references: references)
+            return renderDefinitionList(items, context: context)
         case let .footnoteDefinition(identifier, text):
-            return "<p class=\"footnote-definition\" id=\"fn-\(escapeHTML(identifier))\"><sup>\(escapeHTML(identifier))</sup> \(renderInline(text, references: references))</p>"
+            return "<p class=\"footnote-definition\" id=\"fn-\(escapeHTML(identifier))\"><sup>\(escapeHTML(identifier))</sup> \(renderInline(text, context: context))</p>"
         case let .linkReferenceDefinition(definition):
-            return renderLinkReferenceDefinition(definition, references: references)
+            return renderLinkReferenceDefinition(definition, context: context)
+        case let .abbreviationDefinition(definition):
+            return renderAbbreviationDefinition(definition)
         case let .image(alt, source, title):
-            return renderImage(alt: alt, source: source, title: title, references: references)
+            return renderImage(alt: alt, source: source, title: title, context: context)
         case .thematicBreak:
             return "<hr>"
         case let .htmlComment(comment):
@@ -88,9 +110,9 @@ public enum MarkdownHTMLRenderer {
     private static func renderBlockquote(
         lines: [String],
         callout: CalloutKind?,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
-        let body = lines.map { renderInline($0, references: references) }.joined(separator: "<br>")
+        let body = lines.map { renderInline($0, context: context) }.joined(separator: "<br>")
 
         guard let callout else {
             return "<blockquote>\(body)</blockquote>"
@@ -107,11 +129,11 @@ public enum MarkdownHTMLRenderer {
     private static func renderList(
         tag: String,
         items: [ListItem],
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         let renderedItems = items.map { item in
             let indentClass = item.depth > 0 ? " class=\"depth-\(item.depth)\"" : ""
-            return "<li\(indentClass)>\(renderInline(item.text, references: references))</li>"
+            return "<li\(indentClass)>\(renderInline(item.text, context: context))</li>"
         }.joined(separator: "\n")
 
         return "<\(tag)>\n\(renderedItems)\n</\(tag)>"
@@ -119,12 +141,12 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderTaskList(
         _ items: [TaskItem],
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         let renderedItems = items.map { item in
             let checked = item.isDone ? " checked" : ""
             let doneClass = item.isDone ? " done" : ""
-            return "<li class=\"task\(doneClass)\"><input type=\"checkbox\" disabled\(checked)> \(renderInline(item.text, references: references))</li>"
+            return "<li class=\"task\(doneClass)\"><input type=\"checkbox\" disabled\(checked)> \(renderInline(item.text, context: context))</li>"
         }.joined(separator: "\n")
 
         return "<ul class=\"task-list\">\n\(renderedItems)\n</ul>"
@@ -164,15 +186,15 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderTable(
         _ table: TableBlock,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         let headerCells = table.headers.enumerated().map { index, header in
-            "<th style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(header, references: references))</th>"
+            "<th style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(header, context: context))</th>"
         }.joined()
 
         let bodyRows = table.rows.map { row in
             let cells = row.enumerated().map { index, cell in
-                "<td style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(cell, references: references))</td>"
+                "<td style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(cell, context: context))</td>"
             }.joined()
 
             return "<tr>\(cells)</tr>"
@@ -190,14 +212,14 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderDefinitionList(
         _ items: [DefinitionItem],
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         let body = items.map { item in
             let definitions = item.definitions.map { definition in
-                "<dd>\(renderInline(definition, references: references))</dd>"
+                "<dd>\(renderInline(definition, context: context))</dd>"
             }.joined(separator: "\n")
 
-            return "<dt>\(renderInline(item.term, references: references))</dt>\n\(definitions)"
+            return "<dt>\(renderInline(item.term, context: context))</dt>\n\(definitions)"
         }.joined(separator: "\n")
 
         return "<dl>\n\(body)\n</dl>"
@@ -205,9 +227,9 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderLinkReferenceDefinition(
         _ definition: LinkReferenceDefinition,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
-        let title = definition.title.map { " <span>\(renderInline($0, references: references))</span>" } ?? ""
+        let title = definition.title.map { " <span>\(renderInline($0, context: context))</span>" } ?? ""
 
         return [
             "<p class=\"link-reference\">",
@@ -218,11 +240,20 @@ public enum MarkdownHTMLRenderer {
         ].joined(separator: "")
     }
 
+    private static func renderAbbreviationDefinition(_ definition: AbbreviationDefinition) -> String {
+        [
+            "<p class=\"abbreviation-reference\">",
+            "  <strong>*[\(escapeHTML(definition.term))]</strong>",
+            "  <span>\(escapeHTML(definition.expansion))</span>",
+            "</p>"
+        ].joined(separator: "")
+    }
+
     private static func renderImage(
         alt: String,
         source: String,
         title: String?,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
         let image = "<img src=\"\(escapeHTML(source))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
@@ -231,7 +262,7 @@ public enum MarkdownHTMLRenderer {
             return "<figure>\(image)</figure>"
         }
 
-        return "<figure>\(image)<figcaption>\(renderInline(alt, references: references))</figcaption></figure>"
+        return "<figure>\(image)<figcaption>\(renderInline(alt, context: context))</figcaption></figure>"
     }
 
     private static func cssAlignment(_ alignments: [TableAlignment], at index: Int) -> String {
@@ -249,59 +280,59 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderInline(
         _ text: String,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         InlineMarkdownParser.parse(text).map { segment in
-            renderInlineSegment(segment, references: references)
+            renderInlineSegment(segment, context: context)
         }.joined()
     }
 
     private static func renderInlineSegment(
         _ segment: InlineMarkdownSegment,
-        references: [String: LinkReferenceDefinition]
+        context: RenderContext
     ) -> String {
         switch segment {
         case let .text(value):
-            return escapeHTML(value)
+            return renderText(value, context: context)
         case let .strong(value):
-            return "<strong>\(renderInline(value, references: references))</strong>"
+            return "<strong>\(renderInline(value, context: context))</strong>"
         case let .emphasis(value):
-            return "<em>\(renderInline(value, references: references))</em>"
+            return "<em>\(renderInline(value, context: context))</em>"
         case let .strikethrough(value):
-            return "<del>\(renderInline(value, references: references))</del>"
+            return "<del>\(renderInline(value, context: context))</del>"
         case let .highlight(value):
-            return "<mark>\(renderInline(value, references: references))</mark>"
+            return "<mark>\(renderInline(value, context: context))</mark>"
         case let .superscript(value):
-            return "<sup>\(renderInline(value, references: references))</sup>"
+            return "<sup>\(renderInline(value, context: context))</sup>"
         case let .subscriptText(value):
-            return "<sub>\(renderInline(value, references: references))</sub>"
+            return "<sub>\(renderInline(value, context: context))</sub>"
         case let .criticAddition(value):
-            return "<ins class=\"critic-addition\">\(renderInline(value, references: references))</ins>"
+            return "<ins class=\"critic-addition\">\(renderInline(value, context: context))</ins>"
         case let .criticDeletion(value):
-            return "<del class=\"critic-deletion\">\(renderInline(value, references: references))</del>"
+            return "<del class=\"critic-deletion\">\(renderInline(value, context: context))</del>"
         case let .criticSubstitution(original, replacement):
-            return "<span class=\"critic-substitution\"><del>\(renderInline(original, references: references))</del><ins>\(renderInline(replacement, references: references))</ins></span>"
+            return "<span class=\"critic-substitution\"><del>\(renderInline(original, context: context))</del><ins>\(renderInline(replacement, context: context))</ins></span>"
         case let .criticComment(value):
-            return "<span class=\"critic-comment\">\(renderInline(value, references: references))</span>"
+            return "<span class=\"critic-comment\">\(renderInline(value, context: context))</span>"
         case let .criticHighlight(value):
-            return "<mark class=\"critic-highlight\">\(renderInline(value, references: references))</mark>"
+            return "<mark class=\"critic-highlight\">\(renderInline(value, context: context))</mark>"
         case let .code(value):
             return "<code>\(escapeHTML(value))</code>"
         case let .link(label, destination, title):
             let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
-            return "<a href=\"\(escapeHTML(destination))\"\(titleAttribute)>\(renderInline(label, references: references))</a>"
+            return "<a href=\"\(escapeHTML(destination))\"\(titleAttribute)>\(renderInline(label, context: context))</a>"
         case let .referenceLink(label, reference):
-            guard let definition = references[LinkReferenceDefinition.normalizedLabel(reference)] else {
-                return "<a href=\"#ref-\(escapeHTML(reference))\">\(renderInline(label, references: references))</a>"
+            guard let definition = context.references[LinkReferenceDefinition.normalizedLabel(reference)] else {
+                return "<a href=\"#ref-\(escapeHTML(reference))\">\(renderInline(label, context: context))</a>"
             }
 
             let titleAttribute = definition.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
-            return "<a href=\"\(escapeHTML(definition.destination))\"\(titleAttribute)>\(renderInline(label, references: references))</a>"
+            return "<a href=\"\(escapeHTML(definition.destination))\"\(titleAttribute)>\(renderInline(label, context: context))</a>"
         case let .image(alt, source, title):
             let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
             return "<img src=\"\(escapeHTML(source))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
         case let .imageReference(alt, label):
-            if let definition = references[LinkReferenceDefinition.normalizedLabel(label)] {
+            if let definition = context.references[LinkReferenceDefinition.normalizedLabel(label)] {
                 let titleAttribute = definition.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
                 return "<img src=\"\(escapeHTML(definition.destination))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
             }
@@ -328,6 +359,60 @@ public enum MarkdownHTMLRenderer {
         case let .mention(value):
             return "<span class=\"mention\">@\(escapeHTML(value))</span>"
         }
+    }
+
+    private static func renderText(_ text: String, context: RenderContext) -> String {
+        guard !context.abbreviations.isEmpty else { return escapeHTML(text) }
+
+        var rendered = ""
+        var cursor = text.startIndex
+
+        while cursor < text.endIndex {
+            if let definition = matchingAbbreviation(in: text, at: cursor, context: context) {
+                rendered += "<abbr title=\"\(escapeHTML(definition.expansion))\">\(escapeHTML(definition.term))</abbr>"
+                cursor = text.index(cursor, offsetBy: definition.term.count)
+                continue
+            }
+
+            rendered += escapeHTML(String(text[cursor]))
+            cursor = text.index(after: cursor)
+        }
+
+        return rendered
+    }
+
+    private static func matchingAbbreviation(
+        in text: String,
+        at index: String.Index,
+        context: RenderContext
+    ) -> AbbreviationDefinition? {
+        context.sortedAbbreviations.first { definition in
+            guard text[index...].hasPrefix(definition.term) else { return false }
+
+            let end = text.index(index, offsetBy: definition.term.count)
+            return hasAbbreviationBoundary(before: index, in: text, term: definition.term)
+                && hasAbbreviationBoundary(after: end, in: text, term: definition.term)
+        }
+    }
+
+    private static func hasAbbreviationBoundary(
+        before index: String.Index,
+        in text: String,
+        term: String
+    ) -> Bool {
+        guard let first = term.first, first.isLetter || first.isNumber else { return true }
+        guard index > text.startIndex else { return true }
+        return !text[text.index(before: index)].isAbbreviationWordCharacter
+    }
+
+    private static func hasAbbreviationBoundary(
+        after index: String.Index,
+        in text: String,
+        term: String
+    ) -> Bool {
+        guard let last = term.last, last.isLetter || last.isNumber else { return true }
+        guard index < text.endIndex else { return true }
+        return !text[index].isAbbreviationWordCharacter
     }
 
     private static let css = """
@@ -371,12 +456,20 @@ public enum MarkdownHTMLRenderer {
         .front-matter, .html-block, .html-comment { opacity: 0.82; }
         .html-comment { color: rgba(127, 127, 127, 0.9); }
         .footnote-definition { font-size: 0.92em; opacity: 0.86; }
-        .link-reference {
+        .link-reference,
+        .abbreviation-reference {
           display: flex;
           gap: 0.65em;
           align-items: baseline;
           font-size: 0.92em;
           opacity: 0.86;
+        }
+        abbr {
+          cursor: help;
+          text-decoration-line: underline;
+          text-decoration-style: dotted;
+          text-decoration-color: rgba(45, 132, 214, 0.78);
+          text-underline-offset: 0.16em;
         }
         .task-list { list-style: none; padding-left: 0; }
         .task.done { opacity: 0.68; text-decoration: line-through; }
@@ -454,4 +547,10 @@ public enum MarkdownHTMLRenderer {
         }
         .callout-title { margin: 0 0 0.35em; font-weight: 700; }
     """
+}
+
+private extension Character {
+    var isAbbreviationWordCharacter: Bool {
+        isLetter || isNumber || self == "_"
+    }
 }

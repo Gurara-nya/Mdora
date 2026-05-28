@@ -38,6 +38,8 @@ extension MarkdownDocument {
 
     Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized.
 
+    Abbreviations are expanded in preview and export, so HTML can carry a title.
+
     Review marks are recognized: {++added++}, {--removed--}, {~~draft~>polished~~}, {>>editor note<<}, and {==review highlight==}.
 
     <!-- Comments are parsed and visible in the inspector. -->
@@ -87,6 +89,7 @@ extension MarkdownDocument {
 
     [project]: https://github.com/Gurara-nya/Mdora "Mdora on GitHub"
     [sample-image]: image.png "Local image reference"
+    *[HTML]: Hyper Text Markup Language
     """
 }
 

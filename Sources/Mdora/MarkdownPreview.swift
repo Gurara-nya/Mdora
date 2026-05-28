@@ -23,10 +23,19 @@ private struct MarkdownReferenceDefinitionsKey: EnvironmentKey {
     static let defaultValue: [String: LinkReferenceDefinition] = [:]
 }
 
+private struct MarkdownAbbreviationDefinitionsKey: EnvironmentKey {
+    static let defaultValue: [String: AbbreviationDefinition] = [:]
+}
+
 private extension EnvironmentValues {
     var mdoraReferenceDefinitions: [String: LinkReferenceDefinition] {
         get { self[MarkdownReferenceDefinitionsKey.self] }
         set { self[MarkdownReferenceDefinitionsKey.self] = newValue }
+    }
+
+    var mdoraAbbreviationDefinitions: [String: AbbreviationDefinition] {
+        get { self[MarkdownAbbreviationDefinitionsKey.self] }
+        set { self[MarkdownAbbreviationDefinitionsKey.self] = newValue }
     }
 }
 
@@ -65,6 +74,7 @@ struct MarkdownPreview: View {
             }
             .environment(\.mdoraPreviewStyle, style)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
+            .environment(\.mdoraAbbreviationDefinitions, parsed.abbreviationDefinitions)
             .background(theme.palette.previewColor)
             .overlay(alignment: .top) {
                 Rectangle()
@@ -166,6 +176,8 @@ private struct MarkdownBlockView: View {
             FootnoteDefinitionView(identifier: identifier, text: text, theme: theme)
         case let .linkReferenceDefinition(definition):
             LinkReferenceDefinitionView(definition: definition, theme: theme)
+        case let .abbreviationDefinition(definition):
+            AbbreviationDefinitionView(definition: definition, theme: theme)
         case let .image(alt, source, title):
             ImageBlockView(alt: alt, source: source, title: title, theme: theme)
         case .thematicBreak:
@@ -659,6 +671,31 @@ private struct LinkReferenceDefinitionView: View {
     }
 }
 
+private struct AbbreviationDefinitionView: View {
+    let definition: AbbreviationDefinition
+    let theme: MdoraTheme
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Label(definition.term, systemImage: "textformat.abc.dottedunderline")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.accentColor)
+                .frame(minWidth: 80, alignment: .leading)
+
+            Text(definition.expansion)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .foregroundStyle(theme.palette.textColor)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 private struct ImageBlockView: View {
     let alt: String
     let source: String
@@ -757,6 +794,7 @@ private struct InlineMarkdownText: View {
     private let theme: MdoraTheme
     @Environment(\.mdoraPreviewStyle) private var style
     @Environment(\.mdoraReferenceDefinitions) private var referenceDefinitions
+    @Environment(\.mdoraAbbreviationDefinitions) private var abbreviationDefinitions
 
     init(_ text: String, theme: MdoraTheme) {
         self.text = text
@@ -782,7 +820,7 @@ private struct InlineMarkdownText: View {
     private func render(_ segment: InlineMarkdownSegment) -> Text {
         switch segment {
         case let .text(value):
-            Text(value)
+            renderText(value)
         case let .strong(value):
             renderInline(value).bold()
         case let .emphasis(value):
@@ -909,6 +947,69 @@ private struct InlineMarkdownText: View {
 
         return label
     }
+
+    private func renderText(_ value: String) -> Text {
+        guard !abbreviationDefinitions.isEmpty else { return Text(value) }
+
+        var rendered = Text("")
+        var cursor = value.startIndex
+
+        while cursor < value.endIndex {
+            if let definition = matchingAbbreviation(in: value, at: cursor) {
+                rendered = rendered
+                    + Text(definition.term)
+                    .underline(true, color: theme.palette.accentColor)
+                    .foregroundColor(theme.palette.accentColor)
+                cursor = value.index(cursor, offsetBy: definition.term.count)
+                continue
+            }
+
+            rendered = rendered + Text(String(value[cursor]))
+            cursor = value.index(after: cursor)
+        }
+
+        return rendered
+    }
+
+    private func matchingAbbreviation(in value: String, at index: String.Index) -> AbbreviationDefinition? {
+        sortedAbbreviations.first { definition in
+            guard value[index...].hasPrefix(definition.term) else { return false }
+
+            let end = value.index(index, offsetBy: definition.term.count)
+            return hasAbbreviationBoundary(before: index, in: value, term: definition.term)
+                && hasAbbreviationBoundary(after: end, in: value, term: definition.term)
+        }
+    }
+
+    private var sortedAbbreviations: [AbbreviationDefinition] {
+        abbreviationDefinitions.values.sorted { first, second in
+            if first.term.count == second.term.count {
+                return first.term < second.term
+            }
+
+            return first.term.count > second.term.count
+        }
+    }
+
+    private func hasAbbreviationBoundary(
+        before index: String.Index,
+        in value: String,
+        term: String
+    ) -> Bool {
+        guard let first = term.first, first.isLetter || first.isNumber else { return true }
+        guard index > value.startIndex else { return true }
+        return !value[value.index(before: index)].isAbbreviationWordCharacter
+    }
+
+    private func hasAbbreviationBoundary(
+        after index: String.Index,
+        in value: String,
+        term: String
+    ) -> Bool {
+        guard let last = term.last, last.isLetter || last.isNumber else { return true }
+        guard index < value.endIndex else { return true }
+        return !value[index].isAbbreviationWordCharacter
+    }
 }
 
 private extension CalloutKind {
@@ -981,5 +1082,11 @@ private extension DiagramKind {
 private extension String {
     var trimmedForPreview: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private extension Character {
+    var isAbbreviationWordCharacter: Bool {
+        isLetter || isNumber || self == "_"
     }
 }

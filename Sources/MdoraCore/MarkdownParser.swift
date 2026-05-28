@@ -9,6 +9,7 @@ public enum MarkdownParser {
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
         let markers = MarkdownAnalyzer.markers(in: markdown, blocks: blocks)
         let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
+        let abbreviationDefinitions = MarkdownAnalyzer.abbreviationDefinitions(from: blocks)
         let diagnostics = MarkdownAnalyzer.diagnostics(
             in: markdown,
             blocks: blocks,
@@ -23,6 +24,7 @@ public enum MarkdownParser {
             metadata: metadata,
             markers: markers,
             referenceDefinitions: referenceDefinitions,
+            abbreviationDefinitions: abbreviationDefinitions,
             diagnostics: diagnostics,
             stats: stats
         )
@@ -109,6 +111,11 @@ private struct BlockParser {
             }
 
             if let block = parseLinkReferenceDefinition() {
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
+                continue
+            }
+
+            if let block = parseAbbreviationDefinition() {
                 append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
@@ -453,6 +460,15 @@ private struct BlockParser {
         return .linkReferenceDefinition(definition)
     }
 
+    private mutating func parseAbbreviationDefinition() -> MarkdownBlock? {
+        guard let definition = Self.parseAbbreviationDefinitionLine(currentLine.trimmed) else {
+            return nil
+        }
+
+        index += 1
+        return .abbreviationDefinition(definition)
+    }
+
     private mutating func parseFootnoteDefinition() -> MarkdownBlock? {
         let trimmed = currentLine.trimmed
         guard trimmed.hasPrefix("[^") else { return nil }
@@ -569,6 +585,7 @@ private struct BlockParser {
             if Self.isFootnoteDefinition(line) { break }
             if Self.isDefinitionLine(self.line(at: 1)) { break }
             if Self.parseLinkReferenceDefinitionLine(line.trimmed) != nil { break }
+            if Self.parseAbbreviationDefinitionLine(line.trimmed) != nil { break }
             if line.trimmed.hasPrefix("<!--") { break }
             if line.trimmed.hasPrefix(">") { break }
             if Self.headingLevel(line) != nil { break }
@@ -749,6 +766,24 @@ private struct BlockParser {
 
         let title = parseReferenceTitle(remainder)
         return LinkReferenceDefinition(label: label, destination: destination, title: title)
+    }
+
+    private static func parseAbbreviationDefinitionLine(_ line: String) -> AbbreviationDefinition? {
+        guard line.hasPrefix("*[") else { return nil }
+        guard let closeTerm = line.firstIndex(of: "]") else { return nil }
+
+        let colonIndex = line.index(after: closeTerm)
+        guard colonIndex < line.endIndex, line[colonIndex] == ":" else { return nil }
+
+        let termStart = line.index(line.startIndex, offsetBy: 2)
+        let term = AbbreviationDefinition.normalizedTerm(String(line[termStart ..< closeTerm]))
+        guard !term.isEmpty else { return nil }
+
+        let expansionStart = line.index(after: colonIndex)
+        let expansion = String(line[expansionStart...]).trimmed
+        guard !expansion.isEmpty else { return nil }
+
+        return AbbreviationDefinition(term: term, expansion: expansion)
     }
 
     private static func parseReferenceTitle(_ text: String) -> String? {

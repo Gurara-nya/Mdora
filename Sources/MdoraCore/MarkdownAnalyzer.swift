@@ -43,6 +43,17 @@ public enum MarkdownAnalyzer {
         return definitions
     }
 
+    public static func abbreviationDefinitions(from blocks: [MarkdownBlock]) -> [String: AbbreviationDefinition] {
+        var definitions: [String: AbbreviationDefinition] = [:]
+
+        for block in blocks {
+            guard case let .abbreviationDefinition(definition) = block else { continue }
+            definitions[definition.normalizedTerm] = definition
+        }
+
+        return definitions
+    }
+
     private static func yamlMetadata(from lines: [String]) -> [MetadataItem] {
         lines.compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -164,6 +175,9 @@ public enum MarkdownAnalyzer {
             return nil
         })
         markers.customAnchors = unique(customHeadingAnchors(in: markdown))
+        markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
+            lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
+        })
         markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
         markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
@@ -393,6 +407,8 @@ public enum MarkdownAnalyzer {
             "Footnote"
         case .linkReferenceDefinition:
             "Reference"
+        case .abbreviationDefinition:
+            "Abbreviation"
         case .image:
             "Image"
         case .thematicBreak:
@@ -521,6 +537,8 @@ public enum MarkdownAnalyzer {
             return ["[^\(identifier)]", text]
         case let .linkReferenceDefinition(definition):
             return [definition.title].compactMap { $0 }
+        case .abbreviationDefinition:
+            return []
         case let .image(alt, source, title):
             return ["![\(alt)](\(source)\(title.map { " \"\($0)\"" } ?? ""))"]
         case .frontMatter, .codeBlock, .diagram, .mathBlock, .thematicBreak, .htmlComment, .html:

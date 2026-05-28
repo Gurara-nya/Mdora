@@ -60,6 +60,7 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Emails", value: document.markers.emailLinks.count, systemImage: "envelope", theme: theme)
                         MarkerRow(title: "Wiki Links", value: document.markers.wikiLinks.count, systemImage: "rectangle.stack", theme: theme)
                         MarkerRow(title: "Anchors", value: document.markers.customAnchors.count, systemImage: "number.square", theme: theme)
+                        MarkerRow(title: "Abbreviations", value: document.markers.abbreviations.count, systemImage: "textformat.abc.dottedunderline", theme: theme)
                         MarkerRow(title: "References", value: document.markers.linkReferences.count, systemImage: "link.badge.plus", theme: theme)
                         MarkerRow(title: "Images", value: document.markers.images.count, systemImage: "photo", theme: theme)
                         MarkerRow(title: "Image Refs", value: document.markers.imageReferences.count, systemImage: "photo.badge.arrow.down", theme: theme)
@@ -85,6 +86,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Diagrams", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
                 MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { "[[\($0)]]" }, systemImage: "rectangle.stack", theme: theme)
                 MarkerList(title: "Anchors", values: document.markers.customAnchors.map { "{#\($0)}" }, systemImage: "number.square", theme: theme)
+                MarkerList(title: "Abbreviations", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
                 MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
                 MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
@@ -206,6 +208,7 @@ private struct CompatibilitySummary: View {
         appendIfBlock("Definitions", contains: "Definition List", to: &features)
         if !document.markers.wikiLinks.isEmpty { features.append("Wiki Links") }
         if !document.markers.customAnchors.isEmpty { features.append("Custom Anchors") }
+        if !document.markers.abbreviations.isEmpty { features.append("Abbreviations") }
         if !document.markers.linkReferences.isEmpty { features.append("References") }
         if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("Autolinks") }
         if !document.markers.taskTokens.isEmpty { features.append("Tokens") }

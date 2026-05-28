@@ -7,6 +7,7 @@ public struct ParsedMarkdownDocument: Equatable {
     public var metadata: [MetadataItem]
     public var markers: MarkdownMarkers
     public var referenceDefinitions: [String: LinkReferenceDefinition]
+    public var abbreviationDefinitions: [String: AbbreviationDefinition]
     public var diagnostics: [MarkdownDiagnostic]
     public var stats: MarkdownStats
 
@@ -17,6 +18,7 @@ public struct ParsedMarkdownDocument: Equatable {
         metadata: [MetadataItem] = [],
         markers: MarkdownMarkers,
         referenceDefinitions: [String: LinkReferenceDefinition] = [:],
+        abbreviationDefinitions: [String: AbbreviationDefinition] = [:],
         diagnostics: [MarkdownDiagnostic] = [],
         stats: MarkdownStats
     ) {
@@ -26,6 +28,7 @@ public struct ParsedMarkdownDocument: Equatable {
         self.metadata = metadata
         self.markers = markers
         self.referenceDefinitions = referenceDefinitions
+        self.abbreviationDefinitions = abbreviationDefinitions
         self.diagnostics = diagnostics
         self.stats = stats
     }
@@ -63,6 +66,7 @@ public enum MarkdownBlock: Equatable {
     case definitionList([DefinitionItem])
     case footnoteDefinition(identifier: String, text: String)
     case linkReferenceDefinition(LinkReferenceDefinition)
+    case abbreviationDefinition(AbbreviationDefinition)
     case image(alt: String, source: String, title: String?)
     case thematicBreak
     case htmlComment(String)
@@ -248,6 +252,29 @@ public struct LinkReferenceDefinition: Equatable, Sendable {
     }
 }
 
+public struct AbbreviationDefinition: Equatable, Hashable, Sendable {
+    public var term: String
+    public var expansion: String
+
+    public init(term: String, expansion: String) {
+        self.term = term
+        self.expansion = expansion
+    }
+
+    public var normalizedTerm: String {
+        Self.normalizedTerm(term)
+    }
+
+    public static func normalizedTerm(_ term: String) -> String {
+        term
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split { character in
+                character.isWhitespace || character.isNewline
+            }
+            .joined(separator: " ")
+    }
+}
+
 public struct CriticSubstitution: Equatable, Hashable {
     public var original: String
     public var replacement: String
@@ -368,6 +395,7 @@ public struct MarkdownMarkers: Equatable {
     public var mentions: [String]
     public var wikiLinks: [String]
     public var customAnchors: [String]
+    public var abbreviations: [AbbreviationDefinition]
     public var footnotes: [String]
     public var linkReferences: [String]
     public var htmlComments: [String]
@@ -398,6 +426,7 @@ public struct MarkdownMarkers: Equatable {
         mentions: [String] = [],
         wikiLinks: [String] = [],
         customAnchors: [String] = [],
+        abbreviations: [AbbreviationDefinition] = [],
         footnotes: [String] = [],
         linkReferences: [String] = [],
         htmlComments: [String] = [],
@@ -427,6 +456,7 @@ public struct MarkdownMarkers: Equatable {
         self.mentions = mentions
         self.wikiLinks = wikiLinks
         self.customAnchors = customAnchors
+        self.abbreviations = abbreviations
         self.footnotes = footnotes
         self.linkReferences = linkReferences
         self.htmlComments = htmlComments

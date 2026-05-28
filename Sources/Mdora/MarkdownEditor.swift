@@ -503,6 +503,15 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     return
                 }
 
+                if self.isAbbreviationDefinition(trimmed) {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .backgroundColor: palette.accent.withAlphaComponent(0.10),
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
+                    ], range: lineRange)
+                    return
+                }
+
                 if self.isMetadataLine(trimmed, lineRange: lineRange, in: nsString) {
                     storage.addAttributes([
                         .foregroundColor: palette.muted,
@@ -557,6 +566,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         private func isReferenceDefinition(_ line: String) -> Bool {
             guard line.hasPrefix("[") else { return false }
+            guard let close = line.firstIndex(of: "]") else { return false }
+            let colon = line.index(after: close)
+            return colon < line.endIndex && line[colon] == ":"
+        }
+
+        private func isAbbreviationDefinition(_ line: String) -> Bool {
+            guard line.hasPrefix("*[") else { return false }
             guard let close = line.firstIndex(of: "]") else { return false }
             let colon = line.index(after: close)
             return colon < line.endIndex && line[colon] == ":"
