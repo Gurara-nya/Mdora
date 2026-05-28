@@ -343,6 +343,31 @@ func runTests() {
     assert(headingCompatibilityHTML.contains("<hr>"))
     print("✅ CommonMark empty ATX headings and single-character setext headings parse cleanly!")
 
+    let thematicBreakMarkdown = """
+    Before stars
+    * * *
+    After stars
+    Before underscores
+    ___
+    After underscores
+
+        ***
+    """
+    let thematicBreakDocument = MarkdownParser.parse(thematicBreakMarkdown)
+    assert(thematicBreakDocument.blocks.count == 6)
+    guard case .paragraph("Before stars") = thematicBreakDocument.blocks[0],
+          case .thematicBreak = thematicBreakDocument.blocks[1],
+          case .paragraph("After stars Before underscores") = thematicBreakDocument.blocks[2],
+          case .thematicBreak = thematicBreakDocument.blocks[3],
+          case .paragraph("After underscores") = thematicBreakDocument.blocks[4],
+          case .codeBlock(nil, "***") = thematicBreakDocument.blocks[5] else {
+        fatalError("❌ Expected thematic breaks to terminate paragraphs while four-space markers stay code")
+    }
+    let thematicBreakHTML = MarkdownHTMLRenderer.renderFragment(thematicBreakMarkdown)
+    assert(thematicBreakHTML.components(separatedBy: "<hr>").count - 1 == 2)
+    assert(thematicBreakHTML.contains("<code>***</code>"))
+    print("✅ CommonMark thematic breaks terminate paragraphs without stealing indented code!")
+
     // 6. Test GFM table escaped pipes and code span pipes
     let escapedPipeTableMarkdown = """
     | Pattern | Meaning |

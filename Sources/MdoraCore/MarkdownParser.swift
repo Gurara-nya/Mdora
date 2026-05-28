@@ -449,13 +449,7 @@ private struct BlockParser {
     }
 
     private mutating func parseThematicBreak() -> MarkdownBlock? {
-        let normalized = currentLine.trimmed.replacingOccurrences(of: " ", with: "")
-        guard normalized.count >= 3 else { return nil }
-        guard normalized.allSatisfy({ $0 == "-" }) ||
-            normalized.allSatisfy({ $0 == "*" }) ||
-            normalized.allSatisfy({ $0 == "_" }) else {
-            return nil
-        }
+        guard Self.isThematicBreakLine(currentLine) else { return nil }
 
         index += 1
         return .thematicBreak
@@ -665,6 +659,7 @@ private struct BlockParser {
             if line.trimmed.isEmpty { break }
             if MarkdownCodeFenceScanner.delimiter(in: line) != nil { break }
             if line.trimmed == "$$" || line.trimmed.hasPrefix("$$ ") { break }
+            if Self.isThematicBreakLine(line) { break }
             if Self.isTableSeparator(line) { break }
             if Self.parseListLine(line) != nil { break }
             if Self.isFootnoteDefinition(line) { break }
@@ -685,6 +680,35 @@ private struct BlockParser {
         }
 
         return .paragraph(Self.joinedParagraphLines(paragraphLines))
+    }
+
+    private static func isThematicBreakLine(_ line: String) -> Bool {
+        let source = line.trimmingCharacters(in: .newlines)
+        var cursor = source.startIndex
+        var leadingSpaces = 0
+
+        while cursor < source.endIndex {
+            if source[cursor] == " " {
+                leadingSpaces += 1
+                guard leadingSpaces <= 3 else { return false }
+                cursor = source.index(after: cursor)
+                continue
+            }
+
+            if source[cursor] == "\t" {
+                return false
+            }
+
+            break
+        }
+
+        let normalized = source[cursor...].filter { character in
+            character != " " && character != "\t"
+        }
+
+        guard normalized.count >= 3, let marker = normalized.first else { return false }
+        guard marker == "-" || marker == "*" || marker == "_" else { return false }
+        return normalized.allSatisfy { $0 == marker }
     }
 
     private static func paragraphLine(from line: String) -> ParagraphLine {
