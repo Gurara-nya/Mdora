@@ -59,6 +59,8 @@ struct MarkdownPreview: View {
     let documentURL: URL?
     let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
     @State private var updatePulse = false
+    @State private var pendingActiveScrollWorkItem: DispatchWorkItem?
+    @State private var lastSyncedBlockIndex: Int?
 
     var body: some View {
         let parsed = document
@@ -67,7 +69,8 @@ struct MarkdownPreview: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { index, block in
+                    ForEach(parsed.blocks.indices, id: \.self) { index in
+                        let block = parsed.blocks[index]
                         MarkdownBlockView(
                             block: block,
                             blockIndex: index,
@@ -112,13 +115,22 @@ struct MarkdownPreview: View {
                 }
             }
             .onChange(of: activeBlockIndex) { _, blockIndex in
-                scrollToActiveBlock(blockIndex, proxy: proxy)
+                scheduleActiveBlockScroll(blockIndex, proxy: proxy)
             }
-            .onChange(of: style.syncsToEditor) { _, _ in
-                scrollToActiveBlock(activeBlockIndex, proxy: proxy)
+            .onChange(of: style.syncsToEditor) { _, syncsToEditor in
+                pendingActiveScrollWorkItem?.cancel()
+                guard syncsToEditor else {
+                    lastSyncedBlockIndex = nil
+                    return
+                }
+
+                scrollToActiveBlock(activeBlockIndex, proxy: proxy, force: true)
             }
             .onAppear {
-                scrollToActiveBlock(activeBlockIndex, proxy: proxy)
+                scrollToActiveBlock(activeBlockIndex, proxy: proxy, force: true)
+            }
+            .onDisappear {
+                pendingActiveScrollWorkItem?.cancel()
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdoraNavigateRequested)) { notification in
                 guard let url = notification.object as? URL else { return }
@@ -134,8 +146,23 @@ struct MarkdownPreview: View {
         }?.blockIndex
     }
 
-    private func scrollToActiveBlock(_ blockIndex: Int?, proxy: ScrollViewProxy) {
+    private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {
+        guard style.syncsToEditor, let blockIndex, blockIndex != lastSyncedBlockIndex else { return }
+
+        pendingActiveScrollWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem {
+            scrollToActiveBlock(blockIndex, proxy: proxy)
+        }
+        pendingActiveScrollWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09, execute: workItem)
+    }
+
+    private func scrollToActiveBlock(_ blockIndex: Int?, proxy: ScrollViewProxy, force: Bool = false) {
         guard style.syncsToEditor, let blockIndex else { return }
+        guard force || blockIndex != lastSyncedBlockIndex else { return }
+
+        lastSyncedBlockIndex = blockIndex
 
         withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil) {
             proxy.scrollTo(blockIndex, anchor: .center)
@@ -169,6 +196,7 @@ struct MarkdownPreview: View {
                    parameter,
                    currentDocumentURL: documentURL
                ) {
+                pendingActiveScrollWorkItem?.cancel()
                 openMarkdownDocument(at: fileURL)
                 return
             }
@@ -181,6 +209,7 @@ struct MarkdownPreview: View {
         }
 
         if let targetIndex {
+            pendingActiveScrollWorkItem?.cancel()
             withAnimation(style.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
                 proxy.scrollTo(targetIndex, anchor: .center)
             }
@@ -362,7 +391,8 @@ private struct BlockquoteView: View {
                     .frame(width: 3)
 
                 VStack(alignment: .leading, spacing: 14) {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    ForEach(blocks.indices, id: \.self) { index in
+                        let block = blocks[index]
                         MarkdownBlockView(
                             block: block,
                             blockIndex: nil,
@@ -417,7 +447,8 @@ private struct CalloutView: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    ForEach(blocks.indices, id: \.self) { index in
+                        let block = blocks[index]
                         MarkdownBlockView(
                             block: block,
                             blockIndex: nil,
@@ -447,7 +478,8 @@ private struct ListBlockView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+            ForEach(items.indices, id: \.self) { index in
+                let item = items[index]
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(isOrdered ? "\(index + 1)." : "•")
                         .font(.system(size: 15, weight: .semibold))
@@ -470,7 +502,8 @@ private struct TaskListBlockView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(items.enumerated()), id: \.offset) { itemIndex, item in
+            ForEach(items.indices, id: \.self) { itemIndex in
+                let item = items[itemIndex]
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     taskStateControl(for: item, itemIndex: itemIndex)
 
@@ -885,12 +918,14 @@ private struct TableBlockView: View {
         ScrollView(.horizontal) {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 GridRow {
-                    ForEach(Array(table.headers.enumerated()), id: \.offset) { index, header in
+                    ForEach(table.headers.indices, id: \.self) { index in
+                        let header = table.headers[index]
                         TableCell(text: header, alignment: alignment(at: index), isHeader: true, theme: theme)
                     }
                 }
 
-                ForEach(Array(table.rows.enumerated()), id: \.offset) { _, row in
+                ForEach(table.rows.indices, id: \.self) { rowIndex in
+                    let row = table.rows[rowIndex]
                     GridRow {
                         ForEach(0 ..< max(table.headers.count, row.count), id: \.self) { index in
                             TableCell(
@@ -948,12 +983,14 @@ private struct DefinitionListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            ForEach(items.indices, id: \.self) { itemIndex in
+                let item = items[itemIndex]
                 VStack(alignment: .leading, spacing: 6) {
                     InlineMarkdownText(item.term, theme: theme)
                         .font(.system(size: 15, weight: .semibold))
 
-                    ForEach(Array(item.definitions.enumerated()), id: \.offset) { _, definition in
+                    ForEach(item.definitions.indices, id: \.self) { definitionIndex in
+                        let definition = item.definitions[definitionIndex]
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Rectangle()
                                 .fill(theme.palette.borderColor)
