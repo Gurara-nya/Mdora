@@ -3,7 +3,8 @@ import Foundation
 public enum MarkdownParser {
     public static func parse(_ markdown: String) -> ParsedMarkdownDocument {
         var parser = BlockParser(markdown: markdown)
-        let blocks = parser.parseBlocks()
+        let parsedBlocks = parser.parseBlocks()
+        let blocks = parsedBlocks.blocks
         let outline = MarkdownAnalyzer.outline(from: blocks)
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
         let markers = MarkdownAnalyzer.markers(in: markdown, blocks: blocks)
@@ -16,6 +17,7 @@ public enum MarkdownParser {
 
         return ParsedMarkdownDocument(
             blocks: blocks,
+            sourceMap: parsedBlocks.sourceMap,
             outline: outline,
             metadata: metadata,
             markers: markers,
@@ -23,6 +25,11 @@ public enum MarkdownParser {
             stats: stats
         )
     }
+}
+
+private struct ParsedBlocks {
+    var blocks: [MarkdownBlock]
+    var sourceMap: [MarkdownBlockSourceRange]
 }
 
 private struct BlockParser {
@@ -33,11 +40,12 @@ private struct BlockParser {
         lines = markdown.components(separatedBy: .newlines)
     }
 
-    mutating func parseBlocks() -> [MarkdownBlock] {
+    mutating func parseBlocks() -> ParsedBlocks {
         var blocks: [MarkdownBlock] = []
+        var sourceMap: [MarkdownBlockSourceRange] = []
 
         if let frontMatter = parseFrontMatter() {
-            blocks.append(.frontMatter(frontMatter))
+            append(.frontMatter(frontMatter), startingAt: 0, to: &blocks, sourceMap: &sourceMap)
         }
 
         while index < lines.count {
@@ -46,80 +54,102 @@ private struct BlockParser {
                 continue
             }
 
+            let startIndex = index
+
             if let block = parseCodeFence() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseMathBlock() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseIndentedCodeBlock() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseTable() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseHeading() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseThematicBreak() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseBlockquote() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseList() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseFootnoteDefinition() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseDefinitionList() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseLinkReferenceDefinition() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseImage() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseHTMLComment() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
             if let block = parseHTMLBlock() {
-                blocks.append(block)
+                append(block, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
                 continue
             }
 
-            blocks.append(parseParagraph())
+            append(parseParagraph(), startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
         }
 
-        return blocks
+        return ParsedBlocks(blocks: blocks, sourceMap: sourceMap)
+    }
+
+    private func append(
+        _ block: MarkdownBlock,
+        startingAt startIndex: Int,
+        to blocks: inout [MarkdownBlock],
+        sourceMap: inout [MarkdownBlockSourceRange]
+    ) {
+        let blockIndex = blocks.count
+        let startLine = startIndex + 1
+        let endLine = max(startLine, index)
+
+        blocks.append(block)
+        sourceMap.append(
+            MarkdownBlockSourceRange(
+                blockIndex: blockIndex,
+                startLine: startLine,
+                endLine: endLine
+            )
+        )
     }
 
     private var currentLine: String {
@@ -488,6 +518,11 @@ private struct BlockParser {
             if Self.headingLevel(line) != nil { break }
 
             paragraphLines.append(line.trimmed)
+            index += 1
+        }
+
+        if paragraphLines.isEmpty, index < lines.count {
+            paragraphLines.append(currentLine.trimmed)
             index += 1
         }
 

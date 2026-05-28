@@ -2,6 +2,7 @@ import Foundation
 
 public struct ParsedMarkdownDocument: Equatable {
     public var blocks: [MarkdownBlock]
+    public var sourceMap: [MarkdownBlockSourceRange]
     public var outline: [DocumentSymbol]
     public var metadata: [MetadataItem]
     public var markers: MarkdownMarkers
@@ -10,6 +11,7 @@ public struct ParsedMarkdownDocument: Equatable {
 
     public init(
         blocks: [MarkdownBlock],
+        sourceMap: [MarkdownBlockSourceRange] = [],
         outline: [DocumentSymbol],
         metadata: [MetadataItem] = [],
         markers: MarkdownMarkers,
@@ -17,11 +19,29 @@ public struct ParsedMarkdownDocument: Equatable {
         stats: MarkdownStats
     ) {
         self.blocks = blocks
+        self.sourceMap = sourceMap
         self.outline = outline
         self.metadata = metadata
         self.markers = markers
         self.diagnostics = diagnostics
         self.stats = stats
+    }
+}
+
+public struct MarkdownBlockSourceRange: Equatable, Hashable, Identifiable {
+    public var id: Int { blockIndex }
+    public var blockIndex: Int
+    public var startLine: Int
+    public var endLine: Int
+
+    public init(blockIndex: Int, startLine: Int, endLine: Int) {
+        self.blockIndex = blockIndex
+        self.startLine = startLine
+        self.endLine = endLine
+    }
+
+    public func contains(line: Int) -> Bool {
+        (startLine ... endLine).contains(line)
     }
 }
 

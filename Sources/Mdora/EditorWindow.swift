@@ -14,6 +14,7 @@ struct EditorWindow: View {
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var exportMessage: String?
+    @State private var editorSelection = EditorSelection.start
 
     private var selectedLayout: Binding<LayoutMode> {
         Binding(
@@ -59,7 +60,8 @@ struct EditorWindow: View {
                         text: $document.text,
                         commandCenter: commandCenter,
                         theme: theme,
-                        fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22))
+                        fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
+                        onSelectionChange: updateEditorSelection
                     )
                         .frame(minWidth: 360, idealWidth: 560)
                 }
@@ -68,7 +70,8 @@ struct EditorWindow: View {
                     MarkdownPreview(
                         markdown: document.text,
                         theme: theme,
-                        style: previewStyle
+                        style: previewStyle,
+                        activeLine: selectedLayout.wrappedValue.showsEditor ? editorSelection.line : nil
                     )
                         .frame(minWidth: 360, idealWidth: 560)
                 }
@@ -87,6 +90,7 @@ struct EditorWindow: View {
                 diagnostics: parsed.diagnostics,
                 theme: theme,
                 focusMode: focusMode,
+                selection: editorSelection,
                 message: exportMessage
             )
         }
@@ -332,6 +336,11 @@ struct EditorWindow: View {
                 exportMessage = error.localizedDescription
             }
         }
+    }
+
+    private func updateEditorSelection(_ selection: EditorSelection) {
+        guard editorSelection != selection else { return }
+        editorSelection = selection
     }
 }
 

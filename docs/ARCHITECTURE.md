@@ -14,10 +14,10 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 ## Current Runtime Flow
 
 1. `MarkdownDocument` owns the editable Markdown source.
-2. `MarkdownParser` converts source into `ParsedMarkdownDocument`.
+2. `MarkdownParser` converts source into `ParsedMarkdownDocument`, including block source ranges.
 3. `InlineMarkdownParser` tokenizes inline Markdown semantics used by preview, export, and marker analysis.
 4. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, diagnostics, and block distribution stats.
-5. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
+5. `MarkdownPreview` renders parsed blocks as native SwiftUI views and highlights the block containing the current editor caret.
 6. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, diagnostics, block distribution, and marker recognition.
 7. `@AppStorage` writing preferences tune editor typography, preview typography, preview line width, focus mode, inspector visibility, and preview animation.
 8. `MarkdownHTMLRenderer` uses the same block and inline parsers for HTML export.
@@ -42,7 +42,9 @@ There are three viable levels:
 
 The recommended path is to ship level 1, grow into level 2, and only adopt level 3 if the product needs complex block manipulation.
 
-The current app is between level 1 and level 2: it keeps Markdown source as truth, but the editor now adds smart return continuation, and the preview already has block-level and inline semantics for tables, callouts, tasks, code languages, diagrams, math, links, footnotes, definition lists, front matter, images, and document markers.
+The current app is between level 1 and level 2: it keeps Markdown source as truth, but the editor now adds smart return continuation and caret tracking, and the preview already has block-level and inline semantics for tables, callouts, tasks, code languages, diagrams, math, links, footnotes, definition lists, front matter, images, and document markers.
+
+Block source ranges are part of the parsed document so the app can coordinate editor state with preview state without trying to infer layout from rendered views.
 
 Writing preferences are intentionally stored outside the Markdown file. They affect the editing and reading surface without mutating source text, which keeps Markdown round-tripping predictable.
 

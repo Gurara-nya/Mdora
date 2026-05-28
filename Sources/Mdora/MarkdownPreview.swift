@@ -22,6 +22,7 @@ struct MarkdownPreview: View {
     let markdown: String
     let theme: MdoraTheme
     let style: MarkdownPreviewStyle
+    let activeLine: Int?
     @State private var updatePulse = false
 
     private var document: ParsedMarkdownDocument {
@@ -30,11 +31,16 @@ struct MarkdownPreview: View {
 
     var body: some View {
         let parsed = document
+        let activeBlockIndex = activeBlockIndex(in: parsed)
 
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { _, block in
-                    MarkdownBlockView(block: block, theme: theme)
+                ForEach(Array(parsed.blocks.enumerated()), id: \.offset) { index, block in
+                    MarkdownBlockView(
+                        block: block,
+                        theme: theme,
+                        isActive: index == activeBlockIndex
+                    )
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
@@ -61,14 +67,41 @@ struct MarkdownPreview: View {
             }
         }
     }
+
+    private func activeBlockIndex(in document: ParsedMarkdownDocument) -> Int? {
+        guard let activeLine else { return nil }
+        return document.sourceMap.first { range in
+            range.contains(line: activeLine)
+        }?.blockIndex
+    }
 }
 
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
     let theme: MdoraTheme
+    let isActive: Bool
     @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
+        blockContent
+            .padding(.vertical, isActive ? 6 : 0)
+            .padding(.horizontal, isActive ? 10 : 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isActive ? theme.palette.accentColor.opacity(0.08) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .leading) {
+                if isActive {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(theme.palette.accentColor)
+                        .frame(width: 3)
+                        .padding(.vertical, 4)
+                }
+            }
+            .animation(style.animationsEnabled ? .easeInOut(duration: 0.16) : nil, value: isActive)
+    }
+
+    @ViewBuilder
+    private var blockContent: some View {
         switch block {
         case let .frontMatter(lines):
             FrontMatterView(lines: lines, theme: theme)

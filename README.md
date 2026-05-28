@@ -30,14 +30,16 @@ The first build includes:
 - Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and front matter.
 - Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, inline code, links, reference links, inline images, image references, wiki links, tags, mentions, footnotes, autolinks, email links, and inline math.
 - Reference link definitions and HTML comments are parsed as visible, inspectable structures.
+- Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, and preview animation.
 - Inspector for outline, metadata, block distribution, tags, mentions, wiki links, links, automatic links, email links, images, image references, footnotes, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for front matter, bold, italic, images, links, footnotes, URLs, emails, tables, comments, and more.
+- Selection-aware preview feedback highlights the block that contains the editor caret.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
 - Optional preview update animation and animated layout changes.
-- Status bar with word, character, line, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
+- Status bar with word, character, line, caret position, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
 - HTML export.
 
 ## Product Direction

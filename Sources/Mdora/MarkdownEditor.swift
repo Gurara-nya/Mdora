@@ -2,18 +2,28 @@ import AppKit
 import MdoraCore
 import SwiftUI
 
+struct EditorSelection: Equatable {
+    var line: Int
+    var column: Int
+    var selectedLength: Int
+
+    static let start = EditorSelection(line: 1, column: 1, selectedLength: 0)
+}
+
 struct MarkdownEditor: View {
     @Binding var text: String
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
+    let onSelectionChange: (EditorSelection) -> Void
 
     var body: some View {
         NativeMarkdownTextView(
             text: $text,
             commandCenter: commandCenter,
             theme: theme,
-            fontSize: fontSize
+            fontSize: fontSize,
+            onSelectionChange: onSelectionChange
         )
         .background(theme.palette.editorColor)
     }
@@ -24,6 +34,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
+    let onSelectionChange: (EditorSelection) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -120,11 +131,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
             highlight(textView)
+            reportSelection(in: textView)
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             highlight(textView)
+            reportSelection(in: textView)
         }
 
         @MainActor
@@ -224,6 +237,28 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         private func replaceSelection(with replacement: String) {
             guard let textView else { return }
             textView.insertText(replacement, replacementRange: textView.selectedRange())
+        }
+
+        @MainActor
+        private func reportSelection(in textView: NSTextView) {
+            let selection = Self.selection(in: textView)
+            parent.onSelectionChange(selection)
+        }
+
+        @MainActor
+        private static func selection(in textView: NSTextView) -> EditorSelection {
+            let source = textView.string as NSString
+            let selectedRange = textView.selectedRange().clamped(toLength: source.length)
+            let prefix = source.substring(to: selectedRange.location)
+            let lines = prefix.components(separatedBy: .newlines)
+            let line = max(1, lines.count)
+            let column = (lines.last ?? "").count + 1
+
+            return EditorSelection(
+                line: line,
+                column: column,
+                selectedLength: selectedRange.length
+            )
         }
 
         @MainActor

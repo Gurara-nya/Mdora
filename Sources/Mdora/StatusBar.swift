@@ -7,6 +7,7 @@ struct StatusBar: View {
     let diagnostics: [MarkdownDiagnostic]
     let theme: MdoraTheme
     let focusMode: Bool
+    let selection: EditorSelection
     let message: String?
 
     var body: some View {
@@ -23,6 +24,11 @@ struct StatusBar: View {
             Text("\(markers.taskTokens.count) flags")
             Text("\(markers.diagrams.count) diagrams")
             Text("\(diagnostics.count) diagnostics")
+            Text("L\(selection.line):C\(selection.column)")
+
+            if selection.selectedLength > 0 {
+                Text("\(selection.selectedLength) selected")
+            }
 
             if focusMode {
                 Text("focus")
