@@ -105,7 +105,14 @@ func runTests() {
     assert(updatedTasks?.contains("4. [x] Ship preview") == true)
     print("✅ Task source editing updates the targeted Markdown marker!")
 
-    // 5. Test internal preview link navigation targets
+    // 5. Test smart typing continuations
+    assert(MarkdownTypingContinuation.continuation(after: "- [/] Review compatibility") == "\n- [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "  7. [!] Keep performance sharp") == "\n  8. [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "> quoted") == "\n> ")
+    assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
+    print("✅ Smart typing continuation preserves task, quote, ordered, and indentation context!")
+
+    // 6. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -133,7 +140,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 6. Test cross-file wiki link resolution
+    // 7. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)
@@ -157,7 +164,7 @@ func runTests() {
         fatalError("❌ Failed cross-file wiki link test setup: \(error)")
     }
 
-    // 7. Load & parse real test.md
+    // 8. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 

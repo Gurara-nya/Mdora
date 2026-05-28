@@ -25,7 +25,7 @@ The first build includes:
 - Native macOS document open/save behavior for Markdown text files.
 - Editor, split, and preview layout modes.
 - Native text editor with formatting commands for headings, lists, tasks, links, code, tables, images, and callouts.
-- Formatting commands for strikethrough, wiki links, math blocks, diagrams, footnotes, and definition lists.
+- Formatting commands for strikethrough, highlights, superscript, subscript, keyboard tags, citations, wiki links, math blocks, diagrams, footnotes, and definition lists.
 - Reference link and table-of-contents insertion commands.
 - Block-based live preview for headings, paragraphs, blockquotes, Obsidian/GitHub callouts with custom titles and fold markers, lists, rich task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and YAML/TOML/JSON front matter.
 - Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, inline code, links, reference links, inline images, image references, wiki links and embeds with aliases and heading/block targets, citations, resolved emoji shortcodes, keyboard tags, tags, mentions, footnotes, Markdown Extra abbreviations, raw and angle-bracket autolinks, email links, and inline math.
@@ -41,7 +41,7 @@ The first build includes:
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Selection-aware preview feedback highlights the block that contains the editor caret through binary source-map lookup and can keep that block scrolled into view, with cancellable sync-scroll coalescing to avoid jitter during fast cursor movement.
 - Bounded inline parsing cache reduces repeated inline Markdown work across preview redraws, marker analysis, and export.
-- Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
+- Smart return handling that continues lists, task lists, ordered task lists, quotes, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate heading anchors, and duplicate block ids.
 - Optional preview update animation and animated layout changes.
 - Status bar with word, character, line, caret position, reading time, link, tag, flag, diagram, focus, and diagnostic counts.

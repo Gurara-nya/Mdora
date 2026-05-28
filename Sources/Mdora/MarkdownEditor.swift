@@ -211,8 +211,18 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 wrapSelection(prefix: "*", suffix: "*", placeholder: "italic text")
             case .strikethrough:
                 wrapSelection(prefix: "~~", suffix: "~~", placeholder: "struck text")
+            case .highlight:
+                wrapSelection(prefix: "==", suffix: "==", placeholder: "highlighted text")
+            case .superscript:
+                wrapSelection(prefix: "^", suffix: "^", placeholder: "2")
+            case .subscriptText:
+                wrapSelection(prefix: "~", suffix: "~", placeholder: "2")
             case .inlineCode:
                 wrapSelection(prefix: "`", suffix: "`", placeholder: "code")
+            case .keyboard:
+                wrapSelection(prefix: "<kbd>", suffix: "</kbd>", placeholder: "⌘K")
+            case .citation:
+                wrapSelection(prefix: "[@", suffix: "]", placeholder: "citation-key")
             case .link:
                 wrapSelection(prefix: "[", suffix: "](https://example.com)", placeholder: "link text")
             case .wikiLink:
@@ -1019,93 +1029,7 @@ private final class MarkdownNSTextView: NSTextView {
         let lineRange = source.lineRange(for: NSRange(location: lookupLocation, length: 0))
         let linePrefixLength = max(0, selectedLocation - lineRange.location)
         let linePrefix = source.substring(with: NSRange(location: lineRange.location, length: linePrefixLength))
-        let leading = linePrefix.prefix { character in
-            character == " " || character == "\t"
-        }
-        let trimmed = linePrefix.trimmingCharacters(in: .whitespaces)
-
-        if trimmed.isEmpty {
-            return nil
-        }
-
-        if trimmed == ">" || trimmed == "> " {
-            return "\n"
-        }
-
-        if trimmed.hasPrefix("> ") {
-            return "\n\(leading)> "
-        }
-
-        if let taskContinuation = taskListContinuation(trimmed: trimmed, leading: String(leading)) {
-            return taskContinuation
-        }
-
-        if let bulletContinuation = bulletListContinuation(trimmed: trimmed, leading: String(leading)) {
-            return bulletContinuation
-        }
-
-        if let orderedContinuation = orderedListContinuation(trimmed: trimmed, leading: String(leading)) {
-            return orderedContinuation
-        }
-
-        if !leading.isEmpty {
-            return "\n\(leading)"
-        }
-
-        return nil
-    }
-
-    private func taskListContinuation(trimmed: String, leading: String) -> String? {
-        for bullet in ["-", "*", "+"] {
-            for checkbox in ["[ ]", "[x]", "[X]", "[/]", "[-]", "[>]", "[!]", "[?]"] {
-                let marker = "\(bullet) \(checkbox)"
-
-                if trimmed == marker {
-                    return "\n"
-                }
-
-                if trimmed.hasPrefix(marker + " ") {
-                    return "\n\(leading)\(bullet) [ ] "
-                }
-            }
-        }
-
-        return nil
-    }
-
-    private func bulletListContinuation(trimmed: String, leading: String) -> String? {
-        if ["-", "*", "+"].contains(trimmed) {
-            return "\n"
-        }
-
-        for marker in ["- ", "* ", "+ "] where trimmed.hasPrefix(marker) {
-            guard trimmed.count > marker.count else {
-                return "\n"
-            }
-
-            return "\n\(leading)\(marker)"
-        }
-
-        return nil
-    }
-
-    private func orderedListContinuation(trimmed: String, leading: String) -> String? {
-        guard let dotIndex = trimmed.firstIndex(of: ".") else { return nil }
-
-        let numberPart = trimmed[..<dotIndex]
-        guard !numberPart.isEmpty, numberPart.allSatisfy({ $0.isNumber }) else { return nil }
-
-        let afterDot = trimmed.index(after: dotIndex)
-        guard afterDot < trimmed.endIndex, trimmed[afterDot] == " " else { return nil }
-
-        let contentStart = trimmed.index(after: afterDot)
-        let content = trimmed[contentStart...].trimmingCharacters(in: .whitespaces)
-        guard !content.isEmpty else {
-            return "\n"
-        }
-
-        let nextNumber = (Int(numberPart) ?? 0) + 1
-        return "\n\(leading)\(nextNumber). "
+        return MarkdownTypingContinuation.continuation(after: linePrefix)
     }
 }
 

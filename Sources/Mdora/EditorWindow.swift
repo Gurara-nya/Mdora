@@ -151,8 +151,28 @@ struct EditorWindow: View {
                         commandCenter.send(.strikethrough)
                     }
 
+                    Button("高亮") {
+                        commandCenter.send(.highlight)
+                    }
+
+                    Button("上标") {
+                        commandCenter.send(.superscript)
+                    }
+
+                    Button("下标") {
+                        commandCenter.send(.subscriptText)
+                    }
+
                     Button("行内代码") {
                         commandCenter.send(.inlineCode)
+                    }
+
+                    Button("键盘键帽") {
+                        commandCenter.send(.keyboard)
+                    }
+
+                    Button("学术引用") {
+                        commandCenter.send(.citation)
                     }
 
                     Button("Wiki 链接") {

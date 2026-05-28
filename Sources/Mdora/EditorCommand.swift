@@ -18,7 +18,12 @@ enum EditorAction: Equatable {
     case bold
     case italic
     case strikethrough
+    case highlight
+    case superscript
+    case subscriptText
     case inlineCode
+    case keyboard
+    case citation
     case link
     case wikiLink
     case image

@@ -31,6 +31,7 @@
 - Render Obsidian-style wiki link aliases and expose heading/block targets in HTML export metadata.
 - Recognize Obsidian-style `![[...]]` embeds as separate preview, export, inspector, and status markers.
 - Add Typora-style superscript and subscript markers across preview, export, inspector, and editor highlighting.
+- Add editor insertion commands for highlights, superscript, subscript, keyboard tags, and citations.
 - Add CriticMarkup review marks for additions, deletions, substitutions, comments, and editorial highlights.
 - Add CommonMark angle-bracket autolinks for URLs and email addresses.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.

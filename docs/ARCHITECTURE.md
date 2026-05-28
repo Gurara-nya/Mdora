@@ -60,6 +60,8 @@ Local preview images follow the same bounded-resource rule: the UI shows a stabl
 
 Writing preferences are intentionally stored outside the Markdown file. They affect the editing and reading surface without mutating source text, which keeps Markdown round-tripping predictable.
 
+Typing continuations are kept in `MarkdownTypingContinuation` so editor return behavior for bullets, task lists, ordered task lists, quotes, and indentation can be tested without launching the AppKit editor.
+
 ## Compatibility Surface
 
 The parser currently recognizes:
