@@ -175,6 +175,20 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.superscripts = unique(inlineSegments.compactMap { segment in
+            if case let .superscript(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.subscripts = unique(inlineSegments.compactMap { segment in
+            if case let .subscriptText(value) = segment {
+                return value
+            }
+
+            return nil
+        })
         markers.citations = unique(inlineSegments.compactMap { segment in
             if case let .citation(identifier) = segment {
                 return identifier

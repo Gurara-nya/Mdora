@@ -66,6 +66,8 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Comments", value: document.markers.htmlComments.count, systemImage: "text.bubble", theme: theme)
                         MarkerRow(title: "Math", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
                         MarkerRow(title: "Highlights", value: document.markers.highlights.count, systemImage: "highlighter", theme: theme)
+                        MarkerRow(title: "Superscripts", value: document.markers.superscripts.count, systemImage: "textformat.superscript", theme: theme)
+                        MarkerRow(title: "Subscripts", value: document.markers.subscripts.count, systemImage: "textformat.subscript", theme: theme)
                         MarkerRow(title: "Citations", value: document.markers.citations.count, systemImage: "quote.bubble", theme: theme)
                         MarkerRow(title: "Emoji", value: document.markers.emojiShortcodes.count, systemImage: "face.smiling", theme: theme)
                         MarkerRow(title: "Keyboard", value: document.markers.keyboardShortcuts.count, systemImage: "keyboard", theme: theme)
@@ -84,6 +86,8 @@ struct DocumentInspector: View {
                 MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
                 MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
                 MarkerList(title: "Highlights", values: document.markers.highlights.map { "==\($0)==" }, systemImage: "highlighter", theme: theme)
+                MarkerList(title: "Superscripts", values: document.markers.superscripts.map { "^\($0)^" }, systemImage: "textformat.superscript", theme: theme)
+                MarkerList(title: "Subscripts", values: document.markers.subscripts.map { "~\($0)~" }, systemImage: "textformat.subscript", theme: theme)
                 MarkerList(title: "Citations", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
                 MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map { ":\($0):" }, systemImage: "face.smiling", theme: theme)
                 MarkerList(title: "Keyboard", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
@@ -197,6 +201,7 @@ private struct CompatibilitySummary: View {
         if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("Autolinks") }
         if !document.markers.taskTokens.isEmpty { features.append("Tokens") }
         if !document.markers.highlights.isEmpty { features.append("Highlights") }
+        if !document.markers.superscripts.isEmpty || !document.markers.subscripts.isEmpty { features.append("Super/Subscript") }
         if !document.markers.citations.isEmpty { features.append("Citations") }
         if !document.markers.emojiShortcodes.isEmpty { features.append("Emoji") }
         if !document.markers.keyboardShortcuts.isEmpty { features.append("Keyboard") }

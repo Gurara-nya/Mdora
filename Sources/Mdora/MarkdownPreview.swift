@@ -793,6 +793,14 @@ private struct InlineMarkdownText: View {
             renderInline(value)
                 .bold()
                 .foregroundColor(.yellow)
+        case let .superscript(value):
+            renderInline(value)
+                .font(.system(size: max(10, style.bodyFontSize - 5), weight: .medium))
+                .baselineOffset(5)
+        case let .subscriptText(value):
+            renderInline(value)
+                .font(.system(size: max(10, style.bodyFontSize - 5), weight: .medium))
+                .baselineOffset(-3)
         case let .code(value):
             Text(value)
                 .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))

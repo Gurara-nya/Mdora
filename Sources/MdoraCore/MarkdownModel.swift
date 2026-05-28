@@ -102,6 +102,8 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case emphasis(String)
     case strikethrough(String)
     case highlight(String)
+    case superscript(String)
+    case subscriptText(String)
     case code(String)
     case link(text: String, destination: String, title: String?)
     case referenceLink(text: String, label: String)
@@ -356,6 +358,8 @@ public struct MarkdownMarkers: Equatable {
     public var taskTokens: [TaskToken]
     public var mathExpressions: [String]
     public var highlights: [String]
+    public var superscripts: [String]
+    public var subscripts: [String]
     public var citations: [String]
     public var emojiShortcodes: [String]
     public var keyboardShortcuts: [String]
@@ -378,6 +382,8 @@ public struct MarkdownMarkers: Equatable {
         taskTokens: [TaskToken] = [],
         mathExpressions: [String] = [],
         highlights: [String] = [],
+        superscripts: [String] = [],
+        subscripts: [String] = [],
         citations: [String] = [],
         emojiShortcodes: [String] = [],
         keyboardShortcuts: [String] = [],
@@ -399,6 +405,8 @@ public struct MarkdownMarkers: Equatable {
         self.taskTokens = taskTokens
         self.mathExpressions = mathExpressions
         self.highlights = highlights
+        self.superscripts = superscripts
+        self.subscripts = subscripts
         self.citations = citations
         self.emojiShortcodes = emojiShortcodes
         self.keyboardShortcuts = keyboardShortcuts

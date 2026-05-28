@@ -271,6 +271,10 @@ public enum MarkdownHTMLRenderer {
             return "<del>\(renderInline(value, references: references))</del>"
         case let .highlight(value):
             return "<mark>\(renderInline(value, references: references))</mark>"
+        case let .superscript(value):
+            return "<sup>\(renderInline(value, references: references))</sup>"
+        case let .subscriptText(value):
+            return "<sub>\(renderInline(value, references: references))</sub>"
         case let .code(value):
             return "<code>\(escapeHTML(value))</code>"
         case let .link(label, destination, title):

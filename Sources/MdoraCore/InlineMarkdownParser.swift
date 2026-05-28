@@ -45,6 +45,8 @@ private struct InlineParser {
         if let segment = consumeStrikethrough() { return segment }
         if let segment = consumeEmphasis() { return segment }
         if let segment = consumeHighlight() { return segment }
+        if let segment = consumeSuperscript() { return segment }
+        if let segment = consumeSubscript() { return segment }
         if let segment = consumeInlineMath() { return segment }
         if let segment = consumeKeyboard() { return segment }
         if let segment = consumeAngleAutoLink() { return segment }
@@ -114,6 +116,14 @@ private struct InlineParser {
 
     private mutating func consumeHighlight() -> InlineMarkdownSegment? {
         consumeDelimited(marker: "==", as: InlineMarkdownSegment.highlight)
+    }
+
+    private mutating func consumeSuperscript() -> InlineMarkdownSegment? {
+        consumeDelimited(marker: "^", as: InlineMarkdownSegment.superscript)
+    }
+
+    private mutating func consumeSubscript() -> InlineMarkdownSegment? {
+        consumeDelimited(marker: "~", as: InlineMarkdownSegment.subscriptText)
     }
 
     private mutating func consumeEmphasis() -> InlineMarkdownSegment? {
