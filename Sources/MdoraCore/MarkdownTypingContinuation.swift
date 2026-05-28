@@ -15,8 +15,8 @@ public enum MarkdownTypingContinuation {
             return "\n"
         }
 
-        if trimmed.hasPrefix("> ") {
-            return "\n\(leading)> "
+        if let quoteContinuation = blockquoteContinuation(trimmed: trimmed, leading: String(leading)) {
+            return quoteContinuation
         }
 
         if let taskContinuation = taskListContinuation(trimmed: trimmed, leading: String(leading)) {
@@ -36,6 +36,25 @@ public enum MarkdownTypingContinuation {
         }
 
         return nil
+    }
+
+    private static func blockquoteContinuation(trimmed: String, leading: String) -> String? {
+        guard trimmed.hasPrefix("> ") else { return nil }
+
+        let quoteMarker = "\(leading)> "
+        let quotedStart = trimmed.index(trimmed.startIndex, offsetBy: 2)
+        let quoted = String(trimmed[quotedStart...])
+
+        guard !quoted.trimmingCharacters(in: .whitespaces).isEmpty else {
+            return "\n\(quoteMarker)"
+        }
+
+        if let nestedContinuation = continuation(after: quoted),
+           nestedContinuation.hasPrefix("\n") {
+            return "\n\(quoteMarker)\(nestedContinuation.dropFirst())"
+        }
+
+        return "\n\(quoteMarker)"
     }
 
     private static func taskListContinuation(trimmed: String, leading: String) -> String? {

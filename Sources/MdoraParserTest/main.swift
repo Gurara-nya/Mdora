@@ -217,8 +217,12 @@ func runTests() {
     assert(MarkdownTypingContinuation.continuation(after: "  7) [!] Keep performance sharp") == "\n  8) [ ] ")
     assert(MarkdownTypingContinuation.continuation(after: "12) Parenthesized ordered item") == "\n13) ")
     assert(MarkdownTypingContinuation.continuation(after: "> quoted") == "\n> ")
+    assert(MarkdownTypingContinuation.continuation(after: "> - quoted list item") == "\n> - ")
+    assert(MarkdownTypingContinuation.continuation(after: "> - [/] quoted task item") == "\n> - [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "> 7) [!] quoted ordered task") == "\n> 8) [ ] ")
+    assert(MarkdownTypingContinuation.continuation(after: "> > 3. nested quote ordered item") == "\n> > 4. ")
     assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
-    print("✅ Smart typing continuation preserves task, quote, ordered, and indentation context!")
+    print("✅ Smart typing continuation preserves task, quote, nested quote, ordered, and indentation context!")
 
     // 11. Test line indentation editing
     let lineEditMarkdown = "- [ ] One\n  - [ ] Two\nPlain"
