@@ -897,7 +897,7 @@ private struct InlineMarkdownText: View {
                 .foregroundColor(theme.palette.accentColor)
                 .underline()
         case let .wikiLink(value):
-            Text("[[\(value)]]")
+            Text(MarkdownWikiLinkReference.parse(value).displayText)
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         case let .footnote(identifier):

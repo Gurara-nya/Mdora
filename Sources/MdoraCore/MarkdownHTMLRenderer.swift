@@ -343,7 +343,21 @@ public enum MarkdownHTMLRenderer {
         case let .email(email):
             return "<a href=\"mailto:\(escapeHTML(email))\">\(escapeHTML(email))</a>"
         case let .wikiLink(value):
-            return "<span class=\"wikilink\">\(escapeHTML(value))</span>"
+            let reference = MarkdownWikiLinkReference.parse(value)
+            var attributes = " data-target=\"\(escapeHTML(reference.target))\""
+            if let alias = reference.alias {
+                attributes += " data-alias=\"\(escapeHTML(alias))\""
+            }
+            if !reference.path.isEmpty {
+                attributes += " data-path=\"\(escapeHTML(reference.path))\""
+            }
+            if let heading = reference.heading {
+                attributes += " data-heading=\"\(escapeHTML(heading))\""
+            }
+            if let blockID = reference.blockID {
+                attributes += " data-block-id=\"\(escapeHTML(blockID))\""
+            }
+            return "<span class=\"wikilink\"\(attributes)>\(escapeHTML(reference.displayText))</span>"
         case let .footnote(identifier):
             return "<sup>\(escapeHTML(identifier))</sup>"
         case let .inlineMath(value):

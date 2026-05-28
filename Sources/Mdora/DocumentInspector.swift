@@ -84,7 +84,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Mentions", values: document.markers.mentions.map { "@\($0)" }, systemImage: "at", theme: theme)
                 MarkerList(title: "Code", values: document.markers.codeLanguages, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
                 MarkerList(title: "Diagrams", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
-                MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { "[[\($0)]]" }, systemImage: "rectangle.stack", theme: theme)
+                MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "rectangle.stack", theme: theme)
                 MarkerList(title: "Anchors", values: document.markers.customAnchors.map { "{#\($0)}" }, systemImage: "number.square", theme: theme)
                 MarkerList(title: "Abbreviations", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
                 MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)

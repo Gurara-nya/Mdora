@@ -34,7 +34,7 @@ extension MarkdownDocument {
 
     # Untitled {#welcome}
 
-    Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, ==highlight==, H~2~O, 10^2^, :sparkles:, `inline code`, #tags, @mentions, [[Wiki Links]], and [links](https://example.com).
+    Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, ==highlight==, H~2~O, 10^2^, :sparkles:, `inline code`, #tags, @mentions, [[Knowledge Base|wiki links]], and [links](https://example.com).
 
     Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized.
 

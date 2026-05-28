@@ -358,6 +358,8 @@ private struct InlineParser {
         guard let close = closingIndex(for: "]]", after: contentStart) else { return nil }
         let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return nil }
+        let reference = MarkdownWikiLinkReference.parse(value)
+        guard !reference.target.isEmpty else { return nil }
 
         index = text.index(close, offsetBy: 2)
         return .wikiLink(value)
