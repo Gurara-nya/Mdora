@@ -98,6 +98,7 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case strong(String)
     case emphasis(String)
     case strikethrough(String)
+    case highlight(String)
     case code(String)
     case link(text: String, destination: String, title: String?)
     case referenceLink(text: String, label: String)
@@ -108,6 +109,9 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
     case wikiLink(String)
     case footnote(String)
     case inlineMath(String)
+    case citation(String)
+    case emojiShortcode(String)
+    case keyboard(String)
     case tag(String)
     case mention(String)
 }
@@ -334,6 +338,10 @@ public struct MarkdownMarkers: Equatable {
     public var htmlComments: [String]
     public var taskTokens: [TaskToken]
     public var mathExpressions: [String]
+    public var highlights: [String]
+    public var citations: [String]
+    public var emojiShortcodes: [String]
+    public var keyboardShortcuts: [String]
     public var codeLanguages: [String]
     public var diagrams: [DiagramKind]
     public var callouts: [CalloutKind]
@@ -352,6 +360,10 @@ public struct MarkdownMarkers: Equatable {
         htmlComments: [String] = [],
         taskTokens: [TaskToken] = [],
         mathExpressions: [String] = [],
+        highlights: [String] = [],
+        citations: [String] = [],
+        emojiShortcodes: [String] = [],
+        keyboardShortcuts: [String] = [],
         codeLanguages: [String] = [],
         diagrams: [DiagramKind] = [],
         callouts: [CalloutKind] = []
@@ -369,6 +381,10 @@ public struct MarkdownMarkers: Equatable {
         self.htmlComments = htmlComments
         self.taskTokens = taskTokens
         self.mathExpressions = mathExpressions
+        self.highlights = highlights
+        self.citations = citations
+        self.emojiShortcodes = emojiShortcodes
+        self.keyboardShortcuts = keyboardShortcuts
         self.codeLanguages = codeLanguages
         self.diagrams = diagrams
         self.callouts = callouts

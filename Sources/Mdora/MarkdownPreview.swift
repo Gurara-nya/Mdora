@@ -776,6 +776,10 @@ private struct InlineMarkdownText: View {
             renderInline(value).italic()
         case let .strikethrough(value):
             renderInline(value).strikethrough()
+        case let .highlight(value):
+            renderInline(value)
+                .bold()
+                .foregroundColor(.yellow)
         case let .code(value):
             Text(value)
                 .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))
@@ -813,6 +817,18 @@ private struct InlineMarkdownText: View {
             Text(value)
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium, design: .serif))
                 .foregroundColor(theme.palette.accentColor)
+        case let .citation(identifier):
+            Text("[@\(identifier)]")
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
+                .foregroundColor(theme.palette.mutedColor)
+        case let .emojiShortcode(name):
+            Text(":\(name):")
+                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
+                .foregroundColor(theme.palette.accentColor)
+        case let .keyboard(value):
+            Text(value)
+                .font(.system(size: max(12, style.bodyFontSize - 2), weight: .semibold, design: .monospaced))
+                .foregroundColor(theme.palette.textColor)
         case let .tag(value):
             Text("#\(value)")
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))

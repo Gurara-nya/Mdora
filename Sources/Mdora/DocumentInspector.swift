@@ -65,6 +65,10 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Footnotes", value: document.markers.footnotes.count, systemImage: "text.badge.checkmark", theme: theme)
                         MarkerRow(title: "Comments", value: document.markers.htmlComments.count, systemImage: "text.bubble", theme: theme)
                         MarkerRow(title: "Math", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
+                        MarkerRow(title: "Highlights", value: document.markers.highlights.count, systemImage: "highlighter", theme: theme)
+                        MarkerRow(title: "Citations", value: document.markers.citations.count, systemImage: "quote.bubble", theme: theme)
+                        MarkerRow(title: "Emoji", value: document.markers.emojiShortcodes.count, systemImage: "face.smiling", theme: theme)
+                        MarkerRow(title: "Keyboard", value: document.markers.keyboardShortcuts.count, systemImage: "keyboard", theme: theme)
                         MarkerRow(title: "Diagrams", value: document.markers.diagrams.count, systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
                         MarkerRow(title: "Tokens", value: document.markers.taskTokens.count, systemImage: "flag", theme: theme)
                         MarkerRow(title: "Callouts", value: document.markers.callouts.count, systemImage: "exclamationmark.bubble", theme: theme)
@@ -79,6 +83,10 @@ struct DocumentInspector: View {
                 MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
                 MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
+                MarkerList(title: "Highlights", values: document.markers.highlights.map { "==\($0)==" }, systemImage: "highlighter", theme: theme)
+                MarkerList(title: "Citations", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
+                MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map { ":\($0):" }, systemImage: "face.smiling", theme: theme)
+                MarkerList(title: "Keyboard", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
                 MarkerList(title: "Links", values: document.markers.links, systemImage: "link", theme: theme)
                 MarkerList(title: "Auto Links", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Emails", values: document.markers.emailLinks, systemImage: "envelope", theme: theme)
@@ -188,6 +196,10 @@ private struct CompatibilitySummary: View {
         if !document.markers.linkReferences.isEmpty { features.append("References") }
         if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("Autolinks") }
         if !document.markers.taskTokens.isEmpty { features.append("Tokens") }
+        if !document.markers.highlights.isEmpty { features.append("Highlights") }
+        if !document.markers.citations.isEmpty { features.append("Citations") }
+        if !document.markers.emojiShortcodes.isEmpty { features.append("Emoji") }
+        if !document.markers.keyboardShortcuts.isEmpty { features.append("Keyboard") }
         if !document.markers.callouts.isEmpty { features.append("Callouts") }
         if !document.markers.htmlComments.isEmpty { features.append("Comments") }
 

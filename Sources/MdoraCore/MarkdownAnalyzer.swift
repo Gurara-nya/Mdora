@@ -157,6 +157,34 @@ public enum MarkdownAnalyzer {
         markers.htmlComments = unique(htmlComments(in: blocks))
         markers.taskTokens = taskTokens(in: markdown)
         markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))
+        markers.highlights = unique(inlineSegments.compactMap { segment in
+            if case let .highlight(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.citations = unique(inlineSegments.compactMap { segment in
+            if case let .citation(identifier) = segment {
+                return identifier
+            }
+
+            return nil
+        })
+        markers.emojiShortcodes = unique(inlineSegments.compactMap { segment in
+            if case let .emojiShortcode(name) = segment {
+                return name
+            }
+
+            return nil
+        })
+        markers.keyboardShortcuts = unique(inlineSegments.compactMap { segment in
+            if case let .keyboard(value) = segment {
+                return value
+            }
+
+            return nil
+        })
 
         markers.codeLanguages = unique(
             blocks.compactMap { block in

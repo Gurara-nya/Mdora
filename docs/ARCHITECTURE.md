@@ -56,7 +56,7 @@ The parser currently recognizes:
 - YAML, TOML, and JSON front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
-- Inline emphasis, strong text, strikethrough, code spans, links, reference links, autolinks, email links, wiki links, tags, mentions, footnotes, images, and math markers.
+- Inline emphasis, strong text, strikethrough, highlights, code spans, links, reference links, citations, emoji shortcodes, keyboard tags, autolinks, email links, wiki links, tags, mentions, footnotes, images, and math markers.
 - Block and inline math markers.
 - GFM-style tables and task lists.
 - Blockquotes and GitHub-style callouts.

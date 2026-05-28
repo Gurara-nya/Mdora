@@ -44,12 +44,16 @@ private struct InlineParser {
         if let segment = consumeStrong() { return segment }
         if let segment = consumeStrikethrough() { return segment }
         if let segment = consumeEmphasis() { return segment }
+        if let segment = consumeHighlight() { return segment }
         if let segment = consumeInlineMath() { return segment }
+        if let segment = consumeKeyboard() { return segment }
         if let segment = consumeImage() { return segment }
+        if let segment = consumeCitation() { return segment }
         if let segment = consumeLinkOrFootnote() { return segment }
         if let segment = consumeWikiLink() { return segment }
         if let segment = consumeAutoLink() { return segment }
         if let segment = consumeEmail() { return segment }
+        if let segment = consumeEmojiShortcode() { return segment }
         return consumeSymbolToken()
     }
 
@@ -107,6 +111,10 @@ private struct InlineParser {
         consumeDelimited(marker: "~~", as: InlineMarkdownSegment.strikethrough)
     }
 
+    private mutating func consumeHighlight() -> InlineMarkdownSegment? {
+        consumeDelimited(marker: "==", as: InlineMarkdownSegment.highlight)
+    }
+
     private mutating func consumeEmphasis() -> InlineMarkdownSegment? {
         if let segment = consumeDelimited(marker: "*", as: InlineMarkdownSegment.emphasis) {
             return segment
@@ -126,6 +134,18 @@ private struct InlineParser {
 
         index = text.index(after: close)
         return .inlineMath(value)
+    }
+
+    private mutating func consumeKeyboard() -> InlineMarkdownSegment? {
+        guard hasPrefix("<kbd>") else { return nil }
+        let contentStart = text.index(index, offsetBy: 5)
+        guard let close = text[contentStart...].range(of: "</kbd>")?.lowerBound else { return nil }
+
+        let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+
+        index = text.index(close, offsetBy: 6)
+        return .keyboard(value)
     }
 
     private mutating func consumeDelimited(
@@ -168,6 +188,19 @@ private struct InlineParser {
         }
 
         return nil
+    }
+
+    private mutating func consumeCitation() -> InlineMarkdownSegment? {
+        guard hasPrefix("[@") else { return nil }
+        let idStart = text.index(index, offsetBy: 2)
+        guard let close = closingIndex(for: "]", after: idStart) else { return nil }
+
+        let identifier = String(text[idStart ..< close])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !identifier.isEmpty else { return nil }
+
+        index = text.index(after: close)
+        return .citation(identifier)
     }
 
     private mutating func consumeLinkOrFootnote() -> InlineMarkdownSegment? {
@@ -254,6 +287,22 @@ private struct InlineParser {
 
         index = text.index(index, offsetBy: email.count)
         return .email(email)
+    }
+
+    private mutating func consumeEmojiShortcode() -> InlineMarkdownSegment? {
+        guard hasPrefix(":") else { return nil }
+        guard isBoundaryBeforeIndex else { return nil }
+
+        let nameStart = text.index(after: index)
+        guard nameStart < text.endIndex else { return nil }
+        guard let close = closingIndex(for: ":", after: nameStart) else { return nil }
+
+        let name = String(text[nameStart ..< close])
+        guard name.count >= 2, name.allSatisfy(\.isEmojiShortcodeCharacter) else { return nil }
+        guard name.contains(where: { $0.isLetter }) else { return nil }
+
+        index = text.index(after: close)
+        return .emojiShortcode(name)
     }
 
     private mutating func consumeSymbolToken() -> InlineMarkdownSegment? {
@@ -397,5 +446,9 @@ private extension Character {
         }
 
         return self == "_" || self == "-" || self == "/" || self == "."
+    }
+
+    var isEmojiShortcodeCharacter: Bool {
+        isLetter || isNumber || self == "_" || self == "-" || self == "+"
     }
 }

@@ -335,6 +335,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.muted,
                 .strikethroughStyle: NSUnderlineStyle.single.rawValue
             ])
+            highlightInline(pattern: #"==[^=\n]+=="#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.text,
+                .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.22)
+            ])
             highlightInline(pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
@@ -355,6 +359,19 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .baselineOffset: 3,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
+            ])
+            highlightInline(pattern: #"\[@[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.muted,
+                .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
+            ])
+            highlightInline(pattern: #"<kbd>[^<]+</kbd>"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.text,
+                .backgroundColor: palette.surface,
+                .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .semibold)
+            ])
+            highlightInline(pattern: #"(?<!\w):[A-Za-z0-9_\-\+]{2,}:"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
             ])
             highlightInline(pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,

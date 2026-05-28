@@ -231,6 +231,8 @@ public enum MarkdownHTMLRenderer {
             return "<em>\(renderInline(value))</em>"
         case let .strikethrough(value):
             return "<del>\(renderInline(value))</del>"
+        case let .highlight(value):
+            return "<mark>\(renderInline(value))</mark>"
         case let .code(value):
             return "<code>\(escapeHTML(value))</code>"
         case let .link(label, destination, title):
@@ -253,6 +255,12 @@ public enum MarkdownHTMLRenderer {
             return "<sup>\(escapeHTML(identifier))</sup>"
         case let .inlineMath(value):
             return "<span class=\"math-inline\">\(escapeHTML(value))</span>"
+        case let .citation(identifier):
+            return "<span class=\"citation\">[@\(escapeHTML(identifier))]</span>"
+        case let .emojiShortcode(name):
+            return "<span class=\"emoji-shortcode\">:\(escapeHTML(name)):</span>"
+        case let .keyboard(value):
+            return "<kbd>\(escapeHTML(value))</kbd>"
         case let .tag(value):
             return "<span class=\"tag\">#\(escapeHTML(value))</span>"
         case let .mention(value):
@@ -315,6 +323,25 @@ public enum MarkdownHTMLRenderer {
           border-radius: 999px;
           padding: 0.08em 0.45em;
           background: rgba(45, 132, 214, 0.16);
+        }
+        mark {
+          border-radius: 0.25em;
+          padding: 0.04em 0.22em;
+          background: rgba(255, 212, 64, 0.45);
+          color: inherit;
+        }
+        kbd {
+          border: 1px solid rgba(127, 127, 127, 0.36);
+          border-bottom-width: 2px;
+          border-radius: 0.35em;
+          padding: 0.04em 0.38em;
+          background: rgba(127, 127, 127, 0.12);
+          font-family: "SF Mono", ui-monospace, Menlo, monospace;
+          font-size: 0.88em;
+        }
+        .citation, .emoji-shortcode {
+          opacity: 0.82;
+          font-variant-numeric: tabular-nums;
         }
         .diagram, .math-block {
           border-radius: 8px;
