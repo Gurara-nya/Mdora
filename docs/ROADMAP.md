@@ -37,6 +37,7 @@
 - Decode and inspect HTML entity references in preview and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Add inline HTML tag recognition across preview, export, inspector, and editor highlighting.
+- Preserve source lines for single-line and multi-line HTML blocks while leaving angle autolinks inline.
 - Render common emoji shortcodes as emoji in preview and HTML export.
 - Render Obsidian-style wiki link aliases and expose heading/block targets in HTML export metadata.
 - Recognize Obsidian-style `![[...]]` embeds as separate preview, export, inspector, and status markers.

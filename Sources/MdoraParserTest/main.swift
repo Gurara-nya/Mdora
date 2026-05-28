@@ -344,7 +344,35 @@ func runTests() {
     assert(inlineHTMLFragment.contains(#"<a href="https://example.com">https://example.com</a>"#))
     print("✅ Inline HTML tags are recognized without breaking angle autolinks!")
 
-    // 14. Test TODO-style marker recognition across Markdown prefixes
+    // 14. Test HTML block parsing without stealing angle autolinks
+    let htmlBlockMarkdown = """
+    <aside class="note">
+    <strong>Raw HTML</strong>
+    </aside>
+    """
+    let htmlBlockDocument = MarkdownParser.parse(htmlBlockMarkdown)
+    guard case .html(let htmlBlockSource) = htmlBlockDocument.blocks[0] else {
+        fatalError("❌ Expected multi-line HTML sample to parse as an HTML block")
+    }
+    assert(htmlBlockSource == "<aside class=\"note\">\n<strong>Raw HTML</strong>\n</aside>")
+
+    let trailingHTMLDocument = MarkdownParser.parse("<hr>")
+    guard case .html(let trailingHTMLSource) = trailingHTMLDocument.blocks[0] else {
+        fatalError("❌ Expected trailing HTML line to parse as an HTML block")
+    }
+    assert(trailingHTMLSource == "<hr>")
+
+    let angleAutolinkDocument = MarkdownParser.parse("<https://example.com>")
+    guard case .paragraph(let angleAutolinkParagraph) = angleAutolinkDocument.blocks[0] else {
+        fatalError("❌ Expected angle autolink to stay a paragraph, not an HTML block")
+    }
+    assert(angleAutolinkParagraph == "<https://example.com>")
+
+    let htmlBlockFragment = MarkdownHTMLRenderer.renderFragment(htmlBlockMarkdown)
+    assert(htmlBlockFragment.contains("&lt;aside class=&quot;note&quot;&gt;\n&lt;strong&gt;Raw HTML&lt;/strong&gt;\n&lt;/aside&gt;"))
+    print("✅ HTML blocks preserve their own source lines and angle autolinks stay inline!")
+
+    // 15. Test TODO-style marker recognition across Markdown prefixes
     let taskTokenMarkdown = """
     TODO: Root marker
     + FIXME: Plus marker
@@ -366,7 +394,7 @@ func runTests() {
     ])
     print("✅ TODO-style markers are recognized in plain, list, task, ordered, and comment lines!")
 
-    // 15. Test internal preview link navigation targets
+    // 16. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -394,7 +422,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 16. Test cross-file wiki link resolution
+    // 17. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)

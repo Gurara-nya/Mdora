@@ -582,12 +582,30 @@ private struct BlockParser {
     }
 
     private mutating func parseHTMLBlock() -> MarkdownBlock? {
-        let trimmed = currentLine.trimmed
-        guard trimmed.hasPrefix("<"), trimmed.hasSuffix(">") else { return nil }
+        let line = currentLine
+        let trimmed = line.trimmed
+        guard Self.isHTMLBlockStart(trimmed) else { return nil }
         guard !trimmed.hasPrefix("<!--") else { return nil }
 
+        var htmlLines = [line]
         index += 1
-        return .html(currentLine)
+
+        if let tagName = Self.htmlBlockTagName(from: trimmed),
+           Self.shouldContinueHTMLBlock(startingWith: trimmed, tagName: tagName) {
+            while index < lines.count {
+                let candidate = currentLine
+                guard !candidate.trimmed.isEmpty else { break }
+
+                htmlLines.append(candidate)
+                index += 1
+
+                if Self.containsHTMLClosingTag(candidate, tagName: tagName) {
+                    break
+                }
+            }
+        }
+
+        return .html(htmlLines.joined(separator: "\n"))
     }
 
     private mutating func parseHTMLComment() -> MarkdownBlock? {
@@ -750,6 +768,45 @@ private struct BlockParser {
         return String(text.dropFirst(4))
     }
 
+    private static func isHTMLBlockStart(_ trimmed: String) -> Bool {
+        guard trimmed.hasPrefix("<"), trimmed.hasSuffix(">") else { return false }
+        if trimmed.hasPrefix("<!--") { return false }
+        if trimmed.hasPrefix("<!") || trimmed.hasPrefix("<?") { return true }
+        return htmlBlockTagName(from: trimmed) != nil
+    }
+
+    private static func htmlBlockTagName(from trimmed: String) -> String? {
+        guard trimmed.hasPrefix("<") else { return nil }
+
+        var cursor = trimmed.index(after: trimmed.startIndex)
+        guard cursor < trimmed.endIndex, trimmed[cursor] != "/" else { return nil }
+
+        let nameStart = cursor
+        while cursor < trimmed.endIndex {
+            let character = trimmed[cursor]
+            guard character.isLetter || character.isNumber || character == "-" else { break }
+            cursor = trimmed.index(after: cursor)
+        }
+
+        guard cursor > nameStart else { return nil }
+        if cursor < trimmed.endIndex {
+            let next = trimmed[cursor]
+            guard next.isWhitespace || next == "/" || next == ">" else { return nil }
+        }
+
+        return String(trimmed[nameStart ..< cursor]).lowercased()
+    }
+
+    private static func shouldContinueHTMLBlock(startingWith trimmed: String, tagName: String) -> Bool {
+        guard !htmlVoidTagNames.contains(tagName) else { return false }
+        guard !trimmed.hasSuffix("/>") else { return false }
+        return !containsHTMLClosingTag(trimmed, tagName: tagName)
+    }
+
+    private static func containsHTMLClosingTag(_ line: String, tagName: String) -> Bool {
+        line.range(of: "</\(tagName)", options: [.caseInsensitive]) != nil
+    }
+
     private static func isTableSeparator(_ line: String) -> Bool {
         let cells = splitTableRow(line)
         guard !cells.isEmpty else { return false }
@@ -819,6 +876,11 @@ private struct BlockParser {
         cells.append(currentCell.trimmed)
         return cells
     }
+
+    private static let htmlVoidTagNames: Set<String> = [
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr"
+    ]
 
     private static func hasUnescapedTrailingPipe(_ text: String) -> Bool {
         guard text.last == "|" else { return false }
