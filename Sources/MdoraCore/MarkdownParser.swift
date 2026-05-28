@@ -259,7 +259,10 @@ private struct BlockParser {
                 break
             }
 
-            codeLines.append(line)
+            codeLines.append(Self.removingFenceContentIndent(
+                openingDelimiter.leadingSpaces,
+                from: line
+            ))
             index += 1
         }
 
@@ -270,6 +273,21 @@ private struct BlockParser {
         }
 
         return .codeBlock(language: language, code: code)
+    }
+
+    private static func removingFenceContentIndent(_ leadingSpaces: Int, from line: String) -> String {
+        guard leadingSpaces > 0 else { return line }
+
+        var cursor = line.startIndex
+        var removedSpaces = 0
+        while cursor < line.endIndex,
+              removedSpaces < leadingSpaces,
+              line[cursor] == " " {
+            removedSpaces += 1
+            cursor = line.index(after: cursor)
+        }
+
+        return String(line[cursor...])
     }
 
     private mutating func parseMathBlock() -> MarkdownBlock? {

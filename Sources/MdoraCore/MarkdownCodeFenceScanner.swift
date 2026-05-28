@@ -28,7 +28,8 @@ public enum MarkdownCodeFenceScanner {
             marker: marker,
             length: length,
             info: info.trimmingCharacters(in: .whitespacesAndNewlines),
-            canClose: info.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            canClose: info.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            leadingSpaces: leadingSpaces
         )
     }
 
@@ -123,12 +124,20 @@ public struct MarkdownCodeFenceDelimiter: Equatable {
     public var length: Int
     public var info: String
     public var canClose: Bool
+    public var leadingSpaces: Int
 
-    public init(marker: Character, length: Int, info: String, canClose: Bool) {
+    public init(
+        marker: Character,
+        length: Int,
+        info: String,
+        canClose: Bool,
+        leadingSpaces: Int = 0
+    ) {
         self.marker = marker
         self.length = length
         self.info = info
         self.canClose = canClose
+        self.leadingSpaces = leadingSpaces
     }
 }
 

@@ -30,6 +30,7 @@
 - Protect fenced code ranges from inline editor highlighting so code fences and inner backticks keep the correct color.
 - Parse variable-length CommonMark code fences so shorter inner fences stay inside code blocks.
 - Apply CommonMark zero-to-three-space indentation rules to code fence parsing, diagnostics, and editor highlighting.
+- De-indent fenced code content by the opening fence indentation so preview and export match CommonMark.
 - Use shared code fence delimiter logic for editor highlighting, parsing, and unclosed fence diagnostics.
 - Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.

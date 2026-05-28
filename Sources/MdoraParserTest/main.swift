@@ -122,7 +122,23 @@ func runTests() {
     assert(fourSpaceClosingLanguage == "text")
     assert(fourSpaceClosingCode == "    ```")
     assert(fourSpaceClosingFenceDocument.diagnostics.contains { $0.id == "unclosed-code-fence-1" })
-    print("✅ CommonMark code fences only open or close after up to three leading spaces!")
+
+    let indentedContentFenceMarkdown = """
+      ```swift
+      let x = 1
+     let y = 2
+        let z = 3
+      ```
+    """
+    let indentedContentFenceDocument = MarkdownParser.parse(indentedContentFenceMarkdown)
+    guard case .codeBlock(let indentedContentFenceLanguage, let indentedContentFenceCode) = indentedContentFenceDocument.blocks[0] else {
+        fatalError("❌ Expected indented fenced code content to parse as a code block")
+    }
+    assert(indentedContentFenceLanguage == "swift")
+    assert(indentedContentFenceCode == "let x = 1\nlet y = 2\n  let z = 3")
+    assert(MarkdownCodeFenceScanner.delimiter(in: "  ```swift")?.leadingSpaces == 2)
+    assert(MarkdownHTMLRenderer.renderFragment(indentedContentFenceMarkdown).contains("let x = 1\nlet y = 2\n  let z = 3"))
+    print("✅ CommonMark code fences honor leading-space rules for opening, closing, and content!")
 
     let variableFenceMarkdown = #"""
     ````swift
