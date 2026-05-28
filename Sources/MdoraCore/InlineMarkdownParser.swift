@@ -89,6 +89,7 @@ private struct InlineParser {
     }
 
     private mutating func consumeNextSegment() -> InlineMarkdownSegment? {
+        if let segment = consumeHardBreak() { return segment }
         if let segment = consumeCode() { return segment }
         if let segment = consumeCriticMarkup() { return segment }
         if let segment = consumeStrong() { return segment }
@@ -110,6 +111,12 @@ private struct InlineParser {
         if let segment = consumeEmail() { return segment }
         if let segment = consumeEmojiShortcode() { return segment }
         return consumeSymbolToken()
+    }
+
+    private mutating func consumeHardBreak() -> InlineMarkdownSegment? {
+        guard text[index].isNewline else { return nil }
+        index = text.index(after: index)
+        return .hardBreak
     }
 
     private mutating func flushText(into segments: inout [InlineMarkdownSegment]) {

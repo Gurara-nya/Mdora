@@ -37,6 +37,11 @@ private struct ParsedBlocks {
 }
 
 private struct BlockParser {
+    private struct ParagraphLine {
+        var text: String
+        var endsWithHardBreak: Bool
+    }
+
     private let lines: [String]
     private var index = 0
 
@@ -608,7 +613,7 @@ private struct BlockParser {
     }
 
     private mutating func parseParagraph() -> MarkdownBlock {
-        var paragraphLines: [String] = []
+        var paragraphLines: [ParagraphLine] = []
 
         while index < lines.count {
             let line = currentLine
@@ -625,16 +630,48 @@ private struct BlockParser {
             if line.trimmed.hasPrefix(">") { break }
             if Self.headingLevel(line) != nil { break }
 
-            paragraphLines.append(line.trimmed)
+            paragraphLines.append(Self.paragraphLine(from: line))
             index += 1
         }
 
         if paragraphLines.isEmpty, index < lines.count {
-            paragraphLines.append(currentLine.trimmed)
+            paragraphLines.append(Self.paragraphLine(from: currentLine))
             index += 1
         }
 
-        return .paragraph(paragraphLines.joined(separator: " "))
+        return .paragraph(Self.joinedParagraphLines(paragraphLines))
+    }
+
+    private static func paragraphLine(from line: String) -> ParagraphLine {
+        let textWithoutTrailingSpaces = line.trimmingCharacters(in: .whitespaces)
+        if textWithoutTrailingSpaces.hasSuffix("\\") {
+            let text = String(textWithoutTrailingSpaces.dropLast()).trimmingCharacters(in: .whitespaces)
+            return ParagraphLine(text: text, endsWithHardBreak: true)
+        }
+
+        let trailingSpaces = line.reversed().prefix { $0 == " " }.count
+        return ParagraphLine(
+            text: textWithoutTrailingSpaces,
+            endsWithHardBreak: trailingSpaces >= 2
+        )
+    }
+
+    private static func joinedParagraphLines(_ lines: [ParagraphLine]) -> String {
+        var result = ""
+
+        for line in lines {
+            if !result.isEmpty, !result.hasSuffix("\n") {
+                result += " "
+            }
+
+            result += line.text
+
+            if line.endsWithHardBreak {
+                result += "\n"
+            }
+        }
+
+        return result
     }
 
     private static func headingLevel(_ line: String) -> Int? {

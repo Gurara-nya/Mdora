@@ -515,6 +515,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
             ])
+            highlightInline(pattern: #"(?m)(?: {2,}|\\)$"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.accent.withAlphaComponent(0.13)
+            ])
             highlightInline(pattern: #"\[\^[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .baselineOffset: 3,

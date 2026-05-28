@@ -340,6 +340,8 @@ public enum MarkdownHTMLRenderer {
         switch segment {
         case let .text(value):
             return renderText(value, context: context)
+        case .hardBreak:
+            return "<br>"
         case let .strong(value):
             return "<strong>\(renderInline(value, context: context))</strong>"
         case let .emphasis(value):

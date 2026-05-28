@@ -139,6 +139,7 @@ public enum FrontMatterKind: String, Equatable, Hashable, CaseIterable {
 
 public enum InlineMarkdownSegment: Equatable, Hashable {
     case text(String)
+    case hardBreak
     case strong(String)
     case emphasis(String)
     case strikethrough(String)

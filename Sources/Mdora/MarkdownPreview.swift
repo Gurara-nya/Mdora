@@ -1344,6 +1344,8 @@ private struct InlineMarkdownText: View {
         switch segment {
         case let .text(value):
             str = renderText(value)
+        case .hardBreak:
+            str = AttributedString("\n")
         case let .strong(value):
             str = renderInline(value)
             str.font = .system(size: style.bodyFontSize, weight: .bold)
