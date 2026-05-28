@@ -23,6 +23,7 @@
 - Add richer Obsidian/GitHub callout parsing for aliases, custom titles, and fold markers.
 - Add custom heading anchors for stable outline, table of contents, preview, and HTML export targets.
 - De-duplicate generated heading anchors for stable table of contents, preview navigation, and HTML export ids.
+- Support CommonMark empty ATX headings and single-character setext heading underlines.
 - Add Obsidian-style block ids for block references, preview cleanup, inspector recognition, and HTML export anchors.
 - Add Markdown Extra abbreviation definitions with preview, export, and inspector support.
 - Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.

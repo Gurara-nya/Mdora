@@ -381,36 +381,45 @@ private struct BlockParser {
     }
 
     private mutating func parseHeading() -> MarkdownBlock? {
-        if let setextHeading = parseSetextHeading() {
-            return setextHeading
-        }
-
         let trimmed = currentLine.trimmed
         let hashes = trimmed.prefix { character in
             character == "#"
         }.count
 
-        guard (1 ... 6).contains(hashes) else { return nil }
+        if (1 ... 6).contains(hashes) {
+            let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
+            if markerEnd == trimmed.endIndex || trimmed[markerEnd].isWhitespace {
+                let rawText: String
+                if markerEnd == trimmed.endIndex {
+                    rawText = ""
+                } else {
+                    let textStart = trimmed.index(after: markerEnd)
+                    rawText = String(trimmed[textStart...])
+                }
 
-        let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
-        guard markerEnd < trimmed.endIndex, trimmed[markerEnd] == " " else { return nil }
+                let parsed = MarkdownHeadingAttributes.parse(rawText)
+                index += 1
 
-        let textStart = trimmed.index(after: markerEnd)
-        let parsed = MarkdownHeadingAttributes.parse(String(trimmed[textStart...]))
-        index += 1
+                return .heading(
+                    level: hashes,
+                    text: parsed.text,
+                    anchor: anchor(for: parsed)
+                )
+            }
+        }
 
-        return .heading(
-            level: hashes,
-            text: parsed.text,
-            anchor: anchor(for: parsed)
-        )
+        if let setextHeading = parseSetextHeading() {
+            return setextHeading
+        }
+
+        return nil
     }
 
     private mutating func parseSetextHeading() -> MarkdownBlock? {
         guard let underline = line(at: 1)?.trimmed else { return nil }
         guard !currentLine.trimmed.isEmpty else { return nil }
+        guard !underline.isEmpty else { return nil }
         guard underline.allSatisfy({ $0 == "=" }) || underline.allSatisfy({ $0 == "-" }) else { return nil }
-        guard underline.count >= 2 else { return nil }
 
         let level = underline.first == "=" ? 1 : 2
         let parsed = MarkdownHeadingAttributes.parse(currentLine.trimmed)
@@ -698,7 +707,7 @@ private struct BlockParser {
         let hashes = trimmed.prefix { $0 == "#" }.count
         guard (1 ... 6).contains(hashes) else { return nil }
         let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
-        guard markerEnd < trimmed.endIndex, trimmed[markerEnd] == " " else { return nil }
+        guard markerEnd == trimmed.endIndex || trimmed[markerEnd].isWhitespace else { return nil }
         return hashes
     }
 

@@ -572,7 +572,8 @@ public enum MarkdownAnalyzer {
                 guard (1 ... 6).contains(hashes) else { return nil }
 
                 let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
-                guard markerEnd < trimmed.endIndex, trimmed[markerEnd].isWhitespace else { return nil }
+                guard markerEnd < trimmed.endIndex else { return nil }
+                guard trimmed[markerEnd].isWhitespace else { return nil }
 
                 let contentStart = trimmed.index(after: markerEnd)
                 let content = MarkdownHeadingAttributes.strippedClosingHashes(from: String(trimmed[contentStart...]))
@@ -581,7 +582,7 @@ public enum MarkdownAnalyzer {
 
             guard lines.indices.contains(index + 1) else { return nil }
             let underline = lines[index + 1].trimmingCharacters(in: .whitespaces)
-            guard underline.count >= 2,
+            guard !underline.isEmpty,
                   underline.allSatisfy({ $0 == "=" }) || underline.allSatisfy({ $0 == "-" }) else {
                 return nil
             }

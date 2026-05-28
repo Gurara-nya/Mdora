@@ -219,6 +219,48 @@ func runTests() {
     assert(duplicateHeadingHTML.contains(#"<h1 id="repeat-2">Repeat</h1>"#))
     print("✅ Generated heading anchors are de-duplicated while explicit duplicate anchors stay diagnostic!")
 
+    let headingCompatibilityMarkdown = """
+    #
+    ###
+    Setext One
+    =
+    Setext Two {#setext-two}
+    -
+    # Closed Heading ###
+    # Closed Custom {#closed-id} ###
+    # ATX Wins
+    ---
+
+    #not a heading
+    """
+    let headingCompatibilityDocument = MarkdownParser.parse(headingCompatibilityMarkdown)
+    let headingCompatibilityOutline = headingCompatibilityDocument.outline.map { "\($0.level):\($0.title):\($0.anchor)" }
+    let expectedHeadingCompatibilityOutline = [
+        "1::section",
+        "3::section-1",
+        "1:Setext One:setext-one",
+        "2:Setext Two:setext-two",
+        "1:Closed Heading:closed-heading",
+        "1:Closed Custom:closed-id",
+        "1:ATX Wins:atx-wins"
+    ]
+    guard headingCompatibilityOutline == expectedHeadingCompatibilityOutline else {
+        fatalError("❌ Heading compatibility mismatch: \(headingCompatibilityOutline)")
+    }
+    guard case .paragraph("#not a heading") = headingCompatibilityDocument.blocks.last else {
+        fatalError("❌ Expected #not a heading without a space to stay a paragraph")
+    }
+    let headingCompatibilityHTML = MarkdownHTMLRenderer.renderFragment(headingCompatibilityMarkdown)
+    assert(headingCompatibilityHTML.contains(#"<h1 id="section"></h1>"#))
+    assert(headingCompatibilityHTML.contains(#"<h3 id="section-1"></h3>"#))
+    assert(headingCompatibilityHTML.contains(#"<h1 id="setext-one">Setext One</h1>"#))
+    assert(headingCompatibilityHTML.contains(#"<h2 id="setext-two">Setext Two</h2>"#))
+    assert(headingCompatibilityHTML.contains(#"<h1 id="closed-heading">Closed Heading</h1>"#))
+    assert(headingCompatibilityHTML.contains(#"<h1 id="closed-id">Closed Custom</h1>"#))
+    assert(headingCompatibilityHTML.contains(#"<h1 id="atx-wins">ATX Wins</h1>"#))
+    assert(headingCompatibilityHTML.contains("<hr>"))
+    print("✅ CommonMark empty ATX headings and single-character setext headings parse cleanly!")
+
     // 6. Test GFM table escaped pipes and code span pipes
     let escapedPipeTableMarkdown = """
     | Pattern | Meaning |

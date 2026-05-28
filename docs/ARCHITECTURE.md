@@ -70,7 +70,7 @@ Paste and image-file drop normalization are kept in `MarkdownPasteTransformer`; 
 
 The parser currently recognizes:
 
-- ATX and setext headings, including de-duplicated generated anchors and Markdown Extra/Pandoc-style custom heading anchors.
+- ATX and setext headings, including empty ATX headings, single-character setext underlines, de-duplicated generated anchors, and Markdown Extra/Pandoc-style custom heading anchors.
 - Obsidian-style block ids such as `^block-id`, stripped from visible preview text and exported as HTML block anchors.
 - YAML, TOML, and JSON front matter.
 - Fenced code blocks with variable-length backtick or tilde delimiters, plus indented code blocks.
