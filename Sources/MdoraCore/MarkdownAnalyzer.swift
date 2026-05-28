@@ -636,23 +636,22 @@ public enum MarkdownAnalyzer {
             }
         }
 
-        var openFence: (marker: String, line: Int)?
+        var openFence: (delimiter: MarkdownCodeFenceDelimiter, line: Int)?
         var openMathLine: Int?
 
         for (offset, line) in lines.enumerated() {
             let lineNumber = offset + 1
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-                let marker = String(trimmed.prefix(3))
-
-                if let fence = openFence, fence.marker == marker {
+            if let delimiter = MarkdownCodeFenceScanner.delimiter(in: line) {
+                if let fence = openFence,
+                   MarkdownCodeFenceScanner.isClosingDelimiter(delimiter, for: fence.delimiter) {
                     openFence = nil
                 } else if openFence == nil {
-                    openFence = (marker, lineNumber)
+                    openFence = (delimiter, lineNumber)
                 }
             }
 
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed == "$$" {
                 if openMathLine == nil {
                     openMathLine = lineNumber
@@ -668,7 +667,7 @@ public enum MarkdownAnalyzer {
                     id: "unclosed-code-fence-\(fence.line)",
                     severity: .error,
                     title: "Unclosed code fence",
-                    message: "A \(fence.marker) fence was opened but not closed.",
+                    message: "A \(String(repeating: String(fence.delimiter.marker), count: fence.delimiter.length)) fence was opened but not closed.",
                     line: fence.line
                 )
             )

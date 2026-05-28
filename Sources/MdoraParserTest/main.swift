@@ -95,6 +95,7 @@ func runTests() {
     }
     assert(variableFenceLanguage == "swift")
     assert(variableFenceCode == "```text\ninner fence stays code\n```")
+    assert(!variableFenceDocument.diagnostics.contains { $0.id.hasPrefix("unclosed-code-fence") })
 
     let tildeFenceMarkdown = "~~~~mermaid\nflowchart LR\n~~~\n~~~~"
     let tildeFenceDocument = MarkdownParser.parse(tildeFenceMarkdown)
@@ -103,7 +104,18 @@ func runTests() {
     }
     assert(tildeDiagram.kind == .mermaid)
     assert(tildeDiagram.source == "flowchart LR\n~~~")
-    print("✅ Variable-length CommonMark code fences do not close on shorter inner fences!")
+
+    let unclosedVariableFenceMarkdown = #"""
+    ````swift
+    print("outer fence is still open")
+    ```
+    """#
+    let unclosedVariableFenceDocument = MarkdownParser.parse(unclosedVariableFenceMarkdown)
+    assert(unclosedVariableFenceDocument.diagnostics.contains { diagnostic in
+        diagnostic.id == "unclosed-code-fence-1" &&
+            diagnostic.message.contains("```` fence")
+    })
+    print("✅ Variable-length CommonMark code fences and diagnostics do not close on shorter inner fences!")
 
     // 4. Test HTML entity references
     let entityMarkdown = "AT&amp;T &copy; &#169; &#x1F680; &notanentity;"
