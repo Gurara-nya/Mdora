@@ -39,7 +39,7 @@ The first build includes:
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.
 - Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, wiki embeds, block ids, custom heading anchors, abbreviations, citations, resolved emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, CriticMarkup review marks, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
-- Smart paste converts URL clipboard text into Markdown links for selected text, and image URLs into Markdown image syntax.
+- Smart paste converts URL clipboard text into Markdown links for selected text, and image URLs or local image files into Markdown image syntax with relative paths when possible.
 - Selection-aware preview feedback highlights the block that contains the editor caret through binary source-map lookup and can keep that block scrolled into view, with cancellable sync-scroll coalescing to avoid jitter during fast cursor movement.
 - Bounded inline parsing cache reduces repeated inline Markdown work across preview redraws, marker analysis, and export.
 - Smart return and Tab/Shift-Tab handling that continues and reshapes lists, task lists, ordered task lists, quotes, and indentation while writing.

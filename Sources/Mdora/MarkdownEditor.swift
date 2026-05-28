@@ -16,6 +16,7 @@ struct MarkdownEditor: View {
     let theme: MdoraTheme
     let fontSize: CGFloat
     let focusMode: Bool
+    let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
 
     var body: some View {
@@ -25,6 +26,7 @@ struct MarkdownEditor: View {
             theme: theme,
             fontSize: fontSize,
             focusMode: focusMode,
+            documentURL: documentURL,
             onSelectionChange: onSelectionChange
         )
         .background(theme.palette.editorColor)
@@ -37,6 +39,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     let theme: MdoraTheme
     let fontSize: CGFloat
     let focusMode: Bool
+    let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -45,6 +48,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = MarkdownNSTextView()
+        textView.markdownDocumentURL = documentURL
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
@@ -92,6 +96,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         let sizeChanged = context.coordinator.lastHighlightedFontSize != fontSize
         let focusModeChanged = context.coordinator.lastHighlightedFocusMode != focusMode
         let externalTextChanged = textView.string != text
+
+        if let textView = textView as? MarkdownNSTextView {
+            textView.markdownDocumentURL = documentURL
+        }
 
         if themeChanged || sizeChanged {
             applyTheme(to: textView, scrollView: scrollView)
@@ -914,6 +922,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
 private final class MarkdownNSTextView: NSTextView {
     var onSmartNewline: (() -> Void)?
+    var markdownDocumentURL: URL?
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
         guard let typedString = string as? String, typedString.count == 1 else {
@@ -1010,6 +1019,18 @@ private final class MarkdownNSTextView: NSTextView {
         let source = string as NSString
         let selectedText = selectedRange.length > 0 ? source.substring(with: selectedRange) : ""
 
+        if let fileURL = pasteboardFileURL(from: pasteboard),
+           let replacement = MarkdownPasteTransformer.markdownReplacement(
+               fileURL: fileURL,
+               selectedText: selectedText,
+               currentDocumentURL: markdownDocumentURL
+           ) {
+            super.insertText(replacement, replacementRange: selectedRange)
+            setSelectedRange(NSRange(location: selectedRange.location, length: replacement.utf16.count))
+            onSmartNewline?()
+            return
+        }
+
         if let pastedText = pasteboard.string(forType: .string),
            let replacement = MarkdownPasteTransformer.markdownReplacement(
                pastedText: pastedText,
@@ -1023,6 +1044,13 @@ private final class MarkdownNSTextView: NSTextView {
 
         super.paste(sender)
         onSmartNewline?()
+    }
+
+    private func pasteboardFileURL(from pasteboard: NSPasteboard) -> URL? {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingFileURLsOnly: true
+        ]
+        return pasteboard.readObjects(forClasses: [NSURL.self], options: options)?.first as? URL
     }
 
     override func insertNewline(_ sender: Any?) {

@@ -33,7 +33,7 @@
 - Add Typora-style superscript and subscript markers across preview, export, inspector, and editor highlighting.
 - Add editor insertion commands for highlights, superscript, subscript, keyboard tags, and citations.
 - Add tested Tab and Shift-Tab indentation editing for Markdown lines and lists.
-- Add smart URL and image URL paste transforms for Markdown links.
+- Add smart URL, image URL, and local image file paste transforms for Markdown links and images.
 - Add CriticMarkup review marks for additions, deletions, substitutions, comments, and editorial highlights.
 - Add CommonMark angle-bracket autolinks for URLs and email addresses.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.

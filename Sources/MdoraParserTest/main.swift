@@ -141,6 +141,35 @@ func runTests() {
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "") == "![](https://example.com/image.png)")
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com", selectedText: "") == nil)
     assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "not a url", selectedText: "Text") == nil)
+    let pasteDocumentURL = URL(fileURLWithPath: "/tmp/Mdora Notes/Current.md")
+    assert(
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURL: URL(fileURLWithPath: "/tmp/Mdora Notes/Assets/My Image.png"),
+            selectedText: "Mockup",
+            currentDocumentURL: pasteDocumentURL
+        ) == "![Mockup](Assets/My%20Image.png)"
+    )
+    assert(
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURL: URL(fileURLWithPath: "/tmp/Mdora Notes/Assets/My Image.png"),
+            selectedText: "",
+            currentDocumentURL: pasteDocumentURL
+        ) == "![My Image](Assets/My%20Image.png)"
+    )
+    assert(
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURL: URL(fileURLWithPath: "/tmp/Images/Chart (1).jpg"),
+            selectedText: "Chart",
+            currentDocumentURL: pasteDocumentURL
+        ) == "![Chart](../Images/Chart%20%281%29.jpg)"
+    )
+    assert(
+        MarkdownPasteTransformer.markdownReplacement(
+            fileURL: URL(fileURLWithPath: "/tmp/Mdora Notes/readme.txt"),
+            selectedText: "Readme",
+            currentDocumentURL: pasteDocumentURL
+        ) == nil
+    )
     print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
 
     // 8. Test internal preview link navigation targets

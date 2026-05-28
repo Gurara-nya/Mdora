@@ -15,6 +15,20 @@ public enum MarkdownPasteTransformer {
         return isImageURL(pasted) ? "![](\(pasted))" : nil
     }
 
+    public static func markdownReplacement(
+        fileURL: URL,
+        selectedText: String,
+        currentDocumentURL: URL?
+    ) -> String? {
+        guard fileURL.isFileURL, isImageFileURL(fileURL) else { return nil }
+
+        let selected = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let altText = selected.isEmpty ? fileURL.deletingPathExtension().lastPathComponent : selected
+        let destination = markdownDestination(for: fileURL, currentDocumentURL: currentDocumentURL)
+
+        return "![\(escapeLinkLabel(altText))](\(destination))"
+    }
+
     private static func isMarkdownURL(_ value: String) -> Bool {
         guard let components = URLComponents(string: value),
               let scheme = components.scheme?.lowercased(),
@@ -33,6 +47,49 @@ public enum MarkdownPasteTransformer {
         guard let components = URLComponents(string: value) else { return false }
         let pathExtension = (components.path as NSString).pathExtension.lowercased()
         return imageExtensions.contains(pathExtension)
+    }
+
+    private static func isImageFileURL(_ url: URL) -> Bool {
+        imageExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    private static func markdownDestination(for fileURL: URL, currentDocumentURL: URL?) -> String {
+        let destinationPath: String
+        if let currentDocumentURL, currentDocumentURL.isFileURL {
+            destinationPath = relativePath(
+                from: currentDocumentURL.deletingLastPathComponent().standardizedFileURL,
+                to: fileURL.standardizedFileURL
+            )
+        } else {
+            destinationPath = fileURL.standardizedFileURL.path
+        }
+
+        return percentEncodedPath(destinationPath)
+    }
+
+    private static func relativePath(from baseDirectoryURL: URL, to fileURL: URL) -> String {
+        let baseComponents = baseDirectoryURL.standardizedFileURL.pathComponents
+        let fileComponents = fileURL.standardizedFileURL.pathComponents
+        var sharedCount = 0
+
+        while sharedCount < baseComponents.count,
+              sharedCount < fileComponents.count,
+              baseComponents[sharedCount] == fileComponents[sharedCount] {
+            sharedCount += 1
+        }
+
+        guard sharedCount > 0 else { return fileURL.standardizedFileURL.path }
+
+        let parentSegments = Array(repeating: "..", count: max(0, baseComponents.count - sharedCount))
+        let childSegments = fileComponents.dropFirst(sharedCount)
+        let relativeComponents = parentSegments + childSegments
+        return relativeComponents.isEmpty ? fileURL.lastPathComponent : relativeComponents.joined(separator: "/")
+    }
+
+    private static func percentEncodedPath(_ path: String) -> String {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~/")
+        return path.addingPercentEncoding(withAllowedCharacters: allowed) ?? path
     }
 
     private static func isSingleLine(_ value: String) -> Bool {

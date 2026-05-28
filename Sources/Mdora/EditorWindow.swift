@@ -75,6 +75,7 @@ struct EditorWindow: View {
                             theme: theme,
                             fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
                             focusMode: focusMode,
+                            documentURL: documentURL,
                             onSelectionChange: updateEditorSelection
                         )
                             .frame(minWidth: 360, idealWidth: 560)
