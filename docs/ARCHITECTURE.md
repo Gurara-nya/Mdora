@@ -62,6 +62,8 @@ Writing preferences are intentionally stored outside the Markdown file. They aff
 
 Typing continuations are kept in `MarkdownTypingContinuation` so editor return behavior for bullets, task lists, ordered task lists, quotes, and indentation can be tested without launching the AppKit editor. Tab and Shift-Tab line edits use `MarkdownLineEditor`, which returns a small replacement range plus a corrected selection instead of rewriting the whole document.
 
+Paste normalization is kept in `MarkdownPasteTransformer`; the AppKit text view only reads the pasteboard and applies a replacement when a single URL can safely become a Markdown link or image.
+
 ## Compatibility Surface
 
 The parser currently recognizes:

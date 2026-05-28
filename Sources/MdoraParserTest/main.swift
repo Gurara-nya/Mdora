@@ -135,7 +135,15 @@ func runTests() {
     assert(cursorOutdent.selectedRange.location == 2)
     print("✅ Markdown line indentation and outdent editing preserves text and selection!")
 
-    // 7. Test internal preview link navigation targets
+    // 7. Test smart paste transformations
+    assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com", selectedText: "Example") == "[Example](https://example.com)")
+    assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "Diagram") == "![Diagram](https://example.com/image.png)")
+    assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com/image.png", selectedText: "") == "![](https://example.com/image.png)")
+    assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "https://example.com", selectedText: "") == nil)
+    assert(MarkdownPasteTransformer.markdownReplacement(pastedText: "not a url", selectedText: "Text") == nil)
+    print("✅ Smart paste transforms URL clipboard text into Markdown links and images!")
+
+    // 8. Test internal preview link navigation targets
     let navigationMarkdown = """
     # Intro
 
@@ -163,7 +171,7 @@ func runTests() {
     assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 8. Test cross-file wiki link resolution
+    // 9. Test cross-file wiki link resolution
     do {
         let workspaceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)
@@ -187,7 +195,7 @@ func runTests() {
         fatalError("❌ Failed cross-file wiki link test setup: \(error)")
     }
 
-    // 9. Load & parse real test.md
+    // 10. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 

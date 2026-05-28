@@ -1004,6 +1004,27 @@ private final class MarkdownNSTextView: NSTextView {
         onSmartNewline?()
     }
 
+    override func paste(_ sender: Any?) {
+        let pasteboard = NSPasteboard.general
+        let selectedRange = selectedRange()
+        let source = string as NSString
+        let selectedText = selectedRange.length > 0 ? source.substring(with: selectedRange) : ""
+
+        if let pastedText = pasteboard.string(forType: .string),
+           let replacement = MarkdownPasteTransformer.markdownReplacement(
+               pastedText: pastedText,
+               selectedText: selectedText
+           ) {
+            super.insertText(replacement, replacementRange: selectedRange)
+            setSelectedRange(NSRange(location: selectedRange.location, length: replacement.utf16.count))
+            onSmartNewline?()
+            return
+        }
+
+        super.paste(sender)
+        onSmartNewline?()
+    }
+
     override func insertNewline(_ sender: Any?) {
         guard selectedRange().length == 0 else {
             super.insertNewline(sender)
