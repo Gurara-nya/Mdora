@@ -26,6 +26,7 @@
 - Add Obsidian-style block ids for block references, preview cleanup, inspector recognition, and HTML export anchors.
 - Add Markdown Extra abbreviation definitions with preview, export, and inspector support.
 - Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
+- Protect fenced code ranges from inline editor highlighting so code fences and inner backticks keep the correct color.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Continue list, task-list, and ordered-list markers inside blockquotes and nested blockquotes.

@@ -62,6 +62,8 @@ Writing preferences are intentionally stored outside the Markdown file. They aff
 
 Typing continuations are kept in `MarkdownTypingContinuation` so editor return behavior for bullets, task lists, ordered task lists, quotes, quoted lists, nested quoted lists, and indentation can be tested without launching the AppKit editor. Tab and Shift-Tab line edits use `MarkdownLineEditor`, which returns a small replacement range plus a corrected selection instead of rewriting the whole document.
 
+Editor syntax highlighting keeps fenced code lines and their contents as protected ranges through `MarkdownCodeFenceScanner`, so inline regex passes do not recolor backticks or Markdown-looking text inside code fences.
+
 Paste and image-file drop normalization are kept in `MarkdownPasteTransformer`; the AppKit text view only reads pasteboard file URLs or strings and applies a replacement when the input can safely become a Markdown link or image. Local image files resolve relative to the current Markdown document when possible, keeping pasted and dropped image references portable across folders.
 
 ## Compatibility Surface

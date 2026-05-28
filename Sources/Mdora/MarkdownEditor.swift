@@ -164,6 +164,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         private var lastReportedSelection = EditorSelection.start
         private var lastSelectionComputation: SelectionComputation?
         private var currentHighlightRange: NSRange?
+        private var currentInlineHighlightExcludedRanges: [NSRange] = []
         private var lastHighlightedRange: NSRange?
         @MainActor private static var expressionCache: [ExpressionCacheKey: NSRegularExpression] = [:]
 
@@ -424,6 +425,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             currentHighlightRange = targetRange
             textStorage.setAttributes(baseAttributes, range: resetRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
+            currentInlineHighlightExcludedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: textView.string)
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
             ])
@@ -572,6 +574,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             textStorage.endEditing()
 
             currentHighlightRange = nil
+            currentInlineHighlightExcludedRanges = []
             lastHighlightedRange = targetRange
             textView.typingAttributes = baseAttributes
             textView.setSelectedRange(selectedRange.clamped(toLength: fullRange.length))
@@ -917,8 +920,23 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
 
             for match in expression.matches(in: text, range: range) {
+                guard !isInlineHighlightExcluded(match.range) else { continue }
                 storage.addAttributes(attributes, range: match.range)
             }
+        }
+
+        private func isInlineHighlightExcluded(_ range: NSRange) -> Bool {
+            for excludedRange in currentInlineHighlightExcludedRanges {
+                if excludedRange.location >= range.upperBound {
+                    return false
+                }
+
+                if NSIntersectionRange(range, excludedRange).length > 0 {
+                    return true
+                }
+            }
+
+            return false
         }
 
         @MainActor

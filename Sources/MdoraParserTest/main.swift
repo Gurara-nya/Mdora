@@ -63,6 +63,24 @@ func runTests() {
     assert(MarkdownHTMLRenderer.renderFragment(hardBreakMarkdown).contains("<p>Line one<br>Line two<br>Line three Line four</p>"))
     print("✅ CommonMark hard line breaks survive parsing, preview tokens, and HTML export!")
 
+    // 3b. Test fenced code ranges used by editor highlighting
+    let fencedHighlightMarkdown = """
+    Before `inline`
+    ```text
+    `not inline`
+    ```
+    After `inline`
+    """
+    let fencedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: fencedHighlightMarkdown)
+    assert(fencedRanges.count == 1)
+    assert((fencedHighlightMarkdown as NSString).substring(with: fencedRanges[0]) == "```text\n`not inline`\n```\n")
+
+    let unclosedFenceMarkdown = "```text\n`still code`"
+    let unclosedFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: unclosedFenceMarkdown)
+    assert(unclosedFenceRanges.count == 1)
+    assert((unclosedFenceMarkdown as NSString).substring(with: unclosedFenceRanges[0]) == unclosedFenceMarkdown)
+    print("✅ Editor syntax highlighting can skip fenced code ranges without coloring inner backticks!")
+
     // 4. Test HTML entity references
     let entityMarkdown = "AT&amp;T &copy; &#169; &#x1F680; &notanentity;"
     let entitySegments = InlineMarkdownParser.parse(entityMarkdown)
