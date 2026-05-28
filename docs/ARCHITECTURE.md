@@ -39,7 +39,22 @@ There are three viable levels:
 
 The recommended path is to ship level 1, grow into level 2, and only adopt level 3 if the product needs complex block manipulation.
 
-The current app is between level 1 and level 2: it keeps Markdown source as truth, but the preview already has block-level semantics for tables, callouts, tasks, code languages, front matter, images, and document markers.
+The current app is between level 1 and level 2: it keeps Markdown source as truth, but the preview already has block-level semantics for tables, callouts, tasks, code languages, diagrams, math, footnotes, definition lists, front matter, images, and document markers.
+
+## Compatibility Surface
+
+The parser currently recognizes:
+
+- ATX and setext headings.
+- Front matter.
+- Fenced and indented code blocks.
+- Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
+- Block and inline math markers.
+- GFM-style tables and task lists.
+- Blockquotes and GitHub-style callouts.
+- Footnote definitions and references.
+- Definition lists.
+- Images, links, automatic links, wiki links, tags, mentions, and TODO-style tokens.
 
 ## Risks
 

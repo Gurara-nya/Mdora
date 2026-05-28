@@ -57,8 +57,16 @@ public enum MarkdownHTMLRenderer {
             return renderTaskList(items)
         case let .codeBlock(language, code):
             return renderCodeBlock(language: language, code: code)
+        case let .diagram(diagram):
+            return renderDiagram(diagram)
+        case let .mathBlock(expression):
+            return renderMathBlock(expression)
         case let .table(table):
             return renderTable(table)
+        case let .definitionList(items):
+            return renderDefinitionList(items)
+        case let .footnoteDefinition(identifier, text):
+            return "<p class=\"footnote-definition\" id=\"fn-\(escapeHTML(identifier))\"><sup>\(escapeHTML(identifier))</sup> \(renderInline(text))</p>"
         case let .image(alt, source, title):
             return renderImage(alt: alt, source: source, title: title)
         case .thematicBreak:
@@ -117,6 +125,23 @@ public enum MarkdownHTMLRenderer {
         return "<pre>\(label)<code\(languageClass)>\(escapeHTML(code))</code></pre>"
     }
 
+    private static func renderDiagram(_ diagram: DiagramBlock) -> String {
+        [
+            "<figure class=\"diagram diagram-\(diagram.kind.rawValue)\">",
+            "  <figcaption>\(escapeHTML(diagram.kind.title)) diagram</figcaption>",
+            "  <pre><code>\(escapeHTML(diagram.source))</code></pre>",
+            "</figure>"
+        ].joined(separator: "\n")
+    }
+
+    private static func renderMathBlock(_ expression: String) -> String {
+        [
+            "<figure class=\"math-block\">",
+            "  <pre><code>\(escapeHTML(expression))</code></pre>",
+            "</figure>"
+        ].joined(separator: "\n")
+    }
+
     private static func renderTable(_ table: TableBlock) -> String {
         let headerCells = table.headers.enumerated().map { index, header in
             "<th style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(header))</th>"
@@ -138,6 +163,18 @@ public enum MarkdownHTMLRenderer {
             "</tbody>",
             "</table>"
         ].joined(separator: "\n")
+    }
+
+    private static func renderDefinitionList(_ items: [DefinitionItem]) -> String {
+        let body = items.map { item in
+            let definitions = item.definitions.map { definition in
+                "<dd>\(renderInline(definition))</dd>"
+            }.joined(separator: "\n")
+
+            return "<dt>\(renderInline(item.term))</dt>\n\(definitions)"
+        }.joined(separator: "\n")
+
+        return "<dl>\n\(body)\n</dl>"
     }
 
     private static func renderImage(alt: String, source: String, title: String?) -> String {
@@ -173,7 +210,9 @@ public enum MarkdownHTMLRenderer {
         rendered = replace(rendered, pattern: #"\*([^*]+)\*"#, template: #"<em>$1</em>"#)
         rendered = replace(rendered, pattern: #"_([^_]+)_"#, template: #"<em>$1</em>"#)
         rendered = replace(rendered, pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, template: #"<a href="$2">$1</a>"#)
+        rendered = replace(rendered, pattern: #"\[\[([^\]]+)\]\]"#, template: #"<span class="wikilink">$1</span>"#)
         rendered = replace(rendered, pattern: #"\[\^([^\]]+)\]"#, template: #"<sup>$1</sup>"#)
+        rendered = replace(rendered, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, template: #"<span class="math-inline">$1</span>"#)
         rendered = replace(rendered, pattern: #"(?<![\w">])(https?://[^\s<]+)"#, template: #"<a href="$1">$1</a>"#)
         rendered = replace(rendered, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, template: #"<span class="tag">#$1</span>"#)
         rendered = replace(rendered, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, template: #"<span class="mention">@$1</span>"#)
@@ -215,6 +254,9 @@ public enum MarkdownHTMLRenderer {
         table { width: 100%; border-collapse: collapse; margin: 1.1em 0; }
         th, td { border: 1px solid rgba(127, 127, 127, 0.32); padding: 8px 10px; }
         th { background: rgba(127, 127, 127, 0.12); }
+        dl { margin: 1em 0; }
+        dt { font-weight: 700; }
+        dd { margin: 0.25em 0 0.75em 1.4em; }
         a { color: LinkText; }
         blockquote {
           margin-left: 0;
@@ -225,13 +267,20 @@ public enum MarkdownHTMLRenderer {
         img { max-width: 100%; border-radius: 8px; }
         figcaption { opacity: 0.65; font-size: 0.9em; text-align: center; }
         .front-matter, .html-block { opacity: 0.82; }
+        .footnote-definition { font-size: 0.92em; opacity: 0.86; }
         .task-list { list-style: none; padding-left: 0; }
         .task.done { opacity: 0.68; text-decoration: line-through; }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }
-        .tag, .mention {
+        .tag, .mention, .wikilink, .math-inline {
           border-radius: 999px;
           padding: 0.08em 0.45em;
           background: rgba(45, 132, 214, 0.16);
+        }
+        .diagram, .math-block {
+          border-radius: 8px;
+          padding: 12px 14px;
+          background: rgba(127, 127, 127, 0.10);
+          border: 1px solid rgba(127, 127, 127, 0.24);
         }
         .callout {
           border-radius: 8px;

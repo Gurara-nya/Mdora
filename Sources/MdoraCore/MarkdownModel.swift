@@ -28,7 +28,11 @@ public enum MarkdownBlock: Equatable {
     case orderedList([ListItem])
     case taskList([TaskItem])
     case codeBlock(language: String?, code: String)
+    case diagram(DiagramBlock)
+    case mathBlock(String)
     case table(TableBlock)
+    case definitionList([DefinitionItem])
+    case footnoteDefinition(identifier: String, text: String)
     case image(alt: String, source: String, title: String?)
     case thematicBreak
     case html(String)
@@ -65,6 +69,68 @@ public struct TableBlock: Equatable {
         self.headers = headers
         self.alignments = alignments
         self.rows = rows
+    }
+}
+
+public struct DiagramBlock: Equatable {
+    public var kind: DiagramKind
+    public var source: String
+
+    public init(kind: DiagramKind, source: String) {
+        self.kind = kind
+        self.source = source
+    }
+}
+
+public enum DiagramKind: String, CaseIterable, Equatable, Hashable {
+    case mermaid
+    case graphviz
+    case plantuml
+    case sequence
+    case flowchart
+
+    public init?(language: String) {
+        let normalized = language.lowercased()
+
+        switch normalized {
+        case "mermaid":
+            self = .mermaid
+        case "dot", "graphviz":
+            self = .graphviz
+        case "plantuml", "puml":
+            self = .plantuml
+        case "sequence", "sequence-diagram":
+            self = .sequence
+        case "flow", "flowchart":
+            self = .flowchart
+        default:
+            return nil
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .mermaid:
+            "Mermaid"
+        case .graphviz:
+            "Graphviz"
+        case .plantuml:
+            "PlantUML"
+        case .sequence:
+            "Sequence"
+        case .flowchart:
+            "Flowchart"
+        }
+    }
+}
+
+public struct DefinitionItem: Equatable {
+    public var term: String
+    public var definitions: [String]
+
+    public init(term: String, definitions: [String]) {
+        self.term = term
+        self.definitions = definitions
     }
 }
 
@@ -116,29 +182,72 @@ public struct DocumentSymbol: Equatable, Identifiable {
 
 public struct MarkdownMarkers: Equatable {
     public var links: [String]
+    public var autoLinks: [String]
     public var images: [String]
     public var tags: [String]
     public var mentions: [String]
+    public var wikiLinks: [String]
     public var footnotes: [String]
+    public var taskTokens: [TaskToken]
+    public var mathExpressions: [String]
     public var codeLanguages: [String]
+    public var diagrams: [DiagramKind]
     public var callouts: [CalloutKind]
 
     public init(
         links: [String] = [],
+        autoLinks: [String] = [],
         images: [String] = [],
         tags: [String] = [],
         mentions: [String] = [],
+        wikiLinks: [String] = [],
         footnotes: [String] = [],
+        taskTokens: [TaskToken] = [],
+        mathExpressions: [String] = [],
         codeLanguages: [String] = [],
+        diagrams: [DiagramKind] = [],
         callouts: [CalloutKind] = []
     ) {
         self.links = links
+        self.autoLinks = autoLinks
         self.images = images
         self.tags = tags
         self.mentions = mentions
+        self.wikiLinks = wikiLinks
         self.footnotes = footnotes
+        self.taskTokens = taskTokens
+        self.mathExpressions = mathExpressions
         self.codeLanguages = codeLanguages
+        self.diagrams = diagrams
         self.callouts = callouts
+    }
+}
+
+public struct TaskToken: Equatable, Hashable {
+    public var kind: TaskTokenKind
+    public var text: String
+
+    public init(kind: TaskTokenKind, text: String) {
+        self.kind = kind
+        self.text = text
+    }
+}
+
+public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable {
+    case todo
+    case fixme
+    case bug
+    case hack
+    case note
+    case important
+    case question
+
+    public init?(marker: String) {
+        self.init(rawValue: marker.lowercased())
+    }
+
+    public var title: String {
+        rawValue.uppercased()
     }
 }
 

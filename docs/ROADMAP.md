@@ -15,6 +15,7 @@
 - Add block-based preview for common Markdown structures.
 - Add basic theming.
 - Add document outline and marker inspection.
+- Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

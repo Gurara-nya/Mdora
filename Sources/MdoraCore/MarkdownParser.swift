@@ -43,6 +43,16 @@ private struct BlockParser {
                 continue
             }
 
+            if let block = parseMathBlock() {
+                blocks.append(block)
+                continue
+            }
+
+            if let block = parseIndentedCodeBlock() {
+                blocks.append(block)
+                continue
+            }
+
             if let block = parseTable() {
                 blocks.append(block)
                 continue
@@ -64,6 +74,16 @@ private struct BlockParser {
             }
 
             if let block = parseList() {
+                blocks.append(block)
+                continue
+            }
+
+            if let block = parseFootnoteDefinition() {
+                blocks.append(block)
+                continue
+            }
+
+            if let block = parseDefinitionList() {
                 blocks.append(block)
                 continue
             }
@@ -135,7 +155,73 @@ private struct BlockParser {
             index += 1
         }
 
-        return .codeBlock(language: language, code: codeLines.joined(separator: "\n"))
+        let code = codeLines.joined(separator: "\n")
+
+        if let language, let diagramKind = DiagramKind(language: language) {
+            return .diagram(DiagramBlock(kind: diagramKind, source: code))
+        }
+
+        return .codeBlock(language: language, code: code)
+    }
+
+    private mutating func parseMathBlock() -> MarkdownBlock? {
+        let trimmed = currentLine.trimmed
+        guard trimmed == "$$" || trimmed.hasPrefix("$$ ") else { return nil }
+
+        if trimmed.count > 2, trimmed.hasSuffix("$$") {
+            let start = trimmed.index(trimmed.startIndex, offsetBy: 2)
+            let end = trimmed.index(trimmed.endIndex, offsetBy: -2)
+            let expression = String(trimmed[start ..< end]).trimmed
+            index += 1
+            return .mathBlock(expression)
+        }
+
+        var mathLines: [String] = []
+        index += 1
+
+        while index < lines.count {
+            if currentLine.trimmed == "$$" {
+                index += 1
+                break
+            }
+
+            mathLines.append(currentLine)
+            index += 1
+        }
+
+        return .mathBlock(mathLines.joined(separator: "\n"))
+    }
+
+    private mutating func parseIndentedCodeBlock() -> MarkdownBlock? {
+        guard currentLine.hasPrefix("    ") || currentLine.hasPrefix("\t") else { return nil }
+
+        var codeLines: [String] = []
+
+        while index < lines.count {
+            let line = currentLine
+
+            if line.hasPrefix("    ") {
+                codeLines.append(String(line.dropFirst(4)))
+                index += 1
+                continue
+            }
+
+            if line.hasPrefix("\t") {
+                codeLines.append(String(line.dropFirst()))
+                index += 1
+                continue
+            }
+
+            if line.trimmed.isEmpty {
+                codeLines.append("")
+                index += 1
+                continue
+            }
+
+            break
+        }
+
+        return .codeBlock(language: nil, code: codeLines.joined(separator: "\n"))
     }
 
     private mutating func parseTable() -> MarkdownBlock? {
@@ -158,6 +244,10 @@ private struct BlockParser {
     }
 
     private mutating func parseHeading() -> MarkdownBlock? {
+        if let setextHeading = parseSetextHeading() {
+            return setextHeading
+        }
+
         let trimmed = currentLine.trimmed
         let hashes = trimmed.prefix { character in
             character == "#"
@@ -173,6 +263,18 @@ private struct BlockParser {
         index += 1
 
         return .heading(level: hashes, text: text, anchor: Self.anchor(for: text))
+    }
+
+    private mutating func parseSetextHeading() -> MarkdownBlock? {
+        guard let underline = line(at: 1)?.trimmed else { return nil }
+        guard !currentLine.trimmed.isEmpty else { return nil }
+        guard underline.allSatisfy({ $0 == "=" }) || underline.allSatisfy({ $0 == "-" }) else { return nil }
+        guard underline.count >= 2 else { return nil }
+
+        let level = underline.first == "=" ? 1 : 2
+        let text = currentLine.trimmed
+        index += 2
+        return .heading(level: level, text: text, anchor: Self.anchor(for: text))
     }
 
     private mutating func parseThematicBreak() -> MarkdownBlock? {
@@ -238,6 +340,77 @@ private struct BlockParser {
         return .image(alt: image.alt, source: image.source, title: image.title)
     }
 
+    private mutating func parseFootnoteDefinition() -> MarkdownBlock? {
+        let trimmed = currentLine.trimmed
+        guard trimmed.hasPrefix("[^") else { return nil }
+        guard let close = trimmed.firstIndex(of: "]") else { return nil }
+
+        let colonIndex = trimmed.index(after: close)
+        guard colonIndex < trimmed.endIndex, trimmed[colonIndex] == ":" else { return nil }
+
+        let idStart = trimmed.index(trimmed.startIndex, offsetBy: 2)
+        let identifier = String(trimmed[idStart ..< close])
+        let textStart = trimmed.index(after: colonIndex)
+        var textLines = [String(trimmed[textStart...]).trimmed]
+        index += 1
+
+        while index < lines.count {
+            let line = currentLine
+            guard line.hasPrefix("    ") || line.hasPrefix("\t") else { break }
+            textLines.append(line.trimmed)
+            index += 1
+        }
+
+        return .footnoteDefinition(identifier: identifier, text: textLines.joined(separator: " "))
+    }
+
+    private mutating func parseDefinitionList() -> MarkdownBlock? {
+        guard let definitionLine = line(at: 1)?.trimmed else { return nil }
+        guard definitionLine.hasPrefix(": ") || definitionLine.hasPrefix("~ ") else { return nil }
+        guard !currentLine.trimmed.isEmpty else { return nil }
+
+        var items: [DefinitionItem] = []
+
+        while index < lines.count {
+            let term = currentLine.trimmed
+            guard !term.isEmpty else { break }
+            guard let next = line(at: 1)?.trimmed, next.hasPrefix(": ") || next.hasPrefix("~ ") else { break }
+
+            index += 1
+            var definitions: [String] = []
+
+            while index < lines.count {
+                let candidate = currentLine.trimmed
+                if candidate.hasPrefix(": ") || candidate.hasPrefix("~ ") {
+                    definitions.append(String(candidate.dropFirst(2)).trimmed)
+                    index += 1
+                    continue
+                }
+
+                if currentLine.hasPrefix("    ") || currentLine.hasPrefix("\t") {
+                    if definitions.isEmpty {
+                        definitions.append(currentLine.trimmed)
+                    } else {
+                        definitions[definitions.count - 1] += " " + currentLine.trimmed
+                    }
+                    index += 1
+                    continue
+                }
+
+                break
+            }
+
+            items.append(DefinitionItem(term: term, definitions: definitions))
+
+            guard index + 1 < lines.count else { break }
+            let upcomingDefinition = line(at: 1)?.trimmed ?? ""
+            guard upcomingDefinition.hasPrefix(": ") || upcomingDefinition.hasPrefix("~ ") else { break }
+        }
+
+        guard !items.isEmpty else { return nil }
+        return .definitionList(items)
+    }
+
     private mutating func parseHTMLBlock() -> MarkdownBlock? {
         let trimmed = currentLine.trimmed
         guard trimmed.hasPrefix("<"), trimmed.hasSuffix(">") else { return nil }
@@ -254,8 +427,11 @@ private struct BlockParser {
             let line = currentLine
             if line.trimmed.isEmpty { break }
             if line.trimmed.hasPrefix("```") || line.trimmed.hasPrefix("~~~") { break }
+            if line.trimmed == "$$" || line.trimmed.hasPrefix("$$ ") { break }
             if Self.isTableSeparator(line) { break }
             if Self.parseListLine(line) != nil { break }
+            if Self.isFootnoteDefinition(line) { break }
+            if Self.isDefinitionLine(self.line(at: 1)) { break }
             if line.trimmed.hasPrefix(">") { break }
             if Self.headingLevel(line) != nil { break }
 
@@ -273,6 +449,20 @@ private struct BlockParser {
         let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
         guard markerEnd < trimmed.endIndex, trimmed[markerEnd] == " " else { return nil }
         return hashes
+    }
+
+    private static func isFootnoteDefinition(_ line: String) -> Bool {
+        let trimmed = line.trimmed
+        guard trimmed.hasPrefix("[^") else { return false }
+        guard let close = trimmed.firstIndex(of: "]") else { return false }
+        let colonIndex = trimmed.index(after: close)
+        return colonIndex < trimmed.endIndex && trimmed[colonIndex] == ":"
+    }
+
+    private static func isDefinitionLine(_ line: String?) -> Bool {
+        guard let line else { return false }
+        let trimmed = line.trimmed
+        return trimmed.hasPrefix(": ") || trimmed.hasPrefix("~ ")
     }
 
     private static func parseListLine(_ line: String) -> ParsedListLine? {

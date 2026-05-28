@@ -1,4 +1,5 @@
 import AppKit
+import MdoraCore
 import SwiftUI
 
 struct MarkdownEditor: View {
@@ -121,10 +122,14 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 wrapSelection(prefix: "**", suffix: "**", placeholder: "bold text")
             case .italic:
                 wrapSelection(prefix: "*", suffix: "*", placeholder: "italic text")
+            case .strikethrough:
+                wrapSelection(prefix: "~~", suffix: "~~", placeholder: "struck text")
             case .inlineCode:
                 wrapSelection(prefix: "`", suffix: "`", placeholder: "code")
             case .link:
                 wrapSelection(prefix: "[", suffix: "](https://example.com)", placeholder: "link text")
+            case .wikiLink:
+                wrapSelection(prefix: "[[", suffix: "]]", placeholder: "Page Name")
             case .image:
                 replaceSelection(with: "![alt text](image.png)")
             case let .heading(level):
@@ -139,10 +144,33 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 prefixSelectedLines(with: "- [ ] ")
             case .codeBlock:
                 wrapSelection(prefix: "```text\n", suffix: "\n```", placeholder: "code")
+            case .mathBlock:
+                wrapSelection(prefix: "$$\n", suffix: "\n$$", placeholder: "E = mc^2")
+            case let .diagram(kind):
+                wrapSelection(prefix: "```\(kind.rawValue)\n", suffix: "\n```", placeholder: diagramPlaceholder(for: kind))
+            case .footnote:
+                replaceSelection(with: "[^1]\n\n[^1]: Footnote text")
+            case .definitionList:
+                replaceSelection(with: "Term\n: Definition")
             case .table:
                 replaceSelection(with: "| Name | Value |\n| --- | --- |\n| Mdora | Native Markdown |")
             case let .callout(kind):
                 replaceSelection(with: "> [!\(kind.rawValue.uppercased())]\n> \(kind.title)")
+            }
+        }
+
+        private func diagramPlaceholder(for kind: DiagramKind) -> String {
+            switch kind {
+            case .mermaid:
+                "flowchart LR\n    A[Start] --> B[Mdora]"
+            case .graphviz:
+                "digraph G {\n    A -> B\n}"
+            case .plantuml:
+                "@startuml\nAlice -> Bob: Hello\n@enduml"
+            case .sequence:
+                "Alice->Bob: Hello"
+            case .flowchart:
+                "start=>start: Start\nend=>end: End\nstart->end"
             }
         }
 
@@ -217,15 +245,31 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
             ])
+            highlightInline(pattern: #"~~[^~]+~~"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.muted,
+                .strikethroughStyle: NSUnderlineStyle.single.rawValue
+            ])
             highlightInline(pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
+            ])
+            highlightInline(pattern: #"\[\[[^\]]+\]\]"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.accent.withAlphaComponent(0.12)
+            ])
+            highlightInline(pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.code
             ])
             highlightInline(pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
             ])
             highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
+            ])
+            highlightInline(pattern: #"(?im)^\s*(?:[-*]\s+)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
             ])
             textStorage.endEditing()
 
@@ -250,6 +294,14 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                         .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
                     ], range: lineRange)
                     isInFence.toggle()
+                    return
+                }
+
+                if trimmed == "$$" || trimmed.hasPrefix("$$ ") {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                    ], range: lineRange)
                     return
                 }
 

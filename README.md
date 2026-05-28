@@ -25,10 +25,12 @@ The first build includes:
 - Native macOS document open/save behavior for Markdown text files.
 - Editor, split, and preview layout modes.
 - Native text editor with formatting commands for headings, lists, tasks, links, code, tables, images, and callouts.
-- Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, HTML blocks, and front matter.
+- Formatting commands for strikethrough, wiki links, math blocks, diagrams, footnotes, and definition lists.
+- Block-based live preview for headings, paragraphs, blockquotes, callouts, lists, task lists, tables, images, code fences, diagrams, math blocks, footnotes, definition lists, HTML blocks, and front matter.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
-- Inspector for outline, tags, mentions, links, images, footnotes, code languages, and callouts.
-- Status bar with word, character, line, link, and tag counts.
+- Inspector for outline, tags, mentions, wiki links, links, automatic links, images, footnotes, math, code languages, diagrams, TODO-style tokens, and callouts.
+- Subtle preview update animation and animated layout changes.
+- Status bar with word, character, line, link, tag, flag, and diagram counts.
 - HTML export.
 
 ## Product Direction
@@ -54,7 +56,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented Markdown block parser for preview, export, and marker detection.
+- Parser: MdoraCore line-oriented Markdown block parser for preview, export, and marker detection, including GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, and definition lists.
 
 Future stack candidates:
 

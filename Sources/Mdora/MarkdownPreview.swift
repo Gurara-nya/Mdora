@@ -4,6 +4,7 @@ import SwiftUI
 struct MarkdownPreview: View {
     let markdown: String
     let theme: MdoraTheme
+    @State private var updatePulse = false
 
     private var document: ParsedMarkdownDocument {
         MarkdownParser.parse(markdown)
@@ -25,7 +26,20 @@ struct MarkdownPreview: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(theme.palette.previewColor)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(theme.palette.accentColor)
+                .frame(height: 2)
+                .opacity(updatePulse ? 0.75 : 0)
+                .animation(.easeOut(duration: 0.28), value: updatePulse)
+        }
         .animation(.easeInOut(duration: 0.18), value: markdown)
+        .onChange(of: markdown) { _, _ in
+            updatePulse = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+                updatePulse = false
+            }
+        }
     }
 }
 
@@ -53,8 +67,16 @@ private struct MarkdownBlockView: View {
             TaskListBlockView(items: items, theme: theme)
         case let .codeBlock(language, code):
             CodeBlockView(language: language, code: code, theme: theme)
+        case let .diagram(diagram):
+            DiagramBlockView(diagram: diagram, theme: theme)
+        case let .mathBlock(expression):
+            MathBlockView(expression: expression, theme: theme)
         case let .table(table):
             TableBlockView(table: table, theme: theme)
+        case let .definitionList(items):
+            DefinitionListView(items: items, theme: theme)
+        case let .footnoteDefinition(identifier, text):
+            FootnoteDefinitionView(identifier: identifier, text: text, theme: theme)
         case let .image(alt, source, title):
             ImageBlockView(alt: alt, source: source, title: title, theme: theme)
         case .thematicBreak:
@@ -272,6 +294,130 @@ private struct CodeBlockView: View {
     }
 }
 
+private struct DiagramBlockView: View {
+    let diagram: DiagramBlock
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(diagram.kind.title, systemImage: diagram.kind.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.accentColor)
+                .textCase(.uppercase)
+
+            DiagramPreviewCanvas(kind: diagram.kind, source: diagram.source, theme: theme)
+
+            DisclosureGroup {
+                Text(diagram.source)
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .foregroundStyle(theme.palette.mutedColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 6)
+            } label: {
+                Text("Source")
+                    .font(.caption)
+                    .foregroundStyle(theme.palette.mutedColor)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.accentColor.opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
+private struct DiagramPreviewCanvas: View {
+    let kind: DiagramKind
+    let source: String
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                ForEach(0 ..< nodeCount, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(theme.palette.previewColor)
+                        .frame(width: 82, height: 38)
+                        .overlay(
+                            Text(nodeTitle(index))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(theme.palette.textColor)
+                                .lineLimit(1)
+                                .padding(.horizontal, 8)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(theme.palette.borderColor.opacity(0.5), lineWidth: 1)
+                        )
+
+                    if index < nodeCount - 1 {
+                        Image(systemName: "arrow.right")
+                            .foregroundStyle(theme.palette.accentColor)
+                    }
+                }
+            }
+
+            Text(kind.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.mutedColor)
+        }
+        .frame(maxWidth: .infinity, minHeight: 118)
+        .padding(12)
+        .background(theme.palette.previewColor.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var nodeCount: Int {
+        min(4, max(2, source.components(separatedBy: .newlines).filter { !$0.trimmedForPreview.isEmpty }.count))
+    }
+
+    private func nodeTitle(_ index: Int) -> String {
+        let candidates = source
+            .components(separatedBy: .newlines)
+            .map(\.trimmedForPreview)
+            .filter { !$0.isEmpty }
+
+        guard candidates.indices.contains(index) else {
+            return "Node \(index + 1)"
+        }
+
+        return String(candidates[index].prefix(18))
+    }
+}
+
+private struct MathBlockView: View {
+    let expression: String
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Math", systemImage: "function")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.accentColor)
+
+            Text(expression)
+                .font(.system(size: 18, weight: .medium, design: .serif))
+                .textSelection(.enabled)
+                .foregroundStyle(theme.palette.textColor)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 10)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.borderColor.opacity(0.38), lineWidth: 1)
+        )
+    }
+}
+
 private struct TableBlockView: View {
     let table: TableBlock
     let theme: MdoraTheme
@@ -334,6 +480,57 @@ private struct TableCell: View {
             .padding(.vertical, 8)
             .background(isHeader ? theme.palette.surfaceColor : theme.palette.previewColor)
             .border(theme.palette.borderColor.opacity(0.38), width: 0.5)
+    }
+}
+
+private struct DefinitionListView: View {
+    let items: [DefinitionItem]
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                VStack(alignment: .leading, spacing: 6) {
+                    InlineMarkdownText(item.term, theme: theme)
+                        .font(.system(size: 15, weight: .semibold))
+
+                    ForEach(Array(item.definitions.enumerated()), id: \.offset) { _, definition in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Rectangle()
+                                .fill(theme.palette.borderColor)
+                                .frame(width: 3, height: 16)
+
+                            InlineMarkdownText(definition, theme: theme)
+                                .foregroundStyle(theme.palette.mutedColor)
+                        }
+                        .padding(.leading, 12)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct FootnoteDefinitionView: View {
+    let identifier: String
+    let text: String
+    let theme: MdoraTheme
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(identifier)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.accentColor)
+                .frame(width: 30, alignment: .trailing)
+
+            InlineMarkdownText(text, theme: theme)
+                .font(.caption)
+                .foregroundStyle(theme.palette.mutedColor)
+        }
+        .padding(10)
+        .background(theme.palette.surfaceColor.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -450,7 +647,7 @@ private extension CalloutKind {
         case .failure:
             "xmark.octagon"
         case .bug:
-            "ladybug"
+            "exclamationmark.triangle"
         case .example:
             "shippingbox"
         case .quote:
@@ -475,5 +672,28 @@ private extension CalloutKind {
         case .quote:
             .secondary
         }
+    }
+}
+
+private extension DiagramKind {
+    var systemImage: String {
+        switch self {
+        case .mermaid:
+            "point.3.connected.trianglepath.dotted"
+        case .graphviz:
+            "circle.hexagongrid"
+        case .plantuml:
+            "rectangle.3.group"
+        case .sequence:
+            "arrow.left.arrow.right"
+        case .flowchart:
+            "flowchart"
+        }
+    }
+}
+
+private extension String {
+    var trimmedForPreview: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

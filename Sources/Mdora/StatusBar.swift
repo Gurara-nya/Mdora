@@ -14,6 +14,8 @@ struct StatusBar: View {
             Text("\(stats.lines) lines")
             Text("\(markers.links.count) links")
             Text("\(markers.tags.count) tags")
+            Text("\(markers.taskTokens.count) flags")
+            Text("\(markers.diagrams.count) diagrams")
 
             Spacer()
 

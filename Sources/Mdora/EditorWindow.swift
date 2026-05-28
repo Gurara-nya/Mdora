@@ -80,6 +80,7 @@ struct EditorWindow: View {
                     Image(systemName: "bold")
                 }
                 .help("Bold")
+                .keyboardShortcut("b", modifiers: .command)
 
                 Button {
                     commandCenter.send(.italic)
@@ -87,6 +88,14 @@ struct EditorWindow: View {
                     Image(systemName: "italic")
                 }
                 .help("Italic")
+                .keyboardShortcut("i", modifiers: .command)
+
+                Button {
+                    commandCenter.send(.strikethrough)
+                } label: {
+                    Image(systemName: "strikethrough")
+                }
+                .help("Strikethrough")
 
                 Button {
                     commandCenter.send(.inlineCode)
@@ -101,6 +110,14 @@ struct EditorWindow: View {
                     Image(systemName: "link")
                 }
                 .help("Link")
+                .keyboardShortcut("k", modifiers: .command)
+
+                Button {
+                    commandCenter.send(.wikiLink)
+                } label: {
+                    Image(systemName: "rectangle.stack.badge.plus")
+                }
+                .help("Wiki link")
 
                 Divider()
 
@@ -150,12 +167,38 @@ struct EditorWindow: View {
                 }
                 .help("Code block")
 
-                Button {
-                    commandCenter.send(.table)
+                Menu {
+                    Button("Image") {
+                        commandCenter.send(.image)
+                    }
+
+                    Button("Table") {
+                        commandCenter.send(.table)
+                    }
+
+                    Button("Math Block") {
+                        commandCenter.send(.mathBlock)
+                    }
+
+                    Button("Footnote") {
+                        commandCenter.send(.footnote)
+                    }
+
+                    Button("Definition List") {
+                        commandCenter.send(.definitionList)
+                    }
+
+                    Divider()
+
+                    ForEach(DiagramKind.allCases, id: \.self) { kind in
+                        Button(kind.title) {
+                            commandCenter.send(.diagram(kind))
+                        }
+                    }
                 } label: {
-                    Image(systemName: "tablecells")
+                    Image(systemName: "plus.square.on.square")
                 }
-                .help("Table")
+                .help("Insert block")
 
                 Menu {
                     ForEach(CalloutKind.allCases, id: \.self) { kind in

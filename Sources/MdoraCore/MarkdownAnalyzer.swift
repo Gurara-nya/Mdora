@@ -15,15 +15,29 @@ public enum MarkdownAnalyzer {
         var markers = MarkdownMarkers()
 
         markers.links = unique(matches(in: markdown, pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, group: 2))
+        markers.autoLinks = unique(matches(in: markdown, pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, group: 1))
         markers.images = unique(matches(in: markdown, pattern: #"\!\[([^\]]*)\]\(([^\)]+)\)"#, group: 2))
         markers.tags = unique(matches(in: markdown, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, group: 1))
         markers.mentions = unique(matches(in: markdown, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, group: 1))
+        markers.wikiLinks = unique(matches(in: markdown, pattern: #"\[\[([^\]]+)\]\]"#, group: 1))
         markers.footnotes = unique(matches(in: markdown, pattern: #"\[\^([^\]]+)\]"#, group: 1))
+        markers.taskTokens = taskTokens(in: markdown)
+        markers.mathExpressions = unique(mathExpressions(in: markdown, blocks: blocks))
 
         markers.codeLanguages = unique(
             blocks.compactMap { block in
                 if case let .codeBlock(language, _) = block {
                     return language?.lowercased()
+                }
+
+                return nil
+            }
+        )
+
+        markers.diagrams = unique(
+            blocks.compactMap { block in
+                if case let .diagram(diagram) = block {
+                    return diagram.kind
                 }
 
                 return nil
@@ -80,5 +94,48 @@ public enum MarkdownAnalyzer {
         }
 
         return result
+    }
+
+    private static func taskTokens(in markdown: String) -> [TaskToken] {
+        let pattern = #"(?im)^\s*(?:[-*]\s+)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b[:：]?\s*(.*)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+            return []
+        }
+
+        let range = NSRange(markdown.startIndex ..< markdown.endIndex, in: markdown)
+        let matches = expression.matches(in: markdown, range: range)
+
+        let tokens = matches.compactMap { match -> TaskToken? in
+            guard match.numberOfRanges >= 3 else { return nil }
+            guard let markerRange = Range(match.range(at: 1), in: markdown) else { return nil }
+            guard let kind = TaskTokenKind(marker: String(markdown[markerRange])) else { return nil }
+
+            let text: String
+            if let textRange = Range(match.range(at: 2), in: markdown) {
+                text = String(markdown[textRange]).trimmingCharacters(in: .whitespaces)
+            } else {
+                text = ""
+            }
+
+            return TaskToken(kind: kind, text: text)
+        }
+
+        return unique(tokens)
+    }
+
+    private static func mathExpressions(in markdown: String, blocks: [MarkdownBlock]) -> [String] {
+        var expressions = blocks.compactMap { block -> String? in
+            if case let .mathBlock(expression) = block {
+                return expression
+            }
+
+            return nil
+        }
+
+        expressions.append(contentsOf: matches(in: markdown, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, group: 1))
+
+        return expressions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }

@@ -32,8 +32,13 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Tags", value: document.markers.tags.count, systemImage: "number", theme: theme)
                         MarkerRow(title: "Mentions", value: document.markers.mentions.count, systemImage: "at", theme: theme)
                         MarkerRow(title: "Links", value: document.markers.links.count, systemImage: "link", theme: theme)
+                        MarkerRow(title: "Auto Links", value: document.markers.autoLinks.count, systemImage: "link.badge.plus", theme: theme)
+                        MarkerRow(title: "Wiki Links", value: document.markers.wikiLinks.count, systemImage: "rectangle.stack", theme: theme)
                         MarkerRow(title: "Images", value: document.markers.images.count, systemImage: "photo", theme: theme)
                         MarkerRow(title: "Footnotes", value: document.markers.footnotes.count, systemImage: "text.badge.checkmark", theme: theme)
+                        MarkerRow(title: "Math", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
+                        MarkerRow(title: "Diagrams", value: document.markers.diagrams.count, systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
+                        MarkerRow(title: "Tokens", value: document.markers.taskTokens.count, systemImage: "flag", theme: theme)
                         MarkerRow(title: "Callouts", value: document.markers.callouts.count, systemImage: "exclamationmark.bubble", theme: theme)
                     }
                 }
@@ -41,7 +46,12 @@ struct DocumentInspector: View {
                 MarkerList(title: "Tags", values: document.markers.tags.map { "#\($0)" }, systemImage: "number", theme: theme)
                 MarkerList(title: "Mentions", values: document.markers.mentions.map { "@\($0)" }, systemImage: "at", theme: theme)
                 MarkerList(title: "Code", values: document.markers.codeLanguages, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
+                MarkerList(title: "Diagrams", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
+                MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { "[[\($0)]]" }, systemImage: "rectangle.stack", theme: theme)
+                MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
+                MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
                 MarkerList(title: "Links", values: document.markers.links, systemImage: "link", theme: theme)
+                MarkerList(title: "Auto Links", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Images", values: document.markers.images, systemImage: "photo", theme: theme)
             }
             .padding(14)

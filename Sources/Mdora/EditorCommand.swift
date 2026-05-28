@@ -17,8 +17,10 @@ struct EditorCommand: Equatable {
 enum EditorAction: Equatable {
     case bold
     case italic
+    case strikethrough
     case inlineCode
     case link
+    case wikiLink
     case image
     case heading(Int)
     case quote
@@ -26,6 +28,10 @@ enum EditorAction: Equatable {
     case orderedList
     case task
     case codeBlock
+    case mathBlock
+    case diagram(DiagramKind)
+    case footnote
+    case definitionList
     case table
     case callout(CalloutKind)
 }

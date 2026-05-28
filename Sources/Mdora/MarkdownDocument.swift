@@ -34,10 +34,12 @@ extension MarkdownDocument {
 
     # Untitled
 
-    Start writing in Markdown. Try **bold**, *italic*, `inline code`, #tags, @mentions, and [links](https://example.com).
+    Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, `inline code`, #tags, @mentions, [[Wiki Links]], and [links](https://example.com).
 
     > [!NOTE]
     > Mdora recognizes callouts, symbols, tables, code fences, links, images, and document outline markers.
+
+    TODO: Make the editor feel fast and calm.
 
     - Open an existing `.md` file.
     - Save with Command-S.
@@ -54,6 +56,26 @@ extension MarkdownDocument {
     ```swift
     let app = "Mdora"
     ```
+
+    $$
+    E = mc^2
+    $$
+
+    ```mermaid
+    flowchart LR
+        Idea --> Draft
+        Draft --> Preview
+    ```
+
+    Markdown
+    : A plain text format with structure.
+
+    Typora
+    : A reference point for calm Markdown editing.
+
+    Footnotes work too.[^1]
+
+    [^1]: Mdora keeps this as Markdown source.
     """
 }
 
