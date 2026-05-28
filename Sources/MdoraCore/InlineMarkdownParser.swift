@@ -416,7 +416,7 @@ private struct InlineParser {
     private mutating func consumeImage() -> InlineMarkdownSegment? {
         guard hasPrefix("![") else { return nil }
         let altStart = text.index(index, offsetBy: 2)
-        guard let closeAlt = closingIndex(for: "]", after: altStart) else { return nil }
+        guard let closeAlt = closingBracketIndex(after: altStart) else { return nil }
 
         let alt = String(text[altStart ..< closeAlt])
         let afterAlt = text.index(after: closeAlt)
@@ -463,7 +463,7 @@ private struct InlineParser {
         }
 
         let textStart = text.index(after: index)
-        guard let closeText = closingIndex(for: "]", after: textStart) else { return nil }
+        guard let closeText = closingBracketIndex(after: textStart) else { return nil }
 
         let labelText = String(text[textStart ..< closeText])
         let afterText = text.index(after: closeText)
@@ -631,8 +631,34 @@ private struct InlineParser {
     private func parseBracketedText(from open: String.Index) -> (value: String, end: String.Index)? {
         guard text[open] == "[" else { return nil }
         let contentStart = text.index(after: open)
-        guard let close = closingIndex(for: "]", after: contentStart) else { return nil }
+        guard let close = closingBracketIndex(after: contentStart) else { return nil }
         return (String(text[contentStart ..< close]), text.index(after: close))
+    }
+
+    private func closingBracketIndex(after start: String.Index) -> String.Index? {
+        var cursor = start
+        var nestedDepth = 0
+
+        while cursor < text.endIndex {
+            if isEscaped(cursor) {
+                cursor = text.index(after: cursor)
+                continue
+            }
+
+            if text[cursor] == "[" {
+                nestedDepth += 1
+            } else if text[cursor] == "]" {
+                if nestedDepth == 0 {
+                    return cursor
+                }
+
+                nestedDepth -= 1
+            }
+
+            cursor = text.index(after: cursor)
+        }
+
+        return nil
     }
 
     private func closingIndex(for marker: String, after start: String.Index) -> String.Index? {

@@ -111,6 +111,25 @@ func runTests() {
     assert(balancedDestinationHTML.contains(#"<img src="assets/chart_(1).png" alt="Chart" title="Chart (1)">"#))
     print("✅ Inline links and images keep balanced parentheses inside destinations and titles!")
 
+    // 4d. Test nested brackets in inline link text and image alt text
+    let nestedBracketMarkdown = "[A [nested] label](https://example.com) and ![Alt [v2]](image.png)"
+    let nestedBracketSegments = InlineMarkdownParser.parse(nestedBracketMarkdown)
+    let nestedLinkLabels = nestedBracketSegments.compactMap { segment -> String? in
+        if case let .link(label, _, _) = segment { return label }
+        return nil
+    }
+    let nestedImageAlts = nestedBracketSegments.compactMap { segment -> String? in
+        if case let .image(alt, _, _) = segment { return alt }
+        return nil
+    }
+    assert(nestedLinkLabels == ["A [nested] label"])
+    assert(nestedImageAlts == ["Alt [v2]"])
+
+    let nestedBracketHTML = MarkdownHTMLRenderer.renderFragment(nestedBracketMarkdown)
+    assert(nestedBracketHTML.contains(#"<a href="https://example.com">A [nested] label</a>"#))
+    assert(nestedBracketHTML.contains(#"<img src="image.png" alt="Alt [v2]">"#))
+    print("✅ Inline links and images keep nested brackets inside labels and alt text!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat

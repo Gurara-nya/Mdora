@@ -34,6 +34,7 @@
 - Preserve CommonMark hard line breaks in preview and HTML export.
 - Support CommonMark multi-backtick code spans with spacing normalization across preview, export, and editor highlighting.
 - Keep balanced parentheses inside inline link and image destinations.
+- Keep nested brackets inside inline link labels and image alt text.
 - Decode and inspect HTML entity references in preview and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Add inline HTML tag recognition across preview, export, inspector, and editor highlighting.
