@@ -99,7 +99,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Critic Notes", values: document.markers.criticComments.map { "{>>\($0)<<}" }, systemImage: "text.bubble", theme: theme)
                 MarkerList(title: "Critic Highlights", values: document.markers.criticHighlights.map { "{==\($0)==}" }, systemImage: "highlighter", theme: theme)
                 MarkerList(title: "Citations", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
-                MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map { ":\($0):" }, systemImage: "face.smiling", theme: theme)
+                MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map(MarkdownEmojiShortcode.displayName), systemImage: "face.smiling", theme: theme)
                 MarkerList(title: "Keyboard", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
                 MarkerList(title: "Links", values: document.markers.links, systemImage: "link", theme: theme)
                 MarkerList(title: "Auto Links", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)

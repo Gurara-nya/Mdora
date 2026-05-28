@@ -351,6 +351,10 @@ public enum MarkdownHTMLRenderer {
         case let .citation(identifier):
             return "<span class=\"citation\">[@\(escapeHTML(identifier))]</span>"
         case let .emojiShortcode(name):
+            if let emoji = MarkdownEmojiShortcode.emoji(for: name) {
+                return "<span class=\"emoji-shortcode\" title=\":\(escapeHTML(name)):\">\(emoji)</span>"
+            }
+
             return "<span class=\"emoji-shortcode\">:\(escapeHTML(name)):</span>"
         case let .keyboard(value):
             return "<kbd>\(escapeHTML(value))</kbd>"
@@ -531,6 +535,10 @@ public enum MarkdownHTMLRenderer {
         .citation, .emoji-shortcode {
           opacity: 0.82;
           font-variant-numeric: tabular-nums;
+        }
+        .emoji-shortcode {
+          font-size: 1.05em;
+          vertical-align: -0.02em;
         }
         .diagram, .math-block {
           border-radius: 8px;

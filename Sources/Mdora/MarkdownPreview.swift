@@ -914,7 +914,7 @@ private struct InlineMarkdownText: View {
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.mutedColor)
         case let .emojiShortcode(name):
-            Text(":\(name):")
+            Text(MarkdownEmojiShortcode.emoji(for: name) ?? ":\(name):")
                 .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
                 .foregroundColor(theme.palette.accentColor)
         case let .keyboard(value):

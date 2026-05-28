@@ -24,6 +24,7 @@
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
+- Render common emoji shortcodes as emoji in preview and HTML export.
 - Add Typora-style superscript and subscript markers across preview, export, inspector, and editor highlighting.
 - Add CriticMarkup review marks for additions, deletions, substitutions, comments, and editorial highlights.
 - Add CommonMark angle-bracket autolinks for URLs and email addresses.
