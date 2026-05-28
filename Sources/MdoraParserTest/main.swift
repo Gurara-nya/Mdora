@@ -92,6 +92,25 @@ func runTests() {
     assert(codeSpanHTML.contains("<code>`&lt;tag&gt;` &amp; value</code>"))
     print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
 
+    // 4c. Test balanced parentheses in inline link and image destinations
+    let balancedDestinationMarkdown = #"[Wiki](https://example.com/a_(b)) and ![Chart](assets/chart_(1).png "Chart (1)")"#
+    let balancedDestinationSegments = InlineMarkdownParser.parse(balancedDestinationMarkdown)
+    let linkDestinations = balancedDestinationSegments.compactMap { segment -> String? in
+        if case let .link(_, destination, _) = segment { return destination }
+        return nil
+    }
+    let imageDestinations = balancedDestinationSegments.compactMap { segment -> String? in
+        if case let .image(_, source, title) = segment { return "\(source)|\(title ?? "")" }
+        return nil
+    }
+    assert(linkDestinations == ["https://example.com/a_(b)"])
+    assert(imageDestinations == ["assets/chart_(1).png|Chart (1)"])
+
+    let balancedDestinationHTML = MarkdownHTMLRenderer.renderFragment(balancedDestinationMarkdown)
+    assert(balancedDestinationHTML.contains(#"<a href="https://example.com/a_(b)">Wiki</a>"#))
+    assert(balancedDestinationHTML.contains(#"<img src="assets/chart_(1).png" alt="Chart" title="Chart (1)">"#))
+    print("✅ Inline links and images keep balanced parentheses inside destinations and titles!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat

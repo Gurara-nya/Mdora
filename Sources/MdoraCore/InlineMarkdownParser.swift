@@ -591,7 +591,7 @@ private struct InlineParser {
     ) -> (destination: String, title: String?, end: String.Index)? {
         guard text[open] == "(" else { return nil }
         let contentStart = text.index(after: open)
-        guard let close = closingIndex(for: ")", after: contentStart) else { return nil }
+        guard let close = closingParenthesisIndex(after: contentStart) else { return nil }
 
         let rawContent = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !rawContent.isEmpty else { return nil }
@@ -600,6 +600,32 @@ private struct InlineParser {
         guard !parsed.destination.isEmpty else { return nil }
 
         return (parsed.destination, parsed.title, text.index(after: close))
+    }
+
+    private func closingParenthesisIndex(after start: String.Index) -> String.Index? {
+        var cursor = start
+        var nestedDepth = 0
+
+        while cursor < text.endIndex {
+            if isEscaped(cursor) {
+                cursor = text.index(after: cursor)
+                continue
+            }
+
+            if text[cursor] == "(" {
+                nestedDepth += 1
+            } else if text[cursor] == ")" {
+                if nestedDepth == 0 {
+                    return cursor
+                }
+
+                nestedDepth -= 1
+            }
+
+            cursor = text.index(after: cursor)
+        }
+
+        return nil
     }
 
     private func parseBracketedText(from open: String.Index) -> (value: String, end: String.Index)? {
