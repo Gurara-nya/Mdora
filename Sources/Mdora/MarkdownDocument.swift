@@ -46,7 +46,7 @@ extension MarkdownDocument {
 
     <!-- Comments are parsed and visible in the inspector. -->
 
-    > [!NOTE]
+    > [!NOTE]+ Rich Markdown markers
     > Mdora recognizes callouts, symbols, tables, code fences, links, images, and document outline markers.
 
     TODO: Make the editor feel fast and calm.

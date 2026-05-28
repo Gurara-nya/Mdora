@@ -277,14 +277,14 @@ private struct FrontMatterView: View {
 
 private struct BlockquoteView: View {
     let lines: [String]
-    let callout: CalloutKind?
+    let callout: Callout?
     let theme: MdoraTheme
 
     var body: some View {
         let visibleLines = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines).lines
 
         if let callout {
-            CalloutView(kind: callout, lines: visibleLines, theme: theme)
+            CalloutView(callout: callout, lines: visibleLines, theme: theme)
         } else {
             HStack(alignment: .top, spacing: 12) {
                 Rectangle()
@@ -304,29 +304,57 @@ private struct BlockquoteView: View {
 }
 
 private struct CalloutView: View {
-    let kind: CalloutKind
+    let callout: Callout
     let lines: [String]
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
+    @State private var isExpanded: Bool
+
+    init(callout: Callout, lines: [String], theme: MdoraTheme) {
+        self.callout = callout
+        self.lines = lines
+        self.theme = theme
+        _isExpanded = State(initialValue: callout.fold != .collapsed)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(kind.title, systemImage: kind.systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(kind.tint)
+            Button {
+                guard callout.fold != nil else { return }
+                withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.16) : nil) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: callout.kind.systemImage)
 
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    InlineMarkdownText(line, theme: theme)
+                    Text(callout.displayTitle)
+
+                    if callout.fold != nil {
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.bold))
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(callout.kind.tint)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                        InlineMarkdownText(line, theme: theme)
+                    }
                 }
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(kind.tint.opacity(0.12))
+        .background(callout.kind.tint.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(kind.tint.opacity(0.36), lineWidth: 1)
+                .stroke(callout.kind.tint.opacity(0.36), lineWidth: 1)
         )
     }
 }
@@ -1092,8 +1120,12 @@ private struct InlineMarkdownText: View {
 private extension CalloutKind {
     var systemImage: String {
         switch self {
+        case .abstract:
+            "doc.text.magnifyingglass"
         case .note:
             "note.text"
+        case .todo:
+            "checklist"
         case .tip:
             "lightbulb"
         case .important:
@@ -1110,6 +1142,8 @@ private extension CalloutKind {
             "questionmark.circle"
         case .failure:
             "xmark.octagon"
+        case .danger:
+            "flame"
         case .bug:
             "exclamationmark.triangle"
         case .example:
@@ -1121,17 +1155,19 @@ private extension CalloutKind {
 
     var tint: Color {
         switch self {
-        case .note, .info:
+        case .note, .info, .abstract:
             .blue
         case .tip, .success:
             .green
+        case .todo:
+            .indigo
         case .important, .example:
             .purple
         case .warning, .caution:
             .orange
         case .question:
             .cyan
-        case .failure, .bug:
+        case .failure, .danger, .bug:
             .red
         case .quote:
             .secondary

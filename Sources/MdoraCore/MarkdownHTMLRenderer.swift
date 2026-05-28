@@ -113,7 +113,7 @@ public enum MarkdownHTMLRenderer {
 
     private static func renderBlockquote(
         lines: [String],
-        callout: CalloutKind?,
+        callout: Callout?,
         context: RenderContext
     ) -> String {
         let parsed = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines)
@@ -124,12 +124,29 @@ public enum MarkdownHTMLRenderer {
             return "<blockquote\(attributes)>\(body)</blockquote>"
         }
 
+        let calloutClass = "callout callout-\(callout.kind.rawValue)"
+        let metadata = " data-callout=\"\(escapeHTML(callout.kind.rawValue))\""
+
+        if let fold = callout.fold {
+            let openAttribute = fold == .expanded ? " open" : ""
+            return [
+                "<details class=\"\(calloutClass)\"\(metadata) data-fold=\"\(fold.rawValue)\"\(attributes)\(openAttribute)>",
+                "  <summary class=\"callout-title\">\(escapeHTML(callout.displayTitle))</summary>",
+                body.isEmpty ? nil : "  <p>\(body)</p>",
+                "</details>"
+            ]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+        }
+
         return [
-            "<aside class=\"callout callout-\(callout.rawValue)\"\(attributes)>",
-            "  <p class=\"callout-title\">\(escapeHTML(callout.title))</p>",
-            "  <p>\(body)</p>",
+            "<aside class=\"\(calloutClass)\"\(metadata)\(attributes)>",
+            "  <p class=\"callout-title\">\(escapeHTML(callout.displayTitle))</p>",
+            body.isEmpty ? nil : "  <p>\(body)</p>",
             "</aside>"
-        ].joined(separator: "\n")
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n")
     }
 
     private static func renderList(
@@ -608,6 +625,8 @@ public enum MarkdownHTMLRenderer {
           border: 1px solid rgba(45, 132, 214, 0.24);
         }
         .callout-title { margin: 0 0 0.35em; font-weight: 700; }
+        summary.callout-title { cursor: pointer; }
+        details.callout:not([open]) { padding-bottom: 12px; }
     """
 }
 

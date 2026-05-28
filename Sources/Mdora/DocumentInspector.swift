@@ -105,6 +105,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Citations", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
                 MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map(MarkdownEmojiShortcode.displayName), systemImage: "face.smiling", theme: theme)
                 MarkerList(title: "Keyboard", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
+                MarkerList(title: "Callouts", values: document.markers.callouts.map(\.inspectorText), systemImage: "exclamationmark.bubble", theme: theme)
                 MarkerList(title: "Links", values: document.markers.links, systemImage: "link", theme: theme)
                 MarkerList(title: "Auto Links", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)
                 MarkerList(title: "Emails", values: document.markers.emailLinks, systemImage: "envelope", theme: theme)

@@ -62,7 +62,7 @@ The parser currently recognizes:
 - Inline emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, code spans, links, reference links, citations, resolved emoji shortcodes, keyboard tags, raw autolinks, CommonMark angle-bracket autolinks, email links, wiki links and embeds with aliases and heading/block targets, tags, mentions, footnotes, images, Markdown Extra abbreviations, and math markers.
 - Block and inline math markers.
 - GFM-style tables and task lists.
-- Blockquotes and GitHub-style callouts.
+- Blockquotes and Obsidian/GitHub-style callouts, including aliases, custom titles, and `+`/`-` fold markers.
 - Footnote definitions and references.
 - Definition lists.
 - Abbreviation definitions, resolved into inline abbreviation rendering for preview and HTML export.

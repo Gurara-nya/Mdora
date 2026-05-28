@@ -415,7 +415,7 @@ private struct BlockParser {
 
         let callout = Self.parseCallout(from: quoteLines.first)
         if callout != nil, !quoteLines.isEmpty {
-            quoteLines[0] = Self.removingCalloutMarker(from: quoteLines[0])
+            quoteLines.removeFirst()
         }
 
         return .blockquote(lines: quoteLines.filter { !$0.isEmpty }, callout: callout)
@@ -804,17 +804,19 @@ private struct BlockParser {
         return nil
     }
 
-    private static func parseCallout(from line: String?) -> CalloutKind? {
+    private static func parseCallout(from line: String?) -> Callout? {
         guard let line, line.hasPrefix("[!") else { return nil }
         guard let close = line.firstIndex(of: "]") else { return nil }
 
         let markerStart = line.index(line.startIndex, offsetBy: 2)
-        return CalloutKind(marker: String(line[markerStart ..< close]))
-    }
+        guard let kind = CalloutKind(marker: String(line[markerStart ..< close])) else { return nil }
 
-    private static func removingCalloutMarker(from line: String) -> String {
-        guard line.hasPrefix("[!"), let close = line.firstIndex(of: "]") else { return line }
-        return String(line[line.index(after: close)...]).trimmed
+        let afterClose = line.index(after: close)
+        let foldMarker = afterClose < line.endIndex ? CalloutFold(marker: line[afterClose]) : nil
+        let titleStart = foldMarker == nil ? afterClose : line.index(after: afterClose)
+        let title = titleStart < line.endIndex ? String(line[titleStart...]).trimmed : ""
+
+        return Callout(kind: kind, title: title.isEmpty ? nil : title, fold: foldMarker)
     }
 
     private static func anchor(for text: String) -> String {

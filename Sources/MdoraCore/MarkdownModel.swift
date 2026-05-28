@@ -55,7 +55,7 @@ public enum MarkdownBlock: Equatable {
     case frontMatter(FrontMatterBlock)
     case heading(level: Int, text: String, anchor: String)
     case paragraph(String)
-    case blockquote(lines: [String], callout: CalloutKind?)
+    case blockquote(lines: [String], callout: Callout?)
     case unorderedList([ListItem])
     case orderedList([ListItem])
     case taskList([TaskItem])
@@ -347,7 +347,9 @@ public enum TableAlignment: String, Equatable {
 }
 
 public enum CalloutKind: String, CaseIterable, Equatable, Hashable {
+    case abstract
     case note
+    case todo
     case tip
     case important
     case warning
@@ -356,6 +358,7 @@ public enum CalloutKind: String, CaseIterable, Equatable, Hashable {
     case success
     case question
     case failure
+    case danger
     case bug
     case example
     case quote
@@ -365,11 +368,81 @@ public enum CalloutKind: String, CaseIterable, Equatable, Hashable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
 
-        self.init(rawValue: normalized)
+        switch normalized {
+        case "summary", "tldr":
+            self = .abstract
+        case "hint":
+            self = .tip
+        case "check", "done":
+            self = .success
+        case "help", "faq":
+            self = .question
+        case "fail", "missing":
+            self = .failure
+        case "error":
+            self = .danger
+        case "attention":
+            self = .warning
+        case "cite":
+            self = .quote
+        default:
+            guard let kind = Self(rawValue: normalized) else { return nil }
+            self = kind
+        }
     }
 
     public var title: String {
         rawValue.capitalized
+    }
+}
+
+public struct Callout: Equatable, Hashable {
+    public var kind: CalloutKind
+    public var title: String?
+    public var fold: CalloutFold?
+
+    public var displayTitle: String {
+        guard let title, !title.isEmpty else { return kind.title }
+        return title
+    }
+
+    public var inspectorText: String {
+        if let fold {
+            return "\(displayTitle) (\(kind.rawValue), \(fold.title))"
+        }
+
+        return "\(displayTitle) (\(kind.rawValue))"
+    }
+
+    public init(kind: CalloutKind, title: String? = nil, fold: CalloutFold? = nil) {
+        self.kind = kind
+        self.title = title
+        self.fold = fold
+    }
+}
+
+public enum CalloutFold: String, Equatable, Hashable {
+    case expanded
+    case collapsed
+
+    public init?(marker: Character?) {
+        switch marker {
+        case "+":
+            self = .expanded
+        case "-":
+            self = .collapsed
+        default:
+            return nil
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .expanded:
+            "expanded"
+        case .collapsed:
+            "collapsed"
+        }
     }
 }
 
@@ -417,7 +490,7 @@ public struct MarkdownMarkers: Equatable {
     public var keyboardShortcuts: [String]
     public var codeLanguages: [String]
     public var diagrams: [DiagramKind]
-    public var callouts: [CalloutKind]
+    public var callouts: [Callout]
 
     public init(
         links: [String] = [],
@@ -450,7 +523,7 @@ public struct MarkdownMarkers: Equatable {
         keyboardShortcuts: [String] = [],
         codeLanguages: [String] = [],
         diagrams: [DiagramKind] = [],
-        callouts: [CalloutKind] = []
+        callouts: [Callout] = []
     ) {
         self.links = links
         self.autoLinks = autoLinks

@@ -17,6 +17,7 @@
 - Add document outline and marker inspection.
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
+- Add richer Obsidian/GitHub callout parsing for aliases, custom titles, and fold markers.
 - Add custom heading anchors for stable outline, table of contents, preview, and HTML export targets.
 - Add Obsidian-style block ids for block references, preview cleanup, inspector recognition, and HTML export anchors.
 - Add Markdown Extra abbreviation definitions with preview, export, and inspector support.
