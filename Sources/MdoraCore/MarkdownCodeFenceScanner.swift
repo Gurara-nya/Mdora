@@ -32,14 +32,30 @@ public enum MarkdownCodeFenceScanner {
     }
 
     public static func fencedLineRanges(in markdown: String) -> [NSRange] {
+        scanFencedLineRanges(in: markdown, intersecting: nil)
+    }
+
+    public static func fencedLineRanges(in markdown: String, intersecting targetRange: NSRange) -> [NSRange] {
+        scanFencedLineRanges(in: markdown, intersecting: targetRange)
+    }
+
+    private static func scanFencedLineRanges(in markdown: String, intersecting targetRange: NSRange?) -> [NSRange] {
         let source = markdown as NSString
         guard source.length > 0 else { return [] }
 
+        let targetRange = targetRange?.clamped(toLength: source.length)
+        let targetUpperBound = targetRange?.upperBound ?? source.length
         var ranges: [NSRange] = []
         var cursor = 0
         var openFence: Fence?
 
         while cursor < source.length {
+            if targetRange != nil,
+               cursor >= targetUpperBound,
+               openFence == nil {
+                break
+            }
+
             let lineRange = source.lineRange(for: NSRange(location: cursor, length: 0))
             let line = source.substring(with: lineRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,7 +63,11 @@ public enum MarkdownCodeFenceScanner {
             if let candidate = delimiter(in: line) {
                 if let open = openFence,
                    isClosingDelimiter(candidate, for: open.delimiter) {
-                    ranges.append(NSRange(location: open.location, length: lineRange.upperBound - open.location))
+                    appendFenceRange(
+                        NSRange(location: open.location, length: lineRange.upperBound - open.location),
+                        intersecting: targetRange,
+                        to: &ranges
+                    )
                     openFence = nil
                 } else if openFence == nil {
                     openFence = Fence(
@@ -63,10 +83,29 @@ public enum MarkdownCodeFenceScanner {
         }
 
         if let openFence {
-            ranges.append(NSRange(location: openFence.location, length: source.length - openFence.location))
+            appendFenceRange(
+                NSRange(location: openFence.location, length: source.length - openFence.location),
+                intersecting: targetRange,
+                to: &ranges
+            )
         }
 
         return ranges
+    }
+
+    private static func appendFenceRange(
+        _ range: NSRange,
+        intersecting targetRange: NSRange?,
+        to ranges: inout [NSRange]
+    ) {
+        guard let targetRange else {
+            ranges.append(range)
+            return
+        }
+
+        if NSIntersectionRange(range, targetRange).length > 0 {
+            ranges.append(range)
+        }
     }
 }
 
@@ -87,4 +126,17 @@ public struct MarkdownCodeFenceDelimiter: Equatable {
 private struct Fence {
     var delimiter: MarkdownCodeFenceDelimiter
     var location: Int
+}
+
+private extension NSRange {
+    var upperBound: Int {
+        location + length
+    }
+
+    func clamped(toLength length: Int) -> NSRange {
+        guard length > 0 else { return NSRange(location: 0, length: 0) }
+        let safeLocation = min(max(0, location), length)
+        let safeUpperBound = min(max(safeLocation, upperBound), length)
+        return NSRange(location: safeLocation, length: safeUpperBound - safeLocation)
+    }
 }

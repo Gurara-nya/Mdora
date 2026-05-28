@@ -29,6 +29,7 @@
 - Protect fenced code ranges from inline editor highlighting so code fences and inner backticks keep the correct color.
 - Parse variable-length CommonMark code fences so shorter inner fences stay inside code blocks.
 - Use shared code fence delimiter logic for editor highlighting, parsing, and unclosed fence diagnostics.
+- Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Continue list, task-list, and ordered-list markers inside blockquotes and nested blockquotes.

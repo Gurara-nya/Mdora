@@ -425,7 +425,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             currentHighlightRange = targetRange
             textStorage.setAttributes(baseAttributes, range: resetRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
-            currentInlineHighlightExcludedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: textView.string)
+            currentInlineHighlightExcludedRanges = MarkdownCodeFenceScanner.fencedLineRanges(
+                in: textView.string,
+                intersecting: targetRange
+            )
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
             ])
@@ -626,7 +629,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let fullRange = currentHighlightRange ?? NSRange(location: 0, length: nsString.length)
             let palette = parent.theme.palette
             let baseSize = parent.fontSize
-            var isInFence = isInsideCodeFence(at: fullRange.location, in: nsString)
+            var openFence = openCodeFenceDelimiter(before: fullRange.location, in: nsString)
 
             let selectedRange = textView.selectedRange()
             let clampedLocation = min(selectedRange.location, max(0, nsString.length - 1))
@@ -635,30 +638,41 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             nsString.enumerateSubstrings(in: fullRange, options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
                 let line = nsString.substring(with: lineRange)
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
+                let fenceDelimiter = MarkdownCodeFenceScanner.delimiter(in: line)
 
                 let isActiveLine = (lineRange.location >= activeLineRange.location && lineRange.location < activeLineRange.upperBound) ||
                                    (activeLineRange.location >= lineRange.location && activeLineRange.location < lineRange.upperBound)
 
                 if self.parent.focusMode && !isActiveLine {
-                    let fadedColor = isInFence ? palette.muted.withAlphaComponent(0.20) : palette.text.withAlphaComponent(0.30)
-                    let bgAttr: [NSAttributedString.Key: Any] = isInFence ? [.backgroundColor: palette.code.withAlphaComponent(0.04)] : [:]
+                    let isFenceContext = openFence != nil || fenceDelimiter != nil
+                    let fadedColor = isFenceContext ? palette.muted.withAlphaComponent(0.20) : palette.text.withAlphaComponent(0.30)
+                    let bgAttr: [NSAttributedString.Key: Any] = isFenceContext ? [.backgroundColor: palette.code.withAlphaComponent(0.04)] : [:]
                     storage.addAttributes([
                         .foregroundColor: fadedColor,
-                        .font: isInFence ? baseFont : NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
+                        .font: isFenceContext ? baseFont : NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
                     ].merging(bgAttr) { $1 }, range: lineRange)
 
-                    if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-                        isInFence.toggle()
-                    }
+                    self.advanceCodeFenceState(with: fenceDelimiter, openFence: &openFence)
                     return
                 }
 
-                if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                if let fenceDelimiter, openFence == nil {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
                         .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
                     ], range: lineRange)
-                    isInFence.toggle()
+                    openFence = fenceDelimiter
+                    return
+                }
+
+                if let fenceDelimiter,
+                   let openingFence = openFence,
+                   MarkdownCodeFenceScanner.isClosingDelimiter(fenceDelimiter, for: openingFence) {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
+                    ], range: lineRange)
+                    openFence = nil
                     return
                 }
 
@@ -678,7 +692,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     return
                 }
 
-                if isInFence {
+                if openFence != nil {
                     storage.addAttributes([
                         .foregroundColor: palette.muted,
                         .backgroundColor: palette.code,
@@ -864,22 +878,20 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             return false
         }
 
-        private func isInsideCodeFence(at location: Int, in string: NSString) -> Bool {
-            guard location > 0, string.length > 0 else { return false }
+        private func openCodeFenceDelimiter(
+            before location: Int,
+            in string: NSString
+        ) -> MarkdownCodeFenceDelimiter? {
+            guard location > 0, string.length > 0 else { return nil }
             var cursor = 0
-            var openFence: String?
+            var openFence: MarkdownCodeFenceDelimiter?
 
             while cursor < min(location, string.length) {
                 let lineRange = string.lineRange(for: NSRange(location: cursor, length: 0))
                 let line = string.substring(with: lineRange).trimmingCharacters(in: .whitespacesAndNewlines)
 
-                if line.hasPrefix("```") || line.hasPrefix("~~~") {
-                    let fence = String(line.prefix(3))
-                    if openFence == fence {
-                        openFence = nil
-                    } else if openFence == nil {
-                        openFence = fence
-                    }
+                if let delimiter = MarkdownCodeFenceScanner.delimiter(in: line) {
+                    advanceCodeFenceState(with: delimiter, openFence: &openFence)
                 }
 
                 let nextCursor = lineRange.upperBound
@@ -887,7 +899,22 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 cursor = nextCursor
             }
 
-            return openFence != nil
+            return openFence
+        }
+
+        private func advanceCodeFenceState(
+            with delimiter: MarkdownCodeFenceDelimiter?,
+            openFence: inout MarkdownCodeFenceDelimiter?
+        ) {
+            guard let delimiter else { return }
+
+            if let openingFence = openFence {
+                if MarkdownCodeFenceScanner.isClosingDelimiter(delimiter, for: openingFence) {
+                    openFence = nil
+                }
+            } else {
+                openFence = delimiter
+            }
         }
 
         @MainActor

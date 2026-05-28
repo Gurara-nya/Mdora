@@ -75,6 +75,19 @@ func runTests() {
     assert(fencedRanges.count == 1)
     assert((fencedHighlightMarkdown as NSString).substring(with: fencedRanges[0]) == "```text\n`not inline`\n```\n")
 
+    let innerFenceRange = (fencedHighlightMarkdown as NSString).range(of: "`not inline`")
+    let visibleFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(
+        in: fencedHighlightMarkdown,
+        intersecting: innerFenceRange
+    )
+    assert(visibleFenceRanges == fencedRanges)
+
+    let afterFenceRange = (fencedHighlightMarkdown as NSString).range(of: "After `inline`")
+    assert(MarkdownCodeFenceScanner.fencedLineRanges(
+        in: fencedHighlightMarkdown,
+        intersecting: afterFenceRange
+    ).isEmpty)
+
     let unclosedFenceMarkdown = "```text\n`still code`"
     let unclosedFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: unclosedFenceMarkdown)
     assert(unclosedFenceRanges.count == 1)
@@ -96,6 +109,11 @@ func runTests() {
     assert(variableFenceLanguage == "swift")
     assert(variableFenceCode == "```text\ninner fence stays code\n```")
     assert(!variableFenceDocument.diagnostics.contains { $0.id.hasPrefix("unclosed-code-fence") })
+    let variableFenceInnerRange = (variableFenceMarkdown as NSString).range(of: "inner fence stays code")
+    assert(MarkdownCodeFenceScanner.fencedLineRanges(
+        in: variableFenceMarkdown,
+        intersecting: variableFenceInnerRange
+    ).count == 1)
 
     let tildeFenceMarkdown = "~~~~mermaid\nflowchart LR\n~~~\n~~~~"
     let tildeFenceDocument = MarkdownParser.parse(tildeFenceMarkdown)
