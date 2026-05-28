@@ -673,16 +673,76 @@ private struct InlineMarkdownText: View {
     }
 
     var body: some View {
-        Text(rendered)
+        rendered
             .foregroundStyle(theme.palette.textColor)
             .textSelection(.enabled)
     }
 
-    private var rendered: AttributedString {
-        do {
-            return try AttributedString(markdown: text)
-        } catch {
-            return AttributedString(text)
+    private var rendered: Text {
+        renderInline(text)
+    }
+
+    private func renderInline(_ source: String) -> Text {
+        InlineMarkdownParser.parse(source).reduce(Text("")) { result, segment in
+            result + render(segment)
+        }
+    }
+
+    private func render(_ segment: InlineMarkdownSegment) -> Text {
+        switch segment {
+        case let .text(value):
+            Text(value)
+        case let .strong(value):
+            renderInline(value).bold()
+        case let .emphasis(value):
+            renderInline(value).italic()
+        case let .strikethrough(value):
+            renderInline(value).strikethrough()
+        case let .code(value):
+            Text(value)
+                .font(.system(size: 14, design: .monospaced))
+                .foregroundColor(theme.palette.accentColor)
+        case let .link(label, _, _), let .referenceLink(label, _):
+            renderInline(label)
+                .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .image(alt, source, _):
+            Text("[image: \(alt.isEmpty ? source : alt)]")
+                .font(.caption)
+                .foregroundColor(theme.palette.accentColor)
+        case let .imageReference(alt, label):
+            Text("[image: \(alt.isEmpty ? label : alt)]")
+                .font(.caption)
+                .foregroundColor(theme.palette.accentColor)
+        case let .autoLink(url):
+            Text(url)
+                .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .email(email):
+            Text(email)
+                .foregroundColor(theme.palette.accentColor)
+                .underline()
+        case let .wikiLink(value):
+            Text("[[\(value)]]")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(theme.palette.accentColor)
+        case let .footnote(identifier):
+            Text("[\(identifier)]")
+                .font(.caption)
+                .baselineOffset(4)
+                .foregroundColor(theme.palette.accentColor)
+        case let .inlineMath(value):
+            Text(value)
+                .font(.system(size: 15, weight: .medium, design: .serif))
+                .foregroundColor(theme.palette.accentColor)
+        case let .tag(value):
+            Text("#\(value)")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(theme.palette.accentColor)
+        case let .mention(value):
+            Text("@\(value)")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(theme.palette.accentColor)
         }
     }
 }

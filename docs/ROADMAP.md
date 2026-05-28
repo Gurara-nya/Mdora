@@ -20,6 +20,7 @@
 - Add front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
+- Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

@@ -38,20 +38,69 @@ public enum MarkdownAnalyzer {
 
     public static func markers(in markdown: String, blocks: [MarkdownBlock]) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
+        let inlineSegments = inlineSegments(from: blocks)
 
-        markers.links = unique(matches(in: markdown, pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, group: 2))
-        markers.autoLinks = unique(matches(in: markdown, pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, group: 1))
-        markers.emailLinks = unique(matches(in: markdown, pattern: #"(?<![\w@])([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})(?![\w@])"#, group: 1))
-        markers.images = unique(matches(in: markdown, pattern: #"\!\[([^\]]*)\]\(([^\)]+)\)"#, group: 2))
-        markers.imageReferences = unique(matches(in: markdown, pattern: #"\!\[[^\]]*\]\[([^\]]*)\]"#, group: 1))
-        markers.tags = unique(matches(in: markdown, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, group: 1))
-        markers.mentions = unique(matches(in: markdown, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, group: 1))
-        markers.wikiLinks = unique(matches(in: markdown, pattern: #"\[\[([^\]]+)\]\]"#, group: 1))
-        markers.footnotes = unique(matches(in: markdown, pattern: #"\[\^([^\]]+)\]"#, group: 1))
-        markers.linkReferences = unique(referenceLabels(in: markdown, blocks: blocks))
+        markers.links = unique(inlineSegments.compactMap { segment in
+            if case let .link(_, destination, _) = segment {
+                return destination
+            }
+
+            return nil
+        })
+        markers.autoLinks = unique(inlineSegments.compactMap { segment in
+            if case let .autoLink(url) = segment {
+                return url
+            }
+
+            return nil
+        })
+        markers.emailLinks = unique(inlineSegments.compactMap { segment in
+            if case let .email(email) = segment {
+                return email
+            }
+
+            return nil
+        })
+        markers.images = unique(inlineSegments.compactMap { segment in
+            if case let .image(_, source, _) = segment {
+                return source
+            }
+
+            return nil
+        })
+        markers.imageReferences = unique(inlineSegments.compactMap { segment in
+            if case let .imageReference(_, label) = segment {
+                return label
+            }
+
+            return nil
+        })
+        markers.tags = unique(inlineSegments.compactMap { segment in
+            if case let .tag(tag) = segment {
+                return tag
+            }
+
+            return nil
+        })
+        markers.mentions = unique(inlineSegments.compactMap { segment in
+            if case let .mention(mention) = segment {
+                return mention
+            }
+
+            return nil
+        })
+        markers.wikiLinks = unique(inlineSegments.compactMap { segment in
+            if case let .wikiLink(value) = segment {
+                return value
+            }
+
+            return nil
+        })
+        markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
+        markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
         markers.taskTokens = taskTokens(in: markdown)
-        markers.mathExpressions = unique(mathExpressions(in: markdown, blocks: blocks))
+        markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))
 
         markers.codeLanguages = unique(
             blocks.compactMap { block in
@@ -237,7 +286,7 @@ public enum MarkdownAnalyzer {
         return unique(tokens)
     }
 
-    private static func mathExpressions(in markdown: String, blocks: [MarkdownBlock]) -> [String] {
+    private static func mathExpressions(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
         var expressions = blocks.compactMap { block -> String? in
             if case let .mathBlock(expression) = block {
                 return expression
@@ -246,14 +295,20 @@ public enum MarkdownAnalyzer {
             return nil
         }
 
-        expressions.append(contentsOf: matches(in: markdown, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, group: 1))
+        expressions.append(contentsOf: segments.compactMap { segment in
+            if case let .inlineMath(expression) = segment {
+                return expression
+            }
+
+            return nil
+        })
 
         return expressions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 
-    private static func referenceLabels(in markdown: String, blocks: [MarkdownBlock]) -> [String] {
+    private static func referenceLabels(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
         var labels = blocks.compactMap { block -> String? in
             if case let .linkReferenceDefinition(definition) = block {
                 return definition.label
@@ -262,12 +317,70 @@ public enum MarkdownAnalyzer {
             return nil
         }
 
-        labels.append(contentsOf: matches(in: markdown, pattern: #"(?<!\!)\[[^\]]+\]\[([^\]]+)\]"#, group: 1))
-        labels.append(contentsOf: matches(in: markdown, pattern: #"(?<!\!)\[([^\]]+)\]\[\]"#, group: 1))
+        labels.append(contentsOf: segments.compactMap { segment in
+            if case let .referenceLink(_, label) = segment {
+                return label
+            }
+
+            return nil
+        })
 
         return labels
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func footnoteLabels(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
+        var labels = blocks.compactMap { block -> String? in
+            if case let .footnoteDefinition(identifier, _) = block {
+                return identifier
+            }
+
+            return nil
+        }
+
+        labels.append(contentsOf: segments.compactMap { segment in
+            if case let .footnote(identifier) = segment {
+                return identifier
+            }
+
+            return nil
+        })
+
+        return labels
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private static func inlineSegments(from blocks: [MarkdownBlock]) -> [InlineMarkdownSegment] {
+        blocks.flatMap(inlineTexts(from:)).flatMap(InlineMarkdownParser.parse)
+    }
+
+    private static func inlineTexts(from block: MarkdownBlock) -> [String] {
+        switch block {
+        case let .heading(_, text, _):
+            return [text]
+        case let .paragraph(text):
+            return [text]
+        case let .blockquote(lines, _):
+            return lines
+        case let .unorderedList(items), let .orderedList(items):
+            return items.map(\.text)
+        case let .taskList(items):
+            return items.map(\.text)
+        case let .table(table):
+            return table.headers + table.rows.flatMap { $0 }
+        case let .definitionList(items):
+            return items.flatMap { [$0.term] + $0.definitions }
+        case let .footnoteDefinition(identifier, text):
+            return ["[^\(identifier)]", text]
+        case let .linkReferenceDefinition(definition):
+            return [definition.title].compactMap { $0 }
+        case let .image(alt, source, title):
+            return ["![\(alt)](\(source)\(title.map { " \"\($0)\"" } ?? ""))"]
+        case .frontMatter, .codeBlock, .diagram, .mathBlock, .thematicBreak, .htmlComment, .html:
+            return []
+        }
     }
 
     private static func htmlComments(in blocks: [MarkdownBlock]) -> [String] {

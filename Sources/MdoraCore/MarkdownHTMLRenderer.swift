@@ -218,34 +218,46 @@ public enum MarkdownHTMLRenderer {
     }
 
     private static func renderInline(_ text: String) -> String {
-        var rendered = escapeHTML(text)
-        rendered = replace(rendered, pattern: #"`([^`]+)`"#, template: #"<code>$1</code>"#)
-        rendered = replace(rendered, pattern: #"~~([^~]+)~~"#, template: #"<del>$1</del>"#)
-        rendered = replace(rendered, pattern: #"\*\*([^*]+)\*\*"#, template: #"<strong>$1</strong>"#)
-        rendered = replace(rendered, pattern: #"__([^_]+)__"#, template: #"<strong>$1</strong>"#)
-        rendered = replace(rendered, pattern: #"\*([^*]+)\*"#, template: #"<em>$1</em>"#)
-        rendered = replace(rendered, pattern: #"_([^_]+)_"#, template: #"<em>$1</em>"#)
-        rendered = replace(rendered, pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, template: #"<a href="$2">$1</a>"#)
-        rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[([^\]]+)\]"#, template: ##"<a href="#ref-$2">$1</a>"##)
-        rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[\]"#, template: ##"<a href="#ref-$1">$1</a>"##)
-        rendered = replace(rendered, pattern: #"\!\[([^\]]*)\]\[([^\]]*)\]"#, template: ##"<span class="image-ref">$1 [$2]</span>"##)
-        rendered = replace(rendered, pattern: #"\[\[([^\]]+)\]\]"#, template: #"<span class="wikilink">$1</span>"#)
-        rendered = replace(rendered, pattern: #"\[\^([^\]]+)\]"#, template: #"<sup>$1</sup>"#)
-        rendered = replace(rendered, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, template: #"<span class="math-inline">$1</span>"#)
-        rendered = replace(rendered, pattern: #"(?<![\w">])(https?://[^\s<]+)"#, template: #"<a href="$1">$1</a>"#)
-        rendered = replace(rendered, pattern: #"(?<![\w@])([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})(?![\w@])"#, template: #"<a href="mailto:$1">$1</a>"#)
-        rendered = replace(rendered, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, template: #"<span class="tag">#$1</span>"#)
-        rendered = replace(rendered, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, template: #"<span class="mention">@$1</span>"#)
-        return rendered
+        InlineMarkdownParser.parse(text).map(renderInlineSegment).joined()
     }
 
-    private static func replace(_ text: String, pattern: String, template: String) -> String {
-        guard let expression = try? NSRegularExpression(pattern: pattern) else {
-            return text
+    private static func renderInlineSegment(_ segment: InlineMarkdownSegment) -> String {
+        switch segment {
+        case let .text(value):
+            return escapeHTML(value)
+        case let .strong(value):
+            return "<strong>\(renderInline(value))</strong>"
+        case let .emphasis(value):
+            return "<em>\(renderInline(value))</em>"
+        case let .strikethrough(value):
+            return "<del>\(renderInline(value))</del>"
+        case let .code(value):
+            return "<code>\(escapeHTML(value))</code>"
+        case let .link(label, destination, title):
+            let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+            return "<a href=\"\(escapeHTML(destination))\"\(titleAttribute)>\(renderInline(label))</a>"
+        case let .referenceLink(label, reference):
+            return "<a href=\"#ref-\(escapeHTML(reference))\">\(renderInline(label))</a>"
+        case let .image(alt, source, title):
+            let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+            return "<img src=\"\(escapeHTML(source))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
+        case let .imageReference(alt, label):
+            return "<span class=\"image-ref\">\(escapeHTML(alt)) [\(escapeHTML(label))]</span>"
+        case let .autoLink(url):
+            return "<a href=\"\(escapeHTML(url))\">\(escapeHTML(url))</a>"
+        case let .email(email):
+            return "<a href=\"mailto:\(escapeHTML(email))\">\(escapeHTML(email))</a>"
+        case let .wikiLink(value):
+            return "<span class=\"wikilink\">\(escapeHTML(value))</span>"
+        case let .footnote(identifier):
+            return "<sup>\(escapeHTML(identifier))</sup>"
+        case let .inlineMath(value):
+            return "<span class=\"math-inline\">\(escapeHTML(value))</span>"
+        case let .tag(value):
+            return "<span class=\"tag\">#\(escapeHTML(value))</span>"
+        case let .mention(value):
+            return "<span class=\"mention\">@\(escapeHTML(value))</span>"
         }
-
-        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
-        return expression.stringByReplacingMatches(in: text, range: range, withTemplate: template)
     }
 
     private static let css = """

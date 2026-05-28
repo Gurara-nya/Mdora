@@ -46,6 +46,25 @@ public enum MarkdownBlock: Equatable {
     case html(String)
 }
 
+public enum InlineMarkdownSegment: Equatable, Hashable {
+    case text(String)
+    case strong(String)
+    case emphasis(String)
+    case strikethrough(String)
+    case code(String)
+    case link(text: String, destination: String, title: String?)
+    case referenceLink(text: String, label: String)
+    case image(alt: String, source: String, title: String?)
+    case imageReference(alt: String, label: String)
+    case autoLink(String)
+    case email(String)
+    case wikiLink(String)
+    case footnote(String)
+    case inlineMath(String)
+    case tag(String)
+    case mention(String)
+}
+
 public struct ListItem: Equatable {
     public var text: String
     public var depth: Int

@@ -9,16 +9,17 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 ## Proposed Modules
 
 - `Sources/Mdora`: native SwiftUI app, document scene, editor, preview, export UI.
-- `Sources/MdoraCore`: Markdown parser, document model, marker analyzer, and HTML renderer that can run without launching the app.
+- `Sources/MdoraCore`: Markdown block parser, inline parser, document model, marker analyzer, and HTML renderer that can run without launching the app.
 
 ## Current Runtime Flow
 
 1. `MarkdownDocument` owns the editable Markdown source.
 2. `MarkdownParser` converts source into `ParsedMarkdownDocument`.
-3. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, diagnostics, and block distribution stats.
-4. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
-5. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, diagnostics, block distribution, and marker recognition.
-6. `MarkdownHTMLRenderer` uses the same parser for HTML export.
+3. `InlineMarkdownParser` tokenizes inline Markdown semantics used by preview, export, and marker analysis.
+4. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, diagnostics, and block distribution stats.
+5. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
+6. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, diagnostics, block distribution, and marker recognition.
+7. `MarkdownHTMLRenderer` uses the same block and inline parsers for HTML export.
 
 This keeps preview, inspection, and export aligned around one parser.
 
@@ -40,7 +41,7 @@ There are three viable levels:
 
 The recommended path is to ship level 1, grow into level 2, and only adopt level 3 if the product needs complex block manipulation.
 
-The current app is between level 1 and level 2: it keeps Markdown source as truth, but the editor now adds smart return continuation, and the preview already has block-level semantics for tables, callouts, tasks, code languages, diagrams, math, footnotes, definition lists, front matter, images, and document markers.
+The current app is between level 1 and level 2: it keeps Markdown source as truth, but the editor now adds smart return continuation, and the preview already has block-level and inline semantics for tables, callouts, tasks, code languages, diagrams, math, links, footnotes, definition lists, front matter, images, and document markers.
 
 ## Compatibility Surface
 
@@ -50,6 +51,7 @@ The parser currently recognizes:
 - Front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
+- Inline emphasis, strong text, strikethrough, code spans, links, reference links, autolinks, email links, wiki links, tags, mentions, footnotes, images, and math markers.
 - Block and inline math markers.
 - GFM-style tables and task lists.
 - Blockquotes and GitHub-style callouts.
