@@ -138,7 +138,24 @@ func runTests() {
     assert(indentedContentFenceCode == "let x = 1\nlet y = 2\n  let z = 3")
     assert(MarkdownCodeFenceScanner.delimiter(in: "  ```swift")?.leadingSpaces == 2)
     assert(MarkdownHTMLRenderer.renderFragment(indentedContentFenceMarkdown).contains("let x = 1\nlet y = 2\n  let z = 3"))
-    print("✅ CommonMark code fences honor leading-space rules for opening, closing, and content!")
+
+    let invalidBacktickInfoFenceMarkdown = "```swift`bad"
+    let invalidBacktickInfoFenceDocument = MarkdownParser.parse(invalidBacktickInfoFenceMarkdown)
+    guard case .paragraph("```swift`bad") = invalidBacktickInfoFenceDocument.blocks[0] else {
+        fatalError("❌ Expected backtick fence info containing a backtick to stay paragraph text")
+    }
+    assert(MarkdownCodeFenceScanner.delimiter(in: invalidBacktickInfoFenceMarkdown) == nil)
+    assert(MarkdownCodeFenceScanner.fencedLineRanges(in: invalidBacktickInfoFenceMarkdown).isEmpty)
+    assert(!invalidBacktickInfoFenceDocument.diagnostics.contains { $0.id.hasPrefix("unclosed-code-fence") })
+
+    let tildeInfoWithBacktickMarkdown = "~~~lang`ok\ncontent\n~~~"
+    let tildeInfoWithBacktickDocument = MarkdownParser.parse(tildeInfoWithBacktickMarkdown)
+    guard case .codeBlock(let tildeInfoLanguage, let tildeInfoCode) = tildeInfoWithBacktickDocument.blocks[0] else {
+        fatalError("❌ Expected tilde fence info containing a backtick to stay a code block")
+    }
+    assert(tildeInfoLanguage == "lang`ok")
+    assert(tildeInfoCode == "content")
+    print("✅ CommonMark code fences honor indentation, content de-indentation, and info-string rules!")
 
     let variableFenceMarkdown = #"""
     ````swift

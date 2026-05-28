@@ -24,11 +24,16 @@ public enum MarkdownCodeFenceScanner {
 
         guard length >= 3 else { return nil }
         let info = String(line[cursor...])
+        let trimmedInfo = info.trimmingCharacters(in: .whitespacesAndNewlines)
+        if marker == "`", trimmedInfo.contains("`") {
+            return nil
+        }
+
         return MarkdownCodeFenceDelimiter(
             marker: marker,
             length: length,
-            info: info.trimmingCharacters(in: .whitespacesAndNewlines),
-            canClose: info.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            info: trimmedInfo,
+            canClose: trimmedInfo.isEmpty,
             leadingSpaces: leadingSpaces
         )
     }
