@@ -8,12 +8,17 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "Mdora", targets: ["Mdora"])
+        .executable(name: "Mdora", targets: ["Mdora"]),
+        .executable(name: "MdoraParserTest", targets: ["MdoraParserTest"])
     ],
     targets: [
         .target(name: "MdoraCore"),
         .executableTarget(
             name: "Mdora",
+            dependencies: ["MdoraCore"]
+        ),
+        .executableTarget(
+            name: "MdoraParserTest",
             dependencies: ["MdoraCore"]
         )
     ]

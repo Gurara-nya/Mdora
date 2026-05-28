@@ -15,6 +15,7 @@ struct MarkdownEditor: View {
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
+    let focusMode: Bool
     let onSelectionChange: (EditorSelection) -> Void
 
     var body: some View {
@@ -23,6 +24,7 @@ struct MarkdownEditor: View {
             commandCenter: commandCenter,
             theme: theme,
             fontSize: fontSize,
+            focusMode: focusMode,
             onSelectionChange: onSelectionChange
         )
         .background(theme.palette.editorColor)
@@ -34,6 +36,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
+    let focusMode: Bool
     let onSelectionChange: (EditorSelection) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -85,12 +88,27 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             return
         }
 
-        applyTheme(to: textView, scrollView: scrollView)
+        let themeChanged = context.coordinator.lastHighlightedTheme != theme
+        let sizeChanged = context.coordinator.lastHighlightedFontSize != fontSize
+        let focusModeChanged = context.coordinator.lastHighlightedFocusMode != focusMode
+        let externalTextChanged = textView.string != text
 
-        if textView.string != text {
+        if themeChanged || sizeChanged {
+            applyTheme(to: textView, scrollView: scrollView)
+            context.coordinator.lastHighlightedTheme = theme
+            context.coordinator.lastHighlightedFontSize = fontSize
+        }
+
+        if focusModeChanged {
+            context.coordinator.lastHighlightedFocusMode = focusMode
+        }
+
+        if externalTextChanged {
             let selectedRange = textView.selectedRange()
             textView.string = text
             textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
+            context.coordinator.lastHighlightedText = text
+            context.coordinator.scheduleHighlight(in: textView)
         }
 
         if let command = commandCenter.command, command.id != context.coordinator.lastCommandID {
@@ -99,9 +117,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             DispatchQueue.main.async {
                 text = textView.string
             }
+            context.coordinator.scheduleHighlight(in: textView)
         }
 
-        context.coordinator.highlight(textView)
+        // Highlight immediately on theme/fontSize change to avoid styling flicker
+        if themeChanged || sizeChanged || focusModeChanged {
+            context.coordinator.highlight(textView)
+        }
     }
 
     private func applyTheme(to textView: NSTextView, scrollView: NSScrollView) {
@@ -122,22 +144,50 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         weak var textView: NSTextView?
         var lastCommandID: UUID?
         var isHighlighting = false
+        private var pendingHighlightTask: Task<Void, Never>?
+
+        var lastHighlightedTheme: MdoraTheme?
+        var lastHighlightedFontSize: CGFloat?
+        var lastHighlightedFocusMode: Bool?
+        var lastHighlightedText: String?
+        private var lastReportedSelection = EditorSelection.start
+        @MainActor private static var expressionCache: [ExpressionCacheKey: NSRegularExpression] = [:]
 
         init(_ parent: NativeMarkdownTextView) {
             self.parent = parent
         }
 
+        @MainActor
+        func scheduleHighlight(in textView: NSTextView) {
+            pendingHighlightTask?.cancel()
+            pendingHighlightTask = Task { @MainActor [weak self, weak textView] in
+                do {
+                    try await Task.sleep(nanoseconds: 120_000_000) // 0.12s
+                } catch {
+                    return // cancelled
+                }
+                guard let self, let textView else { return }
+                self.highlight(textView)
+            }
+        }
+
+        @MainActor
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
-            highlight(textView)
-            reportSelection(in: textView)
+            scheduleHighlight(in: textView)
+            _ = reportSelection(in: textView)
         }
 
+        @MainActor
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            highlight(textView)
-            reportSelection(in: textView)
+            let previousLine = lastReportedSelection.line
+            let selection = reportSelection(in: textView)
+
+            if parent.focusMode || selection.line != previousLine {
+                scheduleHighlight(in: textView)
+            }
         }
 
         @MainActor
@@ -240,23 +290,42 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
-        private func reportSelection(in textView: NSTextView) {
+        private func reportSelection(in textView: NSTextView) -> EditorSelection {
             let selection = Self.selection(in: textView)
+            lastReportedSelection = selection
             parent.onSelectionChange(selection)
+            return selection
         }
 
         @MainActor
         private static func selection(in textView: NSTextView) -> EditorSelection {
             let source = textView.string as NSString
             let selectedRange = textView.selectedRange().clamped(toLength: source.length)
-            let prefix = source.substring(to: selectedRange.location)
-            let lines = prefix.components(separatedBy: .newlines)
-            let line = max(1, lines.count)
-            let column = (lines.last ?? "").count + 1
+            let position = selectedRange.location
+            var line = 1
+            var lineStart = 0
+            var cursor = 0
+
+            while cursor < position {
+                let character = source.character(at: cursor)
+                if character == 10 || character == 13 {
+                    line += 1
+
+                    if character == 13,
+                       cursor + 1 < position,
+                       source.character(at: cursor + 1) == 10 {
+                        cursor += 1
+                    }
+
+                    lineStart = cursor + 1
+                }
+
+                cursor += 1
+            }
 
             return EditorSelection(
                 line: line,
-                column: column,
+                column: position - lineStart + 1,
                 selectedLength: selectedRange.length
             )
         }
@@ -311,6 +380,9 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             textStorage.beginEditing()
             textStorage.setAttributes(baseAttributes, range: fullRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
+            highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.muted
+            ])
             highlightInline(pattern: #"!\[[^\]]*\]\([^\)]+\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
@@ -320,7 +392,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
             ])
             highlightInline(pattern: #"`[^`]+`"#, in: textView, storage: textStorage, attributes: [
-                .foregroundColor: palette.accent,
+                .foregroundColor: palette.text,
                 .backgroundColor: palette.code
             ])
             highlightInline(pattern: #"\*\*[^*\n]+\*\*|__[^_\n]+__"#, in: textView, storage: textStorage, attributes: [
@@ -337,7 +409,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ])
             highlightInline(pattern: #"==[^=\n]+=="#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
-                .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.22)
+                .backgroundColor: palette.accent.withAlphaComponent(0.16)
             ])
             highlightInline(pattern: #"\{#[A-Za-z0-9_\-:\.]+(?:\s+[^}\n]+)?\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
@@ -362,7 +434,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ])
             highlightInline(pattern: #"\{==[^\n]*?==\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
-                .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.28)
+                .backgroundColor: palette.accent.withAlphaComponent(0.20)
             ])
             highlightInline(pattern: #"(?<!\^)\^[^^\n]+\^(?!\^)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
@@ -454,9 +526,30 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let baseSize = parent.fontSize
             var isInFence = false
 
+            let selectedRange = textView.selectedRange()
+            let clampedLocation = min(selectedRange.location, max(0, nsString.length - 1))
+            let activeLineRange = nsString.lineRange(for: NSRange(location: clampedLocation, length: 0))
+
             nsString.enumerateSubstrings(in: fullRange, options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
                 let line = nsString.substring(with: lineRange)
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+                let isActiveLine = (lineRange.location >= activeLineRange.location && lineRange.location < activeLineRange.upperBound) ||
+                                   (activeLineRange.location >= lineRange.location && activeLineRange.location < lineRange.upperBound)
+
+                if self.parent.focusMode && !isActiveLine {
+                    let fadedColor = isInFence ? palette.muted.withAlphaComponent(0.20) : palette.text.withAlphaComponent(0.30)
+                    let bgAttr: [NSAttributedString.Key: Any] = isInFence ? [.backgroundColor: palette.code.withAlphaComponent(0.04)] : [:]
+                    storage.addAttributes([
+                        .foregroundColor: fadedColor,
+                        .font: isInFence ? baseFont : NSFont.monospacedSystemFont(ofSize: baseSize, weight: .regular)
+                    ].merging(bgAttr) { $1 }, range: lineRange)
+
+                    if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                        isInFence.toggle()
+                    }
+                    return
+                }
 
                 if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
                     storage.addAttributes([
@@ -538,10 +631,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 }
 
                 if trimmed.hasPrefix("|") {
-                    storage.addAttributes([
-                        .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
-                    ], range: lineRange)
+                    if trimmed.range(of: "^\\|[:\\-\\s|]+$", options: .regularExpression) != nil {
+                        storage.addAttributes([
+                            .foregroundColor: palette.muted,
+                            .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
+                        ], range: lineRange)
+                    }
                     return
                 }
 
@@ -667,7 +762,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             attributes: [NSAttributedString.Key: Any],
             options: NSRegularExpression.Options = []
         ) {
-            guard let expression = try? NSRegularExpression(pattern: pattern, options: options) else { return }
+            guard let expression = Self.cachedExpression(pattern: pattern, options: options) else { return }
 
             let text = textView.string
             let range = NSRange(text.startIndex ..< text.endIndex, in: text)
@@ -677,15 +772,127 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             }
         }
 
+        @MainActor
+        private static func cachedExpression(
+            pattern: String,
+            options: NSRegularExpression.Options
+        ) -> NSRegularExpression? {
+            let key = ExpressionCacheKey(pattern: pattern, optionsRawValue: options.rawValue)
+            if let cached = expressionCache[key] {
+                return cached
+            }
+
+            guard let expression = try? NSRegularExpression(pattern: pattern, options: options) else {
+                return nil
+            }
+
+            expressionCache[key] = expression
+            return expression
+        }
+
         private func italicFont(size: CGFloat) -> NSFont {
             let base = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
             return NSFontManager.shared.convert(base, toHaveTrait: .italicFontMask)
         }
     }
+
+    private struct ExpressionCacheKey: Hashable {
+        var pattern: String
+        var optionsRawValue: UInt
+    }
 }
 
 private final class MarkdownNSTextView: NSTextView {
     var onSmartNewline: (() -> Void)?
+
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        guard let typedString = string as? String, typedString.count == 1 else {
+            super.insertText(string, replacementRange: replacementRange)
+            return
+        }
+
+        let char = typedString.first!
+        let pairs: [Character: Character] = [
+            "(": ")",
+            "[": "]",
+            "{": "}",
+            "\"": "\"",
+            "'": "'",
+            "`": "`"
+        ]
+
+        if let closingChar = pairs[char] {
+            let selectedRange = self.selectedRange()
+
+            if selectedRange.length > 0 {
+                let source = self.string as NSString
+                let selectedText = source.substring(with: selectedRange)
+                let wrapped = String(char) + selectedText + String(closingChar)
+                super.insertText(wrapped, replacementRange: selectedRange)
+                self.setSelectedRange(NSRange(location: selectedRange.location, length: wrapped.utf16.count))
+            } else {
+                super.insertText(String(char) + String(closingChar), replacementRange: replacementRange)
+                self.setSelectedRange(NSRange(location: self.selectedRange().location - 1, length: 0))
+            }
+            onSmartNewline?()
+            return
+        }
+
+        let closingBrackets: Set<Character> = [")", "]", "}", "\"", "'", "`"]
+        if closingBrackets.contains(char) {
+            let selectedRange = self.selectedRange()
+            if selectedRange.length == 0 {
+                let source = self.string as NSString
+                if selectedRange.location < source.length {
+                    let nextChar = Character(UnicodeScalar(source.character(at: selectedRange.location))!)
+                    if nextChar == char {
+                        self.setSelectedRange(NSRange(location: selectedRange.location + 1, length: 0))
+                        return
+                    }
+                }
+            }
+        }
+
+        super.insertText(string, replacementRange: replacementRange)
+    }
+
+    override func deleteBackward(_ sender: Any?) {
+        let selectedRange = self.selectedRange()
+        guard selectedRange.length == 0, selectedRange.location > 0 else {
+            super.deleteBackward(sender)
+            onSmartNewline?()
+            return
+        }
+
+        let source = self.string as NSString
+        guard selectedRange.location < source.length else {
+            super.deleteBackward(sender)
+            onSmartNewline?()
+            return
+        }
+
+        let leftChar = Character(UnicodeScalar(source.character(at: selectedRange.location - 1))!)
+        let rightChar = Character(UnicodeScalar(source.character(at: selectedRange.location))!)
+
+        let pairs: [Character: Character] = [
+            "(": ")",
+            "[": "]",
+            "{": "}",
+            "\"": "\"",
+            "'": "'",
+            "`": "`"
+        ]
+
+        if let expectedRight = pairs[leftChar], rightChar == expectedRight {
+            let deleteRange = NSRange(location: selectedRange.location - 1, length: 2)
+            super.insertText("", replacementRange: deleteRange)
+            onSmartNewline?()
+            return
+        }
+
+        super.deleteBackward(sender)
+        onSmartNewline?()
+    }
 
     override func insertNewline(_ sender: Any?) {
         guard selectedRange().length == 0 else {

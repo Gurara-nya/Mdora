@@ -21,13 +21,13 @@ private struct InlineParser {
         var segments: [InlineMarkdownSegment] = []
 
         while index < text.endIndex {
-            if consumeEscape() {
-                continue
-            }
-
             if let segment = consumeNextSegment() {
                 flushText(into: &segments)
                 segments.append(segment)
+                continue
+            }
+
+            if consumeEscape() {
                 continue
             }
 
@@ -88,7 +88,12 @@ private struct InlineParser {
         let next = text.index(after: index)
         guard next < text.endIndex else { return false }
 
-        textBuffer.append(text[next])
+        let nextChar = text[next]
+        guard Self.markdownEscapeCharacters.contains(nextChar.unicodeScalars.first!) else {
+            return false
+        }
+
+        textBuffer.append(nextChar)
         index = text.index(after: next)
         return true
     }
@@ -214,16 +219,31 @@ private struct InlineParser {
     }
 
     private mutating func consumeInlineMath() -> InlineMarkdownSegment? {
-        guard hasPrefix("$") else { return nil }
-        let contentStart = text.index(after: index)
-        guard contentStart < text.endIndex, text[contentStart] != " " else { return nil }
-        guard let close = closingIndex(for: "$", after: contentStart) else { return nil }
+        if hasPrefix("$") {
+            let contentStart = text.index(after: index)
+            guard contentStart < text.endIndex, text[contentStart] != " " else { return nil }
+            guard let close = closingIndex(for: "$", after: contentStart) else { return nil }
 
-        let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespaces)
-        guard !value.isEmpty else { return nil }
+            let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespaces)
+            guard !value.isEmpty else { return nil }
 
-        index = text.index(after: close)
-        return .inlineMath(value)
+            index = text.index(after: close)
+            return .inlineMath(value)
+        }
+
+        if hasPrefix("\\(") {
+            let contentStart = text.index(index, offsetBy: 2)
+            guard contentStart < text.endIndex else { return nil }
+            guard let close = closingIndex(for: "\\)", after: contentStart) else { return nil }
+
+            let value = String(text[contentStart ..< close]).trimmingCharacters(in: .whitespaces)
+            guard !value.isEmpty else { return nil }
+
+            index = text.index(close, offsetBy: 2)
+            return .inlineMath(value)
+        }
+
+        return nil
     }
 
     private mutating func consumeKeyboard() -> InlineMarkdownSegment? {
@@ -589,6 +609,8 @@ private struct InlineParser {
         pattern: #"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}"#,
         options: [.caseInsensitive]
     )
+
+    private static let markdownEscapeCharacters = CharacterSet(charactersIn: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
 }
 
 private extension Character {

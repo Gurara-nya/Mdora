@@ -27,6 +27,9 @@ public enum MarkdownHTMLRenderer {
             "  <meta charset=\"utf-8\">",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
             "  <title>\(escapedTitle)</title>",
+            #"  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">"#,
+            #"  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>"#,
+            #"  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, { delimiters: [ {left: '$$', right: '$$', display: true}, {left: '\\\\[', right: '\\\\]', display: true}, {left: '\\\\(', right: '\\\\)', display: false}, {left: '$', right: '$', display: false} ], throwOnError: false });"></script>"#,
             "  <style>",
             css,
             "  </style>",
@@ -76,8 +79,8 @@ public enum MarkdownHTMLRenderer {
             let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)
             let content = blockID?.content ?? text
             return "<p\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</p>"
-        case let .blockquote(lines, callout):
-            return renderBlockquote(lines: lines, callout: callout, context: context)
+        case let .blockquote(blocks, callout):
+            return renderBlockquote(blocks: blocks, callout: callout, context: context)
         case let .unorderedList(items):
             return renderList(tag: "ul", items: items, context: context)
         case let .orderedList(items):
@@ -112,16 +115,14 @@ public enum MarkdownHTMLRenderer {
     }
 
     private static func renderBlockquote(
-        lines: [String],
+        blocks: [MarkdownBlock],
         callout: Callout?,
         context: RenderContext
     ) -> String {
-        let parsed = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines)
-        let body = parsed.lines.map { renderInline($0, context: context) }.joined(separator: "<br>")
-        let attributes = blockIDAttributes(parsed.identifier)
+        let body = blocks.map { renderBlock($0, context: context) }.joined(separator: "\n")
 
         guard let callout else {
-            return "<blockquote\(attributes)>\(body)</blockquote>"
+            return "<blockquote>\n\(body)\n</blockquote>"
         }
 
         let calloutClass = "callout callout-\(callout.kind.rawValue)"
@@ -130,9 +131,9 @@ public enum MarkdownHTMLRenderer {
         if let fold = callout.fold {
             let openAttribute = fold == .expanded ? " open" : ""
             return [
-                "<details class=\"\(calloutClass)\"\(metadata) data-fold=\"\(fold.rawValue)\"\(attributes)\(openAttribute)>",
+                "<details class=\"\(calloutClass)\"\(metadata) data-fold=\"\(fold.rawValue)\"\(openAttribute)>",
                 "  <summary class=\"callout-title\">\(escapeHTML(callout.displayTitle))</summary>",
-                body.isEmpty ? nil : "  <p>\(body)</p>",
+                body.isEmpty ? nil : "  <div class=\"callout-content\">\n\(body)\n  </div>",
                 "</details>"
             ]
             .compactMap { $0 }
@@ -140,9 +141,9 @@ public enum MarkdownHTMLRenderer {
         }
 
         return [
-            "<aside class=\"\(calloutClass)\"\(metadata)\(attributes)>",
+            "<aside class=\"\(calloutClass)\"\(metadata)>",
             "  <p class=\"callout-title\">\(escapeHTML(callout.displayTitle))</p>",
-            body.isEmpty ? nil : "  <p>\(body)</p>",
+            body.isEmpty ? nil : "  <div class=\"callout-content\">\n\(body)\n  </div>",
             "</aside>"
         ]
         .compactMap { $0 }
@@ -226,11 +227,7 @@ public enum MarkdownHTMLRenderer {
     }
 
     private static func renderMathBlock(_ expression: String) -> String {
-        [
-            "<figure class=\"math-block\">",
-            "  <pre><code>\(escapeHTML(expression))</code></pre>",
-            "</figure>"
-        ].joined(separator: "\n")
+        "<div class=\"math-block\">$$\(escapeHTML(expression))$$</div>"
     }
 
     private static func renderTable(
@@ -404,7 +401,7 @@ public enum MarkdownHTMLRenderer {
         case let .footnote(identifier):
             return "<sup>\(escapeHTML(identifier))</sup>"
         case let .inlineMath(value):
-            return "<span class=\"math-inline\">\(escapeHTML(value))</span>"
+            return "<span class=\"math-inline\">\\(\(escapeHTML(value))\\)</span>"
         case let .citation(identifier):
             return "<span class=\"citation\">[@\(escapeHTML(identifier))]</span>"
         case let .emojiShortcode(name):
@@ -650,6 +647,37 @@ public enum MarkdownHTMLRenderer {
         .callout-title { margin: 0 0 0.35em; font-weight: 700; }
         summary.callout-title { cursor: pointer; }
         details.callout:not([open]) { padding-bottom: 12px; }
+
+        @media print {
+          @page {
+            margin: 20mm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+            font-size: 11pt !important;
+          }
+          main {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Prevent awkward page-breaks inside sections or blocks */
+          pre, blockquote, figure, table, dl, .callout {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          /* Ensure code fences and tables look outstanding in print */
+          pre, code, table, th, td, .callout {
+            border-color: #ddd !important;
+            background-color: #fcfcfc !important;
+            color: #111 !important;
+          }
+        }
     """
 }
 

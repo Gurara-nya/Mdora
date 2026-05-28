@@ -8,12 +8,12 @@ struct DocumentInspector: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                InspectorSection(title: "Stats", systemImage: "chart.bar", theme: theme) {
+                InspectorSection(title: "文档统计", systemImage: "chart.bar", theme: theme) {
                     StatGrid(document: document, theme: theme)
                 }
 
                 if !document.metadata.isEmpty {
-                    InspectorSection(title: "Metadata", systemImage: "tag", theme: theme) {
+                    InspectorSection(title: "文档元数据", systemImage: "tag", theme: theme) {
                         VStack(alignment: .leading, spacing: 6) {
                             ForEach(document.metadata) { item in
                                 MetadataRow(item: item, theme: theme)
@@ -22,12 +22,12 @@ struct DocumentInspector: View {
                     }
                 }
 
-                InspectorSection(title: "Compatibility", systemImage: "checkmark.seal", theme: theme) {
+                InspectorSection(title: "兼容性分析", systemImage: "checkmark.seal", theme: theme) {
                     CompatibilitySummary(document: document, theme: theme)
                 }
 
                 if !document.diagnostics.isEmpty {
-                    InspectorSection(title: "Diagnostics", systemImage: "stethoscope", theme: theme) {
+                    InspectorSection(title: "语法诊断", systemImage: "stethoscope", theme: theme) {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(document.diagnostics) { diagnostic in
                                 DiagnosticRow(diagnostic: diagnostic, theme: theme)
@@ -36,86 +36,84 @@ struct DocumentInspector: View {
                     }
                 }
 
-                InspectorSection(title: "Outline", systemImage: "list.bullet.indent", theme: theme) {
+                InspectorSection(title: "标题大纲", systemImage: "list.bullet.indent", theme: theme) {
                     if document.outline.isEmpty {
-                        EmptyInspectorText("No headings", theme: theme)
+                        EmptyInspectorText("未检测到标题大纲", theme: theme)
                     } else {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             ForEach(document.outline) { symbol in
-                                Label(symbol.title, systemImage: "textformat.size")
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .padding(.leading, CGFloat(max(0, symbol.level - 1)) * 10)
+                                OutlineItemRow(symbol: symbol, theme: theme)
+                                    .padding(.leading, CGFloat(max(0, symbol.level - 1)) * 12)
                             }
                         }
                     }
                 }
 
-                InspectorSection(title: "Markers", systemImage: "scope", theme: theme) {
+                InspectorSection(title: "特征统计", systemImage: "scope", theme: theme) {
                     VStack(alignment: .leading, spacing: 8) {
-                        MarkerRow(title: "Tags", value: document.markers.tags.count, systemImage: "number", theme: theme)
-                        MarkerRow(title: "Mentions", value: document.markers.mentions.count, systemImage: "at", theme: theme)
-                        MarkerRow(title: "Links", value: document.markers.links.count, systemImage: "link", theme: theme)
-                        MarkerRow(title: "Auto Links", value: document.markers.autoLinks.count, systemImage: "link.badge.plus", theme: theme)
-                        MarkerRow(title: "Emails", value: document.markers.emailLinks.count, systemImage: "envelope", theme: theme)
-                        MarkerRow(title: "Wiki Links", value: document.markers.wikiLinks.count, systemImage: "rectangle.stack", theme: theme)
-                        MarkerRow(title: "Embeds", value: document.markers.wikiEmbeds.count, systemImage: "paperclip", theme: theme)
-                        MarkerRow(title: "Block IDs", value: document.markers.blockIDs.count, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
-                        MarkerRow(title: "Anchors", value: document.markers.customAnchors.count, systemImage: "number.square", theme: theme)
-                        MarkerRow(title: "Abbreviations", value: document.markers.abbreviations.count, systemImage: "textformat.abc.dottedunderline", theme: theme)
-                        MarkerRow(title: "References", value: document.markers.linkReferences.count, systemImage: "link.badge.plus", theme: theme)
-                        MarkerRow(title: "Images", value: document.markers.images.count, systemImage: "photo", theme: theme)
-                        MarkerRow(title: "Image Refs", value: document.markers.imageReferences.count, systemImage: "photo.badge.arrow.down", theme: theme)
-                        MarkerRow(title: "Footnotes", value: document.markers.footnotes.count, systemImage: "text.badge.checkmark", theme: theme)
-                        MarkerRow(title: "Comments", value: document.markers.htmlComments.count, systemImage: "text.bubble", theme: theme)
-                        MarkerRow(title: "Math", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
-                        MarkerRow(title: "Highlights", value: document.markers.highlights.count, systemImage: "highlighter", theme: theme)
-                        MarkerRow(title: "Superscripts", value: document.markers.superscripts.count, systemImage: "textformat.superscript", theme: theme)
-                        MarkerRow(title: "Subscripts", value: document.markers.subscripts.count, systemImage: "textformat.subscript", theme: theme)
-                        MarkerRow(title: "CriticMarkup", value: document.markers.criticMarkupCount, systemImage: "pencil.and.outline", theme: theme)
-                        MarkerRow(title: "Citations", value: document.markers.citations.count, systemImage: "quote.bubble", theme: theme)
-                        MarkerRow(title: "Emoji", value: document.markers.emojiShortcodes.count, systemImage: "face.smiling", theme: theme)
-                        MarkerRow(title: "Keyboard", value: document.markers.keyboardShortcuts.count, systemImage: "keyboard", theme: theme)
-                        MarkerRow(title: "Diagrams", value: document.markers.diagrams.count, systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
-                        MarkerRow(title: "Tokens", value: document.markers.taskTokens.count, systemImage: "flag", theme: theme)
-                        MarkerRow(title: "Task States", value: document.markers.taskStates.reduce(0) { $0 + $1.count }, systemImage: "checklist", theme: theme)
-                        MarkerRow(title: "Callouts", value: document.markers.callouts.count, systemImage: "exclamationmark.bubble", theme: theme)
+                        MarkerRow(title: "标签总数", value: document.markers.tags.count, systemImage: "number", theme: theme)
+                        MarkerRow(title: "提及用户 (@)", value: document.markers.mentions.count, systemImage: "at", theme: theme)
+                        MarkerRow(title: "网页超链接", value: document.markers.links.count, systemImage: "link", theme: theme)
+                        MarkerRow(title: "自动识别链接", value: document.markers.autoLinks.count, systemImage: "link.badge.plus", theme: theme)
+                        MarkerRow(title: "电子邮箱", value: document.markers.emailLinks.count, systemImage: "envelope", theme: theme)
+                        MarkerRow(title: "Wiki 链接", value: document.markers.wikiLinks.count, systemImage: "rectangle.stack", theme: theme)
+                        MarkerRow(title: "Wiki 嵌入", value: document.markers.wikiEmbeds.count, systemImage: "paperclip", theme: theme)
+                        MarkerRow(title: "块 ID (Block ID)", value: document.markers.blockIDs.count, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
+                        MarkerRow(title: "标题锚点", value: document.markers.customAnchors.count, systemImage: "number.square", theme: theme)
+                        MarkerRow(title: "缩写词定义", value: document.markers.abbreviations.count, systemImage: "textformat.abc.dottedunderline", theme: theme)
+                        MarkerRow(title: "参考链接定义", value: document.markers.linkReferences.count, systemImage: "link.badge.plus", theme: theme)
+                        MarkerRow(title: "图片总数", value: document.markers.images.count, systemImage: "photo", theme: theme)
+                        MarkerRow(title: "图片参考定义", value: document.markers.imageReferences.count, systemImage: "photo.badge.arrow.down", theme: theme)
+                        MarkerRow(title: "脚注定义", value: document.markers.footnotes.count, systemImage: "text.badge.checkmark", theme: theme)
+                        MarkerRow(title: "HTML 注释", value: document.markers.htmlComments.count, systemImage: "text.bubble", theme: theme)
+                        MarkerRow(title: "数学公式数", value: document.markers.mathExpressions.count, systemImage: "function", theme: theme)
+                        MarkerRow(title: "高亮标记数", value: document.markers.highlights.count, systemImage: "highlighter", theme: theme)
+                        MarkerRow(title: "上标文本", value: document.markers.superscripts.count, systemImage: "textformat.superscript", theme: theme)
+                        MarkerRow(title: "下标文本", value: document.markers.subscripts.count, systemImage: "textformat.subscript", theme: theme)
+                        MarkerRow(title: "审阅批注数", value: document.markers.criticMarkupCount, systemImage: "pencil.and.outline", theme: theme)
+                        MarkerRow(title: "学术引用数", value: document.markers.citations.count, systemImage: "quote.bubble", theme: theme)
+                        MarkerRow(title: "Emoji 代码", value: document.markers.emojiShortcodes.count, systemImage: "face.smiling", theme: theme)
+                        MarkerRow(title: "键盘键帽 (Kbd)", value: document.markers.keyboardShortcuts.count, systemImage: "keyboard", theme: theme)
+                        MarkerRow(title: "图表区块", value: document.markers.diagrams.count, systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
+                        MarkerRow(title: "任务标记", value: document.markers.taskTokens.count, systemImage: "flag", theme: theme)
+                        MarkerRow(title: "待办任务总数", value: document.markers.taskStates.reduce(0) { $0 + $1.count }, systemImage: "checklist", theme: theme)
+                        MarkerRow(title: "信息提示框", value: document.markers.callouts.count, systemImage: "exclamationmark.bubble", theme: theme)
                     }
                 }
 
-                MarkerList(title: "Tags", values: document.markers.tags.map { "#\($0)" }, systemImage: "number", theme: theme)
-                MarkerList(title: "Mentions", values: document.markers.mentions.map { "@\($0)" }, systemImage: "at", theme: theme)
-                MarkerList(title: "Code", values: document.markers.codeLanguages, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
-                MarkerList(title: "Diagrams", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
-                MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "rectangle.stack", theme: theme)
-                MarkerList(title: "Embeds", values: document.markers.wikiEmbeds.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "paperclip", theme: theme)
-                MarkerList(title: "Block IDs", values: document.markers.blockIDs.map { "^\($0)" }, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
-                MarkerList(title: "Anchors", values: document.markers.customAnchors.map { "{#\($0)}" }, systemImage: "number.square", theme: theme)
-                MarkerList(title: "Abbreviations", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
-                MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
-                MarkerList(title: "Tokens", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
-                MarkerList(title: "Task States", values: document.markers.taskStates.map { "\($0.state.title): \($0.count)" }, systemImage: "checklist", theme: theme)
-                MarkerList(title: "Math", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
-                MarkerList(title: "Highlights", values: document.markers.highlights.map { "==\($0)==" }, systemImage: "highlighter", theme: theme)
-                MarkerList(title: "Superscripts", values: document.markers.superscripts.map { "^\($0)^" }, systemImage: "textformat.superscript", theme: theme)
-                MarkerList(title: "Subscripts", values: document.markers.subscripts.map { "~\($0)~" }, systemImage: "textformat.subscript", theme: theme)
-                MarkerList(title: "Critic Additions", values: document.markers.criticAdditions.map { "{++\($0)++}" }, systemImage: "plus.square", theme: theme)
-                MarkerList(title: "Critic Deletions", values: document.markers.criticDeletions.map { "{--\($0)--}" }, systemImage: "minus.square", theme: theme)
-                MarkerList(title: "Critic Changes", values: document.markers.criticSubstitutions.map { "\($0.original) -> \($0.replacement)" }, systemImage: "arrow.left.arrow.right", theme: theme)
-                MarkerList(title: "Critic Notes", values: document.markers.criticComments.map { "{>>\($0)<<}" }, systemImage: "text.bubble", theme: theme)
-                MarkerList(title: "Critic Highlights", values: document.markers.criticHighlights.map { "{==\($0)==}" }, systemImage: "highlighter", theme: theme)
-                MarkerList(title: "Citations", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
-                MarkerList(title: "Emoji", values: document.markers.emojiShortcodes.map(MarkdownEmojiShortcode.displayName), systemImage: "face.smiling", theme: theme)
-                MarkerList(title: "Keyboard", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
-                MarkerList(title: "Callouts", values: document.markers.callouts.map(\.inspectorText), systemImage: "exclamationmark.bubble", theme: theme)
-                MarkerList(title: "Links", values: document.markers.links, systemImage: "link", theme: theme)
-                MarkerList(title: "Auto Links", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)
-                MarkerList(title: "Emails", values: document.markers.emailLinks, systemImage: "envelope", theme: theme)
-                MarkerList(title: "Images", values: document.markers.images, systemImage: "photo", theme: theme)
-                MarkerList(title: "Image Refs", values: document.markers.imageReferences.map { "![...][\($0)]" }, systemImage: "photo.badge.arrow.down", theme: theme)
-                MarkerList(title: "Comments", values: document.markers.htmlComments, systemImage: "text.bubble", theme: theme)
+                MarkerList(title: "标签列表", values: document.markers.tags.map { "#\($0)" }, systemImage: "number", theme: theme)
+                MarkerList(title: "提及列表", values: document.markers.mentions.map { "@\($0)" }, systemImage: "at", theme: theme)
+                MarkerList(title: "代码语言分布", values: document.markers.codeLanguages, systemImage: "chevron.left.forwardslash.chevron.right", theme: theme)
+                MarkerList(title: "图表列表", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
+                MarkerList(title: "Wiki 链接列表", values: document.markers.wikiLinks.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "rectangle.stack", theme: theme)
+                MarkerList(title: "Wiki 嵌入列表", values: document.markers.wikiEmbeds.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "paperclip", theme: theme)
+                MarkerList(title: "块 ID 列表", values: document.markers.blockIDs.map { "^\($0)" }, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
+                MarkerList(title: "标题锚点列表", values: document.markers.customAnchors.map { "{#\($0)}" }, systemImage: "number.square", theme: theme)
+                MarkerList(title: "缩写词定义列表", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
+                MarkerList(title: "参考链接列表", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
+                MarkerList(title: "任务标记列表", values: document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }, systemImage: "flag", theme: theme)
+                MarkerList(title: "待办任务分布", values: document.markers.taskStates.map { "\($0.state.title): \($0.count)" }, systemImage: "checklist", theme: theme)
+                MarkerList(title: "数学公式列表", values: document.markers.mathExpressions, systemImage: "function", theme: theme)
+                MarkerList(title: "高亮文本列表", values: document.markers.highlights.map { "==\($0)==" }, systemImage: "highlighter", theme: theme)
+                MarkerList(title: "上标文本列表", values: document.markers.superscripts.map { "^\($0)^" }, systemImage: "textformat.superscript", theme: theme)
+                MarkerList(title: "下标文本列表", values: document.markers.subscripts.map { "~\($0)~" }, systemImage: "textformat.subscript", theme: theme)
+                MarkerList(title: "审阅新增列表", values: document.markers.criticAdditions.map { "{++\($0)++}" }, systemImage: "plus.square", theme: theme)
+                MarkerList(title: "审阅删除列表", values: document.markers.criticDeletions.map { "{--\($0)--}" }, systemImage: "minus.square", theme: theme)
+                MarkerList(title: "审阅替换列表", values: document.markers.criticSubstitutions.map { "\($0.original) -> \($0.replacement)" }, systemImage: "arrow.left.arrow.right", theme: theme)
+                MarkerList(title: "审阅注释列表", values: document.markers.criticComments.map { "{>>\($0)<<}" }, systemImage: "text.bubble", theme: theme)
+                MarkerList(title: "审阅高亮列表", values: document.markers.criticHighlights.map { "{==\($0)==}" }, systemImage: "highlighter", theme: theme)
+                MarkerList(title: "学术引用列表", values: document.markers.citations.map { "[@\($0)]" }, systemImage: "quote.bubble", theme: theme)
+                MarkerList(title: "Emoji 表情列表", values: document.markers.emojiShortcodes.map(MarkdownEmojiShortcode.displayName), systemImage: "face.smiling", theme: theme)
+                MarkerList(title: "键盘按键列表", values: document.markers.keyboardShortcuts.map { "<kbd>\($0)</kbd>" }, systemImage: "keyboard", theme: theme)
+                MarkerList(title: "信息提示框列表", values: document.markers.callouts.map(\.inspectorText), systemImage: "exclamationmark.bubble", theme: theme)
+                MarkerList(title: "超链接列表", values: document.markers.links, systemImage: "link", theme: theme)
+                MarkerList(title: "自动链接列表", values: document.markers.autoLinks, systemImage: "link.badge.plus", theme: theme)
+                MarkerList(title: "电子邮箱列表", values: document.markers.emailLinks, systemImage: "envelope", theme: theme)
+                MarkerList(title: "图片链接列表", values: document.markers.images, systemImage: "photo", theme: theme)
+                MarkerList(title: "图片参考定义列表", values: document.markers.imageReferences.map { "![...][\($0)]" }, systemImage: "photo.badge.arrow.down", theme: theme)
+                MarkerList(title: "HTML 注释列表", values: document.markers.htmlComments, systemImage: "text.bubble", theme: theme)
 
-                InspectorSection(title: "Blocks", systemImage: "square.stack.3d.up", theme: theme) {
+                InspectorSection(title: "分块分布", systemImage: "square.stack.3d.up", theme: theme) {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(document.stats.blockKinds.prefix(12)) { block in
                             MarkerRow(title: block.kind, value: block.count, systemImage: "square", theme: theme)
@@ -143,7 +141,7 @@ private struct MetadataRow: View {
 
             Spacer(minLength: 8)
 
-            Text(item.value.isEmpty ? "empty" : item.value)
+            Text(item.value.isEmpty ? "空值" : item.value)
                 .font(.caption)
                 .foregroundStyle(theme.palette.mutedColor)
                 .lineLimit(1)
@@ -167,7 +165,7 @@ private struct CompatibilitySummary: View {
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(theme.palette.accentColor)
 
-                Text("recognized feature families")
+                Text("个已识别的语法家族")
                     .font(.caption)
                     .foregroundStyle(theme.palette.mutedColor)
             }
@@ -177,7 +175,7 @@ private struct CompatibilitySummary: View {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
 
-                    Text("\(document.diagnostics.count) diagnostics")
+                    Text("\(document.diagnostics.count) 个诊断提示")
                         .font(.caption)
                         .foregroundStyle(theme.palette.mutedColor)
                 }
@@ -201,37 +199,37 @@ private struct CompatibilitySummary: View {
         var features: [String] = []
 
         if let kind = frontMatterKind {
-            features.append("\(kind.title) Front Matter")
+            features.append("\(kind.title) 前置数据")
         } else if !document.metadata.isEmpty {
-            features.append("Front Matter")
+            features.append("前置数据")
         }
-        if !document.outline.isEmpty { features.append("Headings") }
-        appendIfBlock("Tables", contains: "Table", to: &features)
-        appendIfBlock("Tasks", contains: "Task List", to: &features)
-        appendIfBlock("Code", contains: "Code", to: &features)
-        appendIfBlock("Diagrams", contains: "Diagram", to: &features)
-        appendIfBlock("Math", contains: "Math", to: &features)
-        appendIfBlock("Footnotes", contains: "Footnote", to: &features)
-        appendIfBlock("Definitions", contains: "Definition List", to: &features)
-        if !document.markers.wikiLinks.isEmpty { features.append("Wiki Links") }
-        if !document.markers.wikiEmbeds.isEmpty { features.append("Embeds") }
-        if !document.markers.blockIDs.isEmpty { features.append("Block IDs") }
-        if !document.markers.customAnchors.isEmpty { features.append("Custom Anchors") }
-        if !document.markers.abbreviations.isEmpty { features.append("Abbreviations") }
-        if !document.markers.linkReferences.isEmpty { features.append("References") }
-        if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("Autolinks") }
-        if !document.markers.taskTokens.isEmpty { features.append("Tokens") }
-        if !document.markers.taskStates.isEmpty { features.append("Task States") }
-        if !document.markers.highlights.isEmpty { features.append("Highlights") }
-        if !document.markers.superscripts.isEmpty || !document.markers.subscripts.isEmpty { features.append("Super/Subscript") }
+        if !document.outline.isEmpty { features.append("大纲标题") }
+        appendIfBlock("表格样式", contains: "Table", to: &features)
+        appendIfBlock("待办列表", contains: "Task List", to: &features)
+        appendIfBlock("代码区块", contains: "Code", to: &features)
+        appendIfBlock("专业图表", contains: "Diagram", to: &features)
+        appendIfBlock("数学公式", contains: "Math", to: &features)
+        appendIfBlock("脚注定义", contains: "Footnote", to: &features)
+        appendIfBlock("定义列表", contains: "Definition List", to: &features)
+        if !document.markers.wikiLinks.isEmpty { features.append("Wiki 链接") }
+        if !document.markers.wikiEmbeds.isEmpty { features.append("Wiki 嵌入") }
+        if !document.markers.blockIDs.isEmpty { features.append("块 ID") }
+        if !document.markers.customAnchors.isEmpty { features.append("标题锚点") }
+        if !document.markers.abbreviations.isEmpty { features.append("缩写词") }
+        if !document.markers.linkReferences.isEmpty { features.append("参考链接") }
+        if !document.markers.autoLinks.isEmpty || !document.markers.emailLinks.isEmpty { features.append("自动链接") }
+        if !document.markers.taskTokens.isEmpty { features.append("任务标记") }
+        if !document.markers.taskStates.isEmpty { features.append("任务状态") }
+        if !document.markers.highlights.isEmpty { features.append("文本高亮") }
+        if !document.markers.superscripts.isEmpty || !document.markers.subscripts.isEmpty { features.append("上/下标") }
         if document.markers.criticMarkupCount > 0 { features.append("CriticMarkup") }
-        if !document.markers.citations.isEmpty { features.append("Citations") }
-        if !document.markers.emojiShortcodes.isEmpty { features.append("Emoji") }
-        if !document.markers.keyboardShortcuts.isEmpty { features.append("Keyboard") }
-        if !document.markers.callouts.isEmpty { features.append("Callouts") }
-        if !document.markers.htmlComments.isEmpty { features.append("Comments") }
+        if !document.markers.citations.isEmpty { features.append("学术引用") }
+        if !document.markers.emojiShortcodes.isEmpty { features.append("表情代码") }
+        if !document.markers.keyboardShortcuts.isEmpty { features.append("键盘键帽") }
+        if !document.markers.callouts.isEmpty { features.append("提示框") }
+        if !document.markers.htmlComments.isEmpty { features.append("注释") }
 
-        return features.isEmpty ? ["Plain Markdown"] : features
+        return features.isEmpty ? ["基础 Markdown"] : features
     }
 
     private func appendIfBlock(_ title: String, contains kind: String, to features: inout [String]) {
@@ -254,40 +252,60 @@ private struct CompatibilitySummary: View {
 private struct DiagnosticRow: View {
     let diagnostic: MarkdownDiagnostic
     let theme: MdoraTheme
+    @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: diagnostic.severity.systemImage)
-                    .foregroundStyle(diagnostic.severity.color)
-                    .frame(width: 14)
-
-                Text(diagnostic.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(theme.palette.textColor)
-
-                Spacer(minLength: 6)
-
-                if let line = diagnostic.line {
-                    Text("L\(line)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(theme.palette.mutedColor)
+        Button {
+            if let line = diagnostic.line {
+                if let url = URL(string: "mdora://line/\(line)") {
+                    NotificationCenter.default.post(name: Notification.Name("mdoraNavigateRequested"), object: url)
+                }
+            } else {
+                if let url = URL(string: "mdora://search/\(diagnostic.title.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? diagnostic.title)") {
+                    NotificationCenter.default.post(name: Notification.Name("mdoraNavigateRequested"), object: url)
                 }
             }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Image(systemName: diagnostic.severity.systemImage)
+                        .foregroundStyle(diagnostic.severity.color)
+                        .frame(width: 14)
 
-            Text(diagnostic.message)
-                .font(.caption)
-                .foregroundStyle(theme.palette.mutedColor)
-                .fixedSize(horizontal: false, vertical: true)
+                    Text(diagnostic.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isHovered ? theme.palette.accentColor : theme.palette.textColor)
+
+                    Spacer(minLength: 6)
+
+                    if let line = diagnostic.line {
+                        Text("第 \(line) 行")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(theme.palette.mutedColor)
+                    }
+                }
+
+                Text(diagnostic.message)
+                    .font(.caption)
+                    .foregroundStyle(theme.palette.mutedColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isHovered ? theme.palette.accentColor.opacity(0.08) : diagnostic.severity.color.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isHovered ? theme.palette.accentColor : diagnostic.severity.color.opacity(0.26), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(diagnostic.severity.color.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(diagnostic.severity.color.opacity(0.26), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -316,13 +334,13 @@ private struct StatGrid: View {
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
             GridRow {
-                StatCell(title: "Words", value: "\(document.stats.words)", theme: theme)
-                StatCell(title: "Lines", value: "\(document.stats.lines)", theme: theme)
+                StatCell(title: "总字数", value: "\(document.stats.words)", theme: theme)
+                StatCell(title: "总行数", value: "\(document.stats.lines)", theme: theme)
             }
 
             GridRow {
-                StatCell(title: "Blocks", value: "\(document.stats.blocks)", theme: theme)
-                StatCell(title: "Read", value: "\(document.stats.readingMinutes)m", theme: theme)
+                StatCell(title: "总区块数", value: "\(document.stats.blocks)", theme: theme)
+                StatCell(title: "阅读时间", value: "\(document.stats.readingMinutes) 分钟", theme: theme)
             }
         }
     }
@@ -385,19 +403,81 @@ private struct MarkerList: View {
             InspectorSection(title: title, systemImage: systemImage, theme: theme) {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(values.prefix(12), id: \.self) { value in
-                        Text(value)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(theme.palette.previewColor.opacity(0.72))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        MarkerListItem(value: value, theme: theme)
                     }
                 }
             }
         }
+    }
+}
+
+private struct MarkerListItem: View {
+    let value: String
+    let theme: MdoraTheme
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            let cleanValue = cleanSearchTerm(value)
+            if let url = URL(string: "mdora://search/\(cleanValue.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? cleanValue)") {
+                NotificationCenter.default.post(name: Notification.Name("mdoraNavigateRequested"), object: url)
+            }
+        } label: {
+            Text(value)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(isHovered ? theme.palette.accentColor.opacity(0.08) : theme.palette.previewColor.opacity(0.72))
+                .foregroundColor(isHovered ? theme.palette.accentColor : theme.palette.textColor)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
+    }
+
+    private func cleanSearchTerm(_ val: String) -> String {
+        var str = val
+
+        // Strip CriticMarkup tags
+        if str.hasPrefix("{++"), str.hasSuffix("++}") {
+            str = String(str.dropFirst(3).dropLast(3))
+        } else if str.hasPrefix("{--"), str.hasSuffix("--}") {
+            str = String(str.dropFirst(3).dropLast(3))
+        } else if str.hasPrefix("{=="), str.hasSuffix("==}") {
+            str = String(str.dropFirst(3).dropLast(3))
+        } else if str.hasPrefix("{>>"), str.hasSuffix("<<}") {
+            str = String(str.dropFirst(3).dropLast(3))
+        }
+
+        // Strip bold/italic/highlight wrappers
+        if str.hasPrefix("=="), str.hasSuffix("==") {
+            str = String(str.dropFirst(2).dropLast(2))
+        }
+
+        // Strip WikiLink embeds or tags
+        if str.hasPrefix("[["), str.hasSuffix("]]") {
+            str = String(str.dropFirst(2).dropLast(2))
+        }
+
+        // Strip block IDs prefix
+        if str.hasPrefix("^") {
+            str = String(str.dropFirst())
+        }
+
+        // Strip custom anchors wrapper
+        if str.hasPrefix("{#"), str.hasSuffix("}") {
+            str = String(str.dropFirst(2).dropLast())
+        }
+
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -437,6 +517,42 @@ private extension MarkdownDiagnosticSeverity {
             .orange
         case .error:
             .red
+        }
+    }
+}
+
+private struct OutlineItemRow: View {
+    let symbol: DocumentSymbol
+    let theme: MdoraTheme
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            if let url = URL(string: "mdora://scroll/\(symbol.anchor.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? symbol.anchor)") {
+                NotificationCenter.default.post(name: Notification.Name("mdoraNavigateRequested"), object: url)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "number")
+                    .font(.caption2)
+                    .foregroundColor(theme.palette.accentColor.opacity(0.68))
+
+                Text(symbol.title)
+                    .font(.system(size: 12, weight: isHovered ? .semibold : .regular))
+                    .foregroundColor(isHovered ? theme.palette.accentColor : theme.palette.textColor)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(isHovered ? theme.palette.accentColor.opacity(0.08) : Color.clear)
+            .contentShape(RoundedRectangle(cornerRadius: 4))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovered = hovering
+            }
         }
     }
 }

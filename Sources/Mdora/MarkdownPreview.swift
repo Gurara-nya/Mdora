@@ -1,6 +1,7 @@
 import MdoraCore
 import AppKit
 import SwiftUI
+import WebKit
 
 struct MarkdownPreviewStyle: Equatable {
     var bodyFontSize: CGFloat = 16
@@ -51,15 +52,12 @@ private extension EnvironmentValues {
 
 struct MarkdownPreview: View {
     let markdown: String
+    let document: ParsedMarkdownDocument
     let theme: MdoraTheme
     let style: MarkdownPreviewStyle
     let activeLine: Int?
     let documentURL: URL?
     @State private var updatePulse = false
-
-    private var document: ParsedMarkdownDocument {
-        MarkdownParser.parse(markdown)
-    }
 
     var body: some View {
         let parsed = document
@@ -87,6 +85,13 @@ struct MarkdownPreview: View {
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .environment(\.mdoraAbbreviationDefinitions, parsed.abbreviationDefinitions)
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
+            .environment(\.openURL, OpenURLAction { url in
+                if url.scheme == "mdora" {
+                    handlePreviewNavigation(url, in: parsed, proxy: proxy)
+                    return .handled
+                }
+                return .systemAction
+            })
             .background(theme.palette.previewColor)
             .overlay(alignment: .top) {
                 Rectangle()
@@ -95,7 +100,7 @@ struct MarkdownPreview: View {
                     .opacity(style.animationsEnabled && updatePulse ? 0.75 : 0)
                     .animation(style.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
             }
-            .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: markdown)
+            .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
             .onChange(of: markdown) { _, _ in
                 guard style.animationsEnabled else { return }
                 updatePulse = true
@@ -112,6 +117,10 @@ struct MarkdownPreview: View {
             .onAppear {
                 scrollToActiveBlock(activeBlockIndex, proxy: proxy)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .mdoraNavigateRequested)) { notification in
+                guard let url = notification.object as? URL else { return }
+                handlePreviewNavigation(url, in: parsed, proxy: proxy)
+            }
         }
     }
 
@@ -127,6 +136,103 @@ struct MarkdownPreview: View {
 
         withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil) {
             proxy.scrollTo(blockIndex, anchor: .center)
+        }
+    }
+
+    private func indexForAnchor(_ anchor: String, in blocks: [MarkdownBlock]) -> Int? {
+        let normalizedAnchor = anchor.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        for (index, block) in blocks.enumerated() {
+            switch block {
+            case let .heading(_, _, blockAnchor):
+                if blockAnchor.lowercased() == normalizedAnchor {
+                    return index
+                }
+            case let .paragraph(text):
+                if let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)?.identifier,
+                   blockID.lowercased() == normalizedAnchor {
+                    return index
+                }
+            default:
+                break
+            }
+        }
+        return nil
+    }
+
+    private func handlePreviewNavigation(_ url: URL, in parsed: ParsedMarkdownDocument, proxy: ScrollViewProxy) {
+        guard url.scheme == "mdora" else { return }
+
+        let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let parameter = path.removingPercentEncoding ?? path
+
+        var targetIndex: Int? = nil
+
+        if url.host == "scroll" {
+            targetIndex = indexForAnchor(parameter, in: parsed.blocks)
+        } else if url.host == "line" {
+            if let line = Int(parameter) {
+                targetIndex = parsed.sourceMap.first(where: { $0.contains(line: line) })?.blockIndex
+            }
+        } else if url.host == "search" {
+            targetIndex = indexForSearchTerm(parameter, in: parsed.blocks)
+        }
+
+        if let targetIndex {
+            withAnimation(style.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
+                proxy.scrollTo(targetIndex, anchor: .center)
+            }
+        }
+    }
+
+    private func indexForSearchTerm(_ term: String, in blocks: [MarkdownBlock]) -> Int? {
+        for (index, block) in blocks.enumerated() {
+            if blockContainsTerm(block, term: term) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    private func blockContainsTerm(_ block: MarkdownBlock, term: String) -> Bool {
+        let lowerTerm = term.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !lowerTerm.isEmpty else { return false }
+
+        switch block {
+        case .frontMatter(let fm):
+            return fm.lines.contains { $0.lowercased().contains(lowerTerm) }
+        case .heading(_, let text, let anchor):
+            return text.lowercased().contains(lowerTerm) || anchor.lowercased().contains(lowerTerm)
+        case .paragraph(let text):
+            return text.lowercased().contains(lowerTerm)
+        case .blockquote(let subBlocks, _):
+            return subBlocks.contains { blockContainsTerm($0, term: term) }
+        case .unorderedList(let items), .orderedList(let items):
+            return items.contains { $0.text.lowercased().contains(lowerTerm) }
+        case .taskList(let items):
+            return items.contains { $0.text.lowercased().contains(lowerTerm) }
+        case .codeBlock(let lang, let code):
+            return (lang?.lowercased().contains(lowerTerm) ?? false) || code.lowercased().contains(lowerTerm)
+        case .diagram(let diag):
+            return diag.kind.rawValue.lowercased().contains(lowerTerm) || diag.source.lowercased().contains(lowerTerm)
+        case .mathBlock(let expr):
+            return expr.lowercased().contains(lowerTerm)
+        case .table(let table):
+            return table.headers.contains { $0.lowercased().contains(lowerTerm) } ||
+                   table.rows.contains { row in
+                       row.contains { $0.lowercased().contains(lowerTerm) }
+                   }
+        case .definitionList(let defs):
+            return defs.contains { $0.term.lowercased().contains(lowerTerm) || $0.definitions.contains { $0.lowercased().contains(lowerTerm) } }
+        case .linkReferenceDefinition(let def):
+            return def.label.lowercased().contains(lowerTerm) || def.destination.lowercased().contains(lowerTerm) || (def.title?.lowercased().contains(lowerTerm) ?? false)
+        case .abbreviationDefinition(let abbr):
+            return abbr.term.lowercased().contains(lowerTerm) || abbr.expansion.lowercased().contains(lowerTerm)
+        case .image(let alt, let url, let title):
+            return alt.lowercased().contains(lowerTerm) || url.lowercased().contains(lowerTerm) || (title?.lowercased().contains(lowerTerm) ?? false)
+        case .footnoteDefinition(let identifier, let text):
+            return identifier.lowercased().contains(lowerTerm) || text.lowercased().contains(lowerTerm)
+        case .thematicBreak, .htmlComment, .html:
+            return false
         }
     }
 }
@@ -171,8 +277,8 @@ private struct MarkdownBlockView: View {
                     .font(.system(size: style.bodyFontSize))
                     .lineSpacing(5)
             }
-        case let .blockquote(lines, callout):
-            BlockquoteView(lines: lines, callout: callout, theme: theme)
+        case let .blockquote(blocks, callout):
+            BlockquoteView(blocks: blocks, callout: callout, theme: theme)
         case let .unorderedList(items):
             ListBlockView(items: items, isOrdered: false, theme: theme)
         case let .orderedList(items):
@@ -276,25 +382,22 @@ private struct FrontMatterView: View {
 }
 
 private struct BlockquoteView: View {
-    let lines: [String]
+    let blocks: [MarkdownBlock]
     let callout: Callout?
     let theme: MdoraTheme
 
     var body: some View {
-        let visibleLines = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines).lines
-
         if let callout {
-            CalloutView(callout: callout, lines: visibleLines, theme: theme)
+            CalloutView(callout: callout, blocks: blocks, theme: theme)
         } else {
             HStack(alignment: .top, spacing: 12) {
                 Rectangle()
                     .fill(theme.palette.borderColor)
                     .frame(width: 3)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(visibleLines.enumerated()), id: \.offset) { _, line in
-                        InlineMarkdownText(line, theme: theme)
-                            .foregroundStyle(theme.palette.mutedColor)
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                        MarkdownBlockView(block: block, theme: theme, isActive: false)
                     }
                 }
             }
@@ -305,20 +408,20 @@ private struct BlockquoteView: View {
 
 private struct CalloutView: View {
     let callout: Callout
-    let lines: [String]
+    let blocks: [MarkdownBlock]
     let theme: MdoraTheme
     @Environment(\.mdoraPreviewStyle) private var style
     @State private var isExpanded: Bool
 
-    init(callout: Callout, lines: [String], theme: MdoraTheme) {
+    init(callout: Callout, blocks: [MarkdownBlock], theme: MdoraTheme) {
         self.callout = callout
-        self.lines = lines
+        self.blocks = blocks
         self.theme = theme
         _isExpanded = State(initialValue: callout.fold != .collapsed)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Button {
                 guard callout.fold != nil else { return }
                 withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.16) : nil) {
@@ -341,9 +444,9 @@ private struct CalloutView: View {
             .buttonStyle(.plain)
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                        InlineMarkdownText(line, theme: theme)
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                        MarkdownBlockView(block: block, theme: theme, isActive: false)
                     }
                 }
             }
@@ -407,33 +510,82 @@ private struct CodeBlockView: View {
     let language: String?
     let code: String
     let theme: MdoraTheme
+    @State private var isHovered = false
+    @State private var showCopied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let language, !language.isEmpty {
-                Label(language, systemImage: icon(for: language))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(theme.palette.mutedColor)
-                    .textCase(.uppercase)
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    if let language, !language.isEmpty {
+                        Label(language, systemImage: icon(for: language))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.palette.mutedColor)
+                            .textCase(.uppercase)
+                    }
+                    Spacer()
+                }
+
+                ScrollView(.horizontal) {
+                    Text(code)
+                        .font(.system(size: 13, design: .monospaced))
+                        .textSelection(.enabled)
+                        .foregroundStyle(theme.palette.textColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 2)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.palette.codeColor)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(theme.palette.borderColor.opacity(0.42), lineWidth: 1)
+            )
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
             }
 
-            ScrollView(.horizontal) {
-                Text(code)
-                    .font(.system(size: 13, design: .monospaced))
-                    .textSelection(.enabled)
-                    .foregroundStyle(theme.palette.textColor)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, 2)
+            if isHovered || showCopied {
+                Button {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(code, forType: .string)
+
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showCopied = true
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            showCopied = false
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+                        Text(showCopied ? "Copied" : "Copy")
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(showCopied ? Color.green.opacity(0.18) : theme.palette.surfaceColor.opacity(0.85))
+                    .foregroundColor(showCopied ? .green : theme.palette.textColor)
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(showCopied ? Color.green : theme.palette.borderColor.opacity(0.6), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.top, 10)
+                .padding(.trailing, 10)
             }
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.palette.codeColor)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(theme.palette.borderColor.opacity(0.42), lineWidth: 1)
-        )
     }
 
     private func icon(for language: String) -> String {
@@ -551,19 +703,18 @@ private struct DiagramPreviewCanvas: View {
 private struct MathBlockView: View {
     let expression: String
     let theme: MdoraTheme
+    @State private var height: CGFloat = 60
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Math", systemImage: "function")
+            Label("数学公式", systemImage: "function")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.palette.accentColor)
 
-            Text(expression)
-                .font(.system(size: 18, weight: .medium, design: .serif))
-                .textSelection(.enabled)
-                .foregroundStyle(theme.palette.textColor)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 10)
+            MathWebView(expression: expression, theme: theme, height: $height)
+                .frame(height: height)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -573,6 +724,147 @@ private struct MathBlockView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(theme.palette.borderColor.opacity(0.38), lineWidth: 1)
         )
+    }
+}
+
+class NonScrollingWebView: WKWebView {
+    override func scrollWheel(with event: NSEvent) {
+        self.nextResponder?.scrollWheel(with: event)
+    }
+}
+
+struct MathWebView: NSViewRepresentable {
+    let expression: String
+    let theme: MdoraTheme
+    @Binding var height: CGFloat
+
+    func makeNSView(context: Context) -> WKWebView {
+        let controller = WKUserContentController()
+        controller.add(context.coordinator, name: "heightCallback")
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = controller
+
+        let webView = NonScrollingWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.setValue(false, forKey: "drawsBackground") // Transparent background
+        webView.scrollEnabled = false
+        return webView
+    }
+
+    func updateNSView(_ nsView: WKWebView, context: Context) {
+        context.coordinator.parent = self
+
+        let textColorHex = theme.palette.textColorHex
+        let accentColorHex = theme.palette.accentColorHex
+
+        // Safe JavaScript string escape for backslashes and quotes
+        let escapedExpr = expression
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 4px 0;
+                    background-color: transparent;
+                    color: \(textColorHex);
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    overflow: hidden;
+                }
+                .math-container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    width: 100%;
+                    min-height: 20px;
+                }
+                .katex-display {
+                    margin: 0 !important;
+                }
+                .katex {
+                    color: \(textColorHex) !important;
+                    font-size: 1.15em !important;
+                }
+                .katex .keyword, .katex .accent {
+                    color: \(accentColorHex) !important;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="math-container" id="math-target"></div>
+            <script>
+                try {
+                    var expr = "\(escapedExpr)";
+                    katex.render(expr, document.getElementById('math-target'), {
+                        displayMode: true,
+                        throwOnError: false
+                    });
+                } catch (err) {
+                    document.getElementById('math-target').innerText = err.message;
+                }
+
+                function reportHeight() {
+                    setTimeout(function() {
+                        var target = document.getElementById('math-target');
+                        var height = target ? target.offsetHeight + 12 : 50;
+                        window.webkit.messageHandlers.heightCallback.postMessage(height);
+                    }, 50);
+                }
+                window.onload = reportHeight;
+                new ResizeObserver(reportHeight).observe(document.body);
+            </script>
+        </body>
+        </html>
+        """
+        nsView.loadHTMLString(html, baseURL: nil)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var parent: MathWebView
+
+        init(_ parent: MathWebView) {
+            self.parent = parent
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "heightCallback", let height = message.body as? CGFloat {
+                DispatchQueue.main.async {
+                    let clampedHeight = max(40, min(600, height))
+                    if abs(self.parent.height - clampedHeight) > 2 {
+                        self.parent.height = clampedHeight
+                    }
+                }
+            }
+        }
+    }
+}
+
+private extension WKWebView {
+    var scrollEnabled: Bool {
+        get { true }
+        set {
+            #if os(macOS)
+            if let scrollView = self.enclosingScrollView {
+                scrollView.hasVerticalScroller = newValue
+                scrollView.hasHorizontalScroller = newValue
+            }
+            #endif
+        }
     }
 }
 
@@ -633,7 +925,7 @@ private struct TableCell: View {
     var body: some View {
         InlineMarkdownText(text, theme: theme)
             .font(.system(size: 14, weight: isHeader ? .semibold : .regular))
-            .frame(minWidth: 120, maxWidth: 220, alignment: alignment)
+            .frame(minWidth: 120, maxWidth: .infinity, alignment: alignment)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(isHeader ? theme.palette.surfaceColor : theme.palette.previewColor)
@@ -755,26 +1047,42 @@ private struct ImageBlockView: View {
     let title: String?
     let theme: MdoraTheme
     @Environment(\.mdoraAssetBaseURL) private var assetBaseURL
+    @State private var isHovered = false
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
-            if let url = MarkdownAssetResolver.remoteURL(for: source) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
-                } placeholder: {
-                    imagePlaceholder
+            ZStack(alignment: .bottomTrailing) {
+                imageView
+                    .scaleEffect(isHovered ? 1.015 : 1.0)
+                    .shadow(color: Color.black.opacity(isHovered ? 0.12 : 0.04), radius: isHovered ? 10 : 3, x: 0, y: isHovered ? 5 : 1)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.65), value: isHovered)
+                    .onHover { hovering in
+                        isHovered = hovering
+                    }
+
+                if isHovered, let localURL = localImageURL {
+                    Button {
+                        NSWorkspace.shared.open(localURL)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right.square")
+                            Text("Open Original")
+                        }
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(theme.palette.surfaceColor.opacity(0.85))
+                        .foregroundColor(theme.palette.textColor)
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(theme.palette.borderColor.opacity(0.6), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
-                .frame(maxWidth: 760, maxHeight: 420)
-            } else if let image = localImage {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 760, maxHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else {
-                imagePlaceholder
             }
 
             if !alt.isEmpty || title != nil {
@@ -786,11 +1094,35 @@ private struct ImageBlockView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var localImage: NSImage? {
-        guard let url = MarkdownAssetResolver.localFileURL(for: source, relativeTo: assetBaseURL) else {
-            return nil
+    @ViewBuilder
+    private var imageView: some View {
+        if let url = MarkdownAssetResolver.remoteURL(for: source) {
+            AsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFit()
+            } placeholder: {
+                imagePlaceholder
+            }
+            .frame(maxWidth: 760, maxHeight: 420)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else if let image = localImage {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 760, maxHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            imagePlaceholder
         }
+    }
 
+    private var localImageURL: URL? {
+        MarkdownAssetResolver.localFileURL(for: source, relativeTo: assetBaseURL)
+    }
+
+    private var localImage: NSImage? {
+        guard let url = localImageURL else { return nil }
         return NSImage(contentsOf: url)
     }
 
@@ -896,6 +1228,7 @@ private struct InlineMarkdownText: View {
     @Environment(\.mdoraPreviewStyle) private var style
     @Environment(\.mdoraReferenceDefinitions) private var referenceDefinitions
     @Environment(\.mdoraAbbreviationDefinitions) private var abbreviationDefinitions
+    @Environment(\.openURL) private var openURL
 
     init(_ text: String, theme: MdoraTheme) {
         self.text = text
@@ -903,142 +1236,232 @@ private struct InlineMarkdownText: View {
     }
 
     var body: some View {
-        rendered
+        Text(attributedString)
             .foregroundStyle(theme.palette.textColor)
             .textSelection(.enabled)
+            .environment(\.openURL, OpenURLAction { url in
+                handleOpenURL(url)
+            })
     }
 
-    private var rendered: Text {
-        renderInline(text)
-    }
-
-    private func renderInline(_ source: String) -> Text {
-        InlineMarkdownParser.parse(source).reduce(Text("")) { result, segment in
-            result + render(segment)
+    private var attributedString: AttributedString {
+        var result = AttributedString()
+        let segments = InlineMarkdownParser.parse(text)
+        for segment in segments {
+            result.append(attributedString(for: segment))
         }
+        return result
     }
 
-    private func render(_ segment: InlineMarkdownSegment) -> Text {
+    private func renderInline(_ source: String) -> AttributedString {
+        var result = AttributedString()
+        let segments = InlineMarkdownParser.parse(source)
+        for segment in segments {
+            result.append(attributedString(for: segment))
+        }
+        return result
+    }
+
+    private func attributedString(for segment: InlineMarkdownSegment) -> AttributedString {
+        var str: AttributedString
+
         switch segment {
         case let .text(value):
-            renderText(value)
+            str = renderText(value)
         case let .strong(value):
-            renderInline(value).bold()
+            str = renderInline(value)
+            str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .emphasis(value):
-            renderInline(value).italic()
+            str = renderInline(value)
+            str.font = .system(size: style.bodyFontSize).italic()
         case let .strikethrough(value):
-            renderInline(value).strikethrough()
+            str = renderInline(value)
+            str.strikethroughStyle = .single
         case let .highlight(value):
-            renderInline(value)
-                .bold()
-                .foregroundColor(.yellow)
+            str = renderInline(value)
+            str.backgroundColor = theme.palette.accentColor.opacity(0.18)
+            str.foregroundColor = theme.palette.accentColor
+            str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .superscript(value):
-            renderInline(value)
-                .font(.system(size: max(10, style.bodyFontSize - 5), weight: .medium))
-                .baselineOffset(5)
+            str = renderInline(value)
+            str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
+            str.baselineOffset = 5
         case let .subscriptText(value):
-            renderInline(value)
-                .font(.system(size: max(10, style.bodyFontSize - 5), weight: .medium))
-                .baselineOffset(-3)
+            str = renderInline(value)
+            str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
+            str.baselineOffset = -3
         case let .criticAddition(value):
-            renderInline(value)
-                .foregroundColor(theme.palette.accentColor)
-                .underline()
+            str = renderInline(value)
+            str.foregroundColor = theme.palette.accentColor
+            str.underlineStyle = .single
         case let .criticDeletion(value):
-            renderInline(value)
-                .foregroundColor(theme.palette.mutedColor)
-                .strikethrough()
+            str = renderInline(value)
+            str.foregroundColor = theme.palette.mutedColor
+            str.strikethroughStyle = .single
         case let .criticSubstitution(original, replacement):
-            renderInline(original)
-                .foregroundColor(theme.palette.mutedColor)
-                .strikethrough()
-            + Text(" -> ")
-                .foregroundColor(theme.palette.mutedColor)
-            + renderInline(replacement)
-                .foregroundColor(theme.palette.accentColor)
-                .underline()
+            var origStr = renderInline(original)
+            origStr.foregroundColor = theme.palette.mutedColor
+            origStr.strikethroughStyle = .single
+
+            var separator = AttributedString(" -> ")
+            separator.foregroundColor = theme.palette.mutedColor
+
+            var replStr = renderInline(replacement)
+            replStr.foregroundColor = theme.palette.accentColor
+            replStr.underlineStyle = .single
+
+            str = origStr + separator + replStr
         case let .criticComment(value):
-            Text("[comment: ")
-                .foregroundColor(theme.palette.mutedColor)
-            + renderInline(value)
-                .italic()
-                .foregroundColor(theme.palette.mutedColor)
-            + Text("]")
-                .foregroundColor(theme.palette.mutedColor)
+            var prefix = AttributedString("[comment: ")
+            prefix.foregroundColor = theme.palette.mutedColor
+
+            var content = renderInline(value)
+            content.foregroundColor = theme.palette.mutedColor
+            content.font = .system(size: style.bodyFontSize).italic()
+
+            var suffix = AttributedString("]")
+            suffix.foregroundColor = theme.palette.mutedColor
+
+            str = prefix + content + suffix
         case let .criticHighlight(value):
-            renderInline(value)
-                .bold()
-                .foregroundColor(.yellow)
+            str = renderInline(value)
+            str.backgroundColor = Color.yellow.opacity(0.3)
+            str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .code(value):
-            Text(value)
-                .font(.system(size: max(12, style.bodyFontSize - 2), design: .monospaced))
-                .foregroundColor(theme.palette.accentColor)
-        case let .link(label, _, _):
-            renderInline(label)
-                .foregroundColor(theme.palette.accentColor)
-                .underline()
+            str = AttributedString(value)
+            str.font = .system(size: max(12, style.bodyFontSize - 2), design: .monospaced)
+            str.foregroundColor = theme.palette.accentColor
+            str.backgroundColor = theme.palette.codeColor
+        case let .link(label, destination, _):
+            str = renderInline(label)
+            str.underlineStyle = .single
+            str.foregroundColor = theme.palette.accentColor
+            if destination.hasPrefix("#") {
+                let anchor = String(destination.dropFirst())
+                if let url = URL(string: "mdora://scroll/\(anchor.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? anchor)") {
+                    str.link = url
+                }
+            } else if let url = URL(string: destination) {
+                str.link = url
+            }
         case let .referenceLink(label, reference):
-            renderInline(label)
-                .foregroundColor(resolvedReference(reference) == nil ? theme.palette.mutedColor : theme.palette.accentColor)
-                .underline()
+            str = renderInline(label)
+            str.underlineStyle = .single
+            if let definition = resolvedReference(reference) {
+                str.foregroundColor = theme.palette.accentColor
+                if definition.destination.hasPrefix("#") {
+                    let anchor = String(definition.destination.dropFirst())
+                    if let url = URL(string: "mdora://scroll/\(anchor.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? anchor)") {
+                        str.link = url
+                    }
+                } else if let url = URL(string: definition.destination) {
+                    str.link = url
+                }
+            } else {
+                str.foregroundColor = theme.palette.mutedColor
+            }
         case let .image(alt, source, _):
-            Text("[image: \(alt.isEmpty ? source : alt)]")
-                .font(.system(size: max(11, style.bodyFontSize - 4)))
-                .foregroundColor(theme.palette.accentColor)
+            str = AttributedString("[image: \(alt.isEmpty ? source : alt)]")
+            str.font = .system(size: max(11, style.bodyFontSize - 4))
+            str.foregroundColor = theme.palette.accentColor
+            if let url = URL(string: source) {
+                str.link = url
+            }
         case let .imageReference(alt, label):
-            Text("[image: \(imageReferenceTitle(alt: alt, label: label))]")
-                .font(.system(size: max(11, style.bodyFontSize - 4)))
-                .foregroundColor(resolvedReference(label) == nil ? theme.palette.mutedColor : theme.palette.accentColor)
+            let title = imageReferenceTitle(alt: alt, label: label)
+            str = AttributedString("[image: \(title)]")
+            str.font = .system(size: max(11, style.bodyFontSize - 4))
+            if let definition = resolvedReference(label) {
+                str.foregroundColor = theme.palette.accentColor
+                if let url = URL(string: definition.destination) {
+                    str.link = url
+                }
+            } else {
+                str.foregroundColor = theme.palette.mutedColor
+            }
         case let .autoLink(url):
-            Text(url)
-                .foregroundColor(theme.palette.accentColor)
-                .underline()
+            str = AttributedString(url)
+            str.underlineStyle = .single
+            str.foregroundColor = theme.palette.accentColor
+            if let linkURL = URL(string: url) {
+                str.link = linkURL
+            }
         case let .email(email):
-            Text(email)
-                .foregroundColor(theme.palette.accentColor)
-                .underline()
+            str = AttributedString(email)
+            str.underlineStyle = .single
+            str.foregroundColor = theme.palette.accentColor
+            if let mailURL = URL(string: "mailto:\(email)") {
+                str.link = mailURL
+            }
         case let .wikiLink(value):
-            Text(MarkdownWikiLinkReference.parse(value).displayText)
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
-                .foregroundColor(theme.palette.accentColor)
+            let ref = MarkdownWikiLinkReference.parse(value)
+            str = AttributedString(ref.displayText)
+            str.foregroundColor = theme.palette.accentColor
+            str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
+            if let url = URL(string: "mdora://wiki/\(ref.target.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? ref.target)") {
+                str.link = url
+            }
         case let .wikiEmbed(value):
-            Text(MarkdownWikiLinkReference.parse(value).embedPreviewText)
-                .font(.system(size: max(12, style.bodyFontSize - 3), weight: .medium))
-                .foregroundColor(theme.palette.accentColor)
+            let ref = MarkdownWikiLinkReference.parse(value)
+            str = AttributedString(ref.embedPreviewText)
+            str.foregroundColor = theme.palette.accentColor
+            str.font = .system(size: max(12, style.bodyFontSize - 3), weight: .medium)
+            if let url = URL(string: "mdora://wiki/\(ref.target.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? ref.target)") {
+                str.link = url
+            }
         case let .footnote(identifier):
-            Text("[\(identifier)]")
-                .font(.system(size: max(10, style.bodyFontSize - 5)))
-                .baselineOffset(4)
-                .foregroundColor(theme.palette.accentColor)
+            str = AttributedString("[\(identifier)]")
+            str.font = .system(size: max(10, style.bodyFontSize - 5))
+            str.baselineOffset = 4
+            str.foregroundColor = theme.palette.accentColor
+            if let url = URL(string: "mdora://footnote/\(identifier.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? identifier)") {
+                str.link = url
+            }
         case let .inlineMath(value):
-            Text(value)
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium, design: .serif))
-                .foregroundColor(theme.palette.accentColor)
+            str = parseLaTeXToAttributedString(value, theme: theme, fontSize: max(13, style.bodyFontSize - 1))
+            str.foregroundColor = theme.palette.accentColor
         case let .citation(identifier):
-            Text("[@\(identifier)]")
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
-                .foregroundColor(theme.palette.mutedColor)
+            str = AttributedString("[@\(identifier)]")
+            str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
+            str.foregroundColor = theme.palette.mutedColor
         case let .emojiShortcode(name):
-            Text(MarkdownEmojiShortcode.emoji(for: name) ?? ":\(name):")
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
-                .foregroundColor(theme.palette.accentColor)
+            let emoji = MarkdownEmojiShortcode.emoji(for: name) ?? ":\(name):"
+            str = AttributedString(emoji)
+            str.foregroundColor = theme.palette.accentColor
         case let .keyboard(value):
-            Text(value)
-                .font(.system(size: max(12, style.bodyFontSize - 2), weight: .semibold, design: .monospaced))
-                .foregroundColor(theme.palette.textColor)
+            str = AttributedString(value)
+            str.font = .system(size: max(12, style.bodyFontSize - 2), weight: .semibold, design: .monospaced)
+            str.foregroundColor = theme.palette.textColor
+            str.backgroundColor = theme.palette.surfaceColor
         case let .tag(value):
-            Text("#\(value)")
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
-                .foregroundColor(theme.palette.accentColor)
+            str = AttributedString("#\(value)")
+            str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
+            str.foregroundColor = theme.palette.accentColor
+            if let url = URL(string: "mdora://tag/\(value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? value)") {
+                str.link = url
+            }
         case let .mention(value):
-            Text("@\(value)")
-                .font(.system(size: max(13, style.bodyFontSize - 1), weight: .medium))
-                .foregroundColor(theme.palette.accentColor)
+            str = AttributedString("@\(value)")
+            str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
+            str.foregroundColor = theme.palette.accentColor
+            if let url = URL(string: "mdora://mention/\(value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? value)") {
+                str.link = url
+            }
         }
+
+        return str
     }
 
     private func resolvedReference(_ label: String) -> LinkReferenceDefinition? {
         referenceDefinitions[LinkReferenceDefinition.normalizedLabel(label)]
+    }
+
+    private func handleOpenURL(_ url: URL) -> OpenURLAction.Result {
+        if url.scheme == "mdora" {
+            NotificationCenter.default.post(name: .mdoraNavigateRequested, object: url)
+            return .handled
+        }
+        return .systemAction
     }
 
     private func imageReferenceTitle(alt: String, label: String) -> String {
@@ -1053,23 +1476,23 @@ private struct InlineMarkdownText: View {
         return label
     }
 
-    private func renderText(_ value: String) -> Text {
-        guard !abbreviationDefinitions.isEmpty else { return Text(value) }
+    private func renderText(_ value: String) -> AttributedString {
+        guard !abbreviationDefinitions.isEmpty else { return AttributedString(value) }
 
-        var rendered = Text("")
+        var rendered = AttributedString()
         var cursor = value.startIndex
 
         while cursor < value.endIndex {
             if let definition = matchingAbbreviation(in: value, at: cursor) {
-                rendered = rendered
-                    + Text(definition.term)
-                    .underline(true, color: theme.palette.accentColor)
-                    .foregroundColor(theme.palette.accentColor)
+                var termStr = AttributedString(definition.term)
+                termStr.underlineStyle = .single
+                termStr.foregroundColor = theme.palette.accentColor
+                rendered.append(termStr)
                 cursor = value.index(cursor, offsetBy: definition.term.count)
                 continue
             }
 
-            rendered = rendered + Text(String(value[cursor]))
+            rendered.append(AttributedString(String(value[cursor])))
             cursor = value.index(after: cursor)
         }
 
@@ -1114,6 +1537,151 @@ private struct InlineMarkdownText: View {
         guard let last = term.last, last.isLetter || last.isNumber else { return true }
         guard index < value.endIndex else { return true }
         return !value[index].isAbbreviationWordCharacter
+    }
+
+    private func parseLaTeXToAttributedString(_ text: String, theme: MdoraTheme, fontSize: CGFloat, isItalic: Bool = true) -> AttributedString {
+        var result = AttributedString()
+        var input = text
+
+        let replacements: [(String, String)] = [
+            ("\\approx", "≈"),
+            ("\\cdots", "···"),
+            ("\\cdot", "·"),
+            ("\\quad", "   "),
+            ("\\qquad", "      "),
+            ("\\,", " "),
+            ("\\ge", "≥"),
+            ("\\geq", "≥"),
+            ("\\le", "≤"),
+            ("\\leq", "≤"),
+            ("\\neq", "≠"),
+            ("\\times", "×"),
+            ("\\pm", "±"),
+            ("\\infty", "∞"),
+            ("\\partial", "∂"),
+            ("\\alpha", "α"),
+            ("\\beta", "β"),
+            ("\\gamma", "γ"),
+            ("\\delta", "δ"),
+            ("\\theta", "θ"),
+            ("\\lambda", "λ"),
+            ("\\mu", "μ"),
+            ("\\pi", "π"),
+            ("\\sigma", "σ"),
+            ("\\phi", "φ"),
+            ("\\omega", "ω"),
+            ("\\Delta", "Δ"),
+            ("\\Omega", "Ω"),
+            ("\\to", "→"),
+            ("\\circ", "°"),
+            ("\\prime", "′"),
+            ("\\ ", " ")
+        ]
+
+        for (macro, replacement) in replacements {
+            input = input.replacingOccurrences(of: macro, with: replacement)
+        }
+
+        var index = input.startIndex
+        while index < input.endIndex {
+            let char = input[index]
+
+            if char == "\\" {
+                let rest = input[index...]
+                if rest.hasPrefix("\\mathrm{") {
+                    if let startBrace = rest.firstIndex(of: "{") {
+                        if let endBrace = findMatchingBrace(in: input, startingAt: startBrace) {
+                            let contentStart = input.index(after: startBrace)
+                            let content = String(input[contentStart..<endBrace])
+                            let subStr = parseLaTeXToAttributedString(content, theme: theme, fontSize: fontSize, isItalic: false)
+                            result.append(subStr)
+                            index = input.index(after: endBrace)
+                            continue
+                        }
+                    }
+                }
+            }
+
+            if char == "_" {
+                let nextIndex = input.index(after: index)
+                if nextIndex < input.endIndex {
+                    let nextChar = input[nextIndex]
+                    if nextChar == "{" {
+                        if let endBrace = findMatchingBrace(in: input, startingAt: nextIndex) {
+                            let contentStart = input.index(after: nextIndex)
+                            let content = String(input[contentStart..<endBrace])
+                            var subStr = parseLaTeXToAttributedString(content, theme: theme, fontSize: max(9, fontSize - 4), isItalic: isItalic)
+                            subStr.baselineOffset = -3
+                            result.append(subStr)
+                            index = input.index(after: endBrace)
+                            continue
+                        }
+                    } else {
+                        let content = String(nextChar)
+                        var subStr = parseLaTeXToAttributedString(content, theme: theme, fontSize: max(9, fontSize - 4), isItalic: isItalic)
+                        subStr.baselineOffset = -3
+                        result.append(subStr)
+                        index = input.index(after: nextIndex)
+                        continue
+                    }
+                }
+            }
+
+            if char == "^" {
+                let nextIndex = input.index(after: index)
+                if nextIndex < input.endIndex {
+                    let nextChar = input[nextIndex]
+                    if nextChar == "{" {
+                        if let endBrace = findMatchingBrace(in: input, startingAt: nextIndex) {
+                            let contentStart = input.index(after: nextIndex)
+                            let content = String(input[contentStart..<endBrace])
+                            var superStr = parseLaTeXToAttributedString(content, theme: theme, fontSize: max(9, fontSize - 4), isItalic: isItalic)
+                            superStr.baselineOffset = 4
+                            result.append(superStr)
+                            index = input.index(after: endBrace)
+                            continue
+                        }
+                    } else {
+                        let content = String(nextChar)
+                        var superStr = parseLaTeXToAttributedString(content, theme: theme, fontSize: max(9, fontSize - 4), isItalic: isItalic)
+                        superStr.baselineOffset = 4
+                        result.append(superStr)
+                        index = input.index(after: nextIndex)
+                        continue
+                    }
+                }
+            }
+
+            var charStr = AttributedString(String(char))
+            if isItalic {
+                charStr.font = .system(size: fontSize, weight: .medium, design: .serif).italic()
+            } else {
+                charStr.font = .system(size: fontSize, weight: .medium, design: .serif)
+            }
+            charStr.foregroundColor = theme.palette.textColor
+            result.append(charStr)
+            index = input.index(after: index)
+        }
+
+        return result
+    }
+
+    private func findMatchingBrace(in text: String, startingAt openBraceIndex: String.Index) -> String.Index? {
+        var depth = 0
+        var current = openBraceIndex
+        while current < text.endIndex {
+            let char = text[current]
+            if char == "{" {
+                depth += 1
+            } else if char == "}" {
+                depth -= 1
+                if depth == 0 {
+                    return current
+                }
+            }
+            current = text.index(after: current)
+        }
+        return nil
     }
 }
 
@@ -1250,4 +1818,8 @@ private extension Character {
     var isAbbreviationWordCharacter: Bool {
         isLetter || isNumber || self == "_"
     }
+}
+
+extension Notification.Name {
+    static let mdoraNavigateRequested = Notification.Name("mdoraNavigateRequested")
 }

@@ -269,30 +269,58 @@ private struct BlockParser {
 
     private mutating func parseMathBlock() -> MarkdownBlock? {
         let trimmed = currentLine.trimmed
-        guard trimmed == "$$" || trimmed.hasPrefix("$$ ") else { return nil }
+        let isDoubleDollar = trimmed.hasPrefix("$$")
+        let isLaTeXBlock = trimmed.hasPrefix("\\[")
 
-        if trimmed.count > 2, trimmed.hasSuffix("$$") {
-            let start = trimmed.index(trimmed.startIndex, offsetBy: 2)
-            let end = trimmed.index(trimmed.endIndex, offsetBy: -2)
-            let expression = String(trimmed[start ..< end]).trimmed
-            index += 1
-            return .mathBlock(expression)
-        }
+        guard isDoubleDollar || isLaTeXBlock else { return nil }
 
-        var mathLines: [String] = []
-        index += 1
-
-        while index < lines.count {
-            if currentLine.trimmed == "$$" {
+        if isDoubleDollar {
+            if trimmed.count > 2, trimmed.hasSuffix("$$") {
+                let start = trimmed.index(trimmed.startIndex, offsetBy: 2)
+                let end = trimmed.index(trimmed.endIndex, offsetBy: -2)
+                let expression = String(trimmed[start ..< end]).trimmed
                 index += 1
-                break
+                return .mathBlock(expression)
             }
 
-            mathLines.append(currentLine)
+            var mathLines: [String] = []
             index += 1
-        }
 
-        return .mathBlock(mathLines.joined(separator: "\n"))
+            while index < lines.count {
+                if currentLine.trimmed == "$$" {
+                    index += 1
+                    break
+                }
+
+                mathLines.append(currentLine)
+                index += 1
+            }
+
+            return .mathBlock(mathLines.joined(separator: "\n"))
+        } else {
+            if trimmed.count > 2, trimmed.hasSuffix("\\]") {
+                let start = trimmed.index(trimmed.startIndex, offsetBy: 2)
+                let end = trimmed.index(trimmed.endIndex, offsetBy: -2)
+                let expression = String(trimmed[start ..< end]).trimmed
+                index += 1
+                return .mathBlock(expression)
+            }
+
+            var mathLines: [String] = []
+            index += 1
+
+            while index < lines.count {
+                if currentLine.trimmed == "\\]" {
+                    index += 1
+                    break
+                }
+
+                mathLines.append(currentLine)
+                index += 1
+            }
+
+            return .mathBlock(mathLines.joined(separator: "\n"))
+        }
     }
 
     private mutating func parseIndentedCodeBlock() -> MarkdownBlock? {
@@ -408,17 +436,24 @@ private struct BlockParser {
 
         while index < lines.count, currentLine.trimmed.hasPrefix(">") {
             let trimmed = currentLine.trimmed
-            let content = String(trimmed.dropFirst()).trimmed
+            var content = String(trimmed.dropFirst())
+            if content.hasPrefix(" ") {
+                content.removeFirst()
+            }
             quoteLines.append(content)
             index += 1
         }
 
-        let callout = Self.parseCallout(from: quoteLines.first)
+        let callout = Self.parseCallout(from: quoteLines.first?.trimmed)
         if callout != nil, !quoteLines.isEmpty {
             quoteLines.removeFirst()
         }
 
-        return .blockquote(lines: quoteLines.filter { !$0.isEmpty }, callout: callout)
+        let blockquoteMarkdown = quoteLines.joined(separator: "\n")
+        var subParser = BlockParser(markdown: blockquoteMarkdown)
+        let subBlocks = subParser.parseBlocks().blocks
+
+        return .blockquote(blocks: subBlocks, callout: callout)
     }
 
     private mutating func parseList() -> MarkdownBlock? {

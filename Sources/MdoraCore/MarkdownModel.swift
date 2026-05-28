@@ -55,7 +55,7 @@ public enum MarkdownBlock: Equatable {
     case frontMatter(FrontMatterBlock)
     case heading(level: Int, text: String, anchor: String)
     case paragraph(String)
-    case blockquote(lines: [String], callout: Callout?)
+    case blockquote(blocks: [MarkdownBlock], callout: Callout?)
     case unorderedList([ListItem])
     case orderedList([ListItem])
     case taskList([TaskItem])

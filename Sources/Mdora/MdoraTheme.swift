@@ -13,15 +13,15 @@ enum MdoraTheme: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .system:
-            "System"
+            "系统默认"
         case .paper:
-            "Paper"
+            "经典明雅"
         case .graphite:
-            "Graphite"
+            "极简石墨"
         case .dusk:
-            "Dusk"
+            "暗夜暮色"
         case .highContrast:
-            "Contrast"
+            "高对比度"
         }
     }
 
@@ -111,4 +111,20 @@ struct ThemePalette {
     var borderColor: Color { Color(nsColor: border) }
     var accentColor: Color { Color(nsColor: accent) }
     var codeColor: Color { Color(nsColor: code) }
+
+    var textColorHex: String { text.hexString }
+    var accentColorHex: String { accent.hexString }
+}
+
+extension NSColor {
+    var hexString: String {
+        guard let rgbColor = usingColorSpace(.sRGB) else { return "#000000" }
+        let r = max(0, min(1, rgbColor.redComponent))
+        let g = max(0, min(1, rgbColor.greenComponent))
+        let b = max(0, min(1, rgbColor.blueComponent))
+        let red = Int(r * 255)
+        let green = Int(g * 255)
+        let blue = Int(b * 255)
+        return String(format: "#%02X%02X%02X", red, green, blue)
+    }
 }

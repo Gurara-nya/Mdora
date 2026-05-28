@@ -547,8 +547,8 @@ public enum MarkdownAnalyzer {
         switch block {
         case let .heading(_, text, _), let .paragraph(text):
             return [text]
-        case let .blockquote(lines, _):
-            return lines
+        case let .blockquote(blocks, _):
+            return blocks.flatMap(blockIdentifierTexts(from:))
         case let .unorderedList(items), let .orderedList(items):
             return items.map(\.text)
         case let .taskList(items):
@@ -572,8 +572,8 @@ public enum MarkdownAnalyzer {
             return [text]
         case let .paragraph(text):
             return [text]
-        case let .blockquote(lines, _):
-            return lines
+        case let .blockquote(blocks, _):
+            return blocks.flatMap(inlineTexts(from:))
         case let .unorderedList(items), let .orderedList(items):
             return items.map(\.text)
         case let .taskList(items):

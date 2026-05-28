@@ -18,38 +18,165 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("App") {
-                LabeledContent("Name", value: "Mdora")
-                LabeledContent("Editor", value: "Native SwiftUI")
-                LabeledContent("Document format", value: "Markdown")
-            }
+        TabView {
+            generalTab
+                .tabItem {
+                    Label("常规", systemImage: "gearshape.fill")
+                }
 
-            Section("Appearance") {
-                Picker("Theme", selection: selectedTheme) {
+            typographyTab
+                .tabItem {
+                    Label("编辑器与样式", systemImage: "textformat.size")
+                }
+
+            shortcutsTab
+                .tabItem {
+                    Label("快捷键", systemImage: "keyboard.fill")
+                }
+        }
+        .padding(20)
+        .frame(width: 480, height: 380)
+    }
+
+    private var generalTab: some View {
+        Form {
+            Section("界面设置") {
+                Picker("应用主题", selection: selectedTheme) {
                     ForEach(MdoraTheme.allCases) { theme in
                         Text(theme.title).tag(theme)
                     }
                 }
+                .pickerStyle(.menu)
 
-                Toggle("Inspector", isOn: $showInspector)
-                Toggle("Focus mode", isOn: $focusMode)
-                Toggle("Preview animation", isOn: $previewAnimations)
-                Toggle("Sync preview", isOn: $syncPreviewWithEditor)
+                Toggle("显示文档大纲检查器", isOn: $showInspector)
+                    .help("切换右侧的文档大纲与特征分析栏（包含大纲、标签、链接和诊断等）。")
+
+                Toggle("专注模式 (无干扰写作)", isOn: $focusMode)
+                    .help("自动淡化非活动行，隐藏右侧大纲栏，让您更专注于当前创作的文本段落。")
             }
+            .padding(.bottom, 12)
 
-            Section("Typography") {
-                LabeledContent("Editor font", value: "\(Int(editorFontSize)) pt")
-                Slider(value: $editorFontSize, in: 12 ... 22, step: 1)
+            Section("预览偏好设置") {
+                Toggle("预览跟随光标同步滚动", isOn: $syncPreviewWithEditor)
+                    .help("保持预览区自动滚动，始终与您编辑器中的光标段落居中对齐。")
 
-                LabeledContent("Preview font", value: "\(Int(previewFontSize)) pt")
-                Slider(value: $previewFontSize, in: 13 ... 22, step: 1)
-
-                LabeledContent("Preview width", value: "\(Int(previewLineWidth)) px")
-                Slider(value: $previewLineWidth, in: 620 ... 1040, step: 20)
+                Toggle("启用丝滑的动画过渡效果", isOn: $previewAnimations)
+                    .help("当预览内容或布局发生改变时，应用精美的平滑过渡动画。")
             }
         }
-        .padding(24)
-        .frame(width: 440)
+        .padding(14)
+    }
+
+    private var typographyTab: some View {
+        Form {
+            Section("排版与字号大小调整") {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("编辑器字号")
+                        Spacer()
+                        Text("\(Int(editorFontSize)) pt").foregroundColor(.secondary)
+                    }
+                    Slider(value: $editorFontSize, in: 12 ... 22, step: 1)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("预览区正文字号")
+                        Spacer()
+                        Text("\(Int(previewFontSize)) pt").foregroundColor(.secondary)
+                    }
+                    Slider(value: $previewFontSize, in: 13 ... 22, step: 1)
+                }
+            }
+            .padding(.bottom, 10)
+
+            Section("预览排版宽度限制") {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("预览区最大阅读宽度")
+                        Spacer()
+                        Text("\(Int(previewLineWidth)) px").foregroundColor(.secondary)
+                    }
+                    Slider(value: $previewLineWidth, in: 620 ... 1040, step: 20)
+                }
+            }
+
+            Spacer()
+
+            HStack {
+                Spacer()
+                Button("恢复默认设置", role: .destructive) {
+                    withAnimation {
+                        themeName = MdoraTheme.system.rawValue
+                        showInspector = true
+                        focusMode = false
+                        editorFontSize = 15.0
+                        previewFontSize = 16.0
+                        previewLineWidth = 820.0
+                        previewAnimations = true
+                        syncPreviewWithEditor = true
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+            }
+        }
+        .padding(14)
+    }
+
+    private var shortcutsTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Markdown 常用编辑快捷键")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+
+                Group {
+                    ShortcutRow(keys: "⌘ B", action: "加粗选中文本")
+                    ShortcutRow(keys: "⌘ I", action: "倾斜选中文本")
+                    ShortcutRow(keys: "⌘ K", action: "插入网页超链接")
+                    ShortcutRow(keys: "⌘ Shift K", action: "插入 Wiki 双链链接")
+                    ShortcutRow(keys: "⌘ 1/2/3", action: "套用 1/2/3 级标题样式")
+                    ShortcutRow(keys: "⌘ U", action: "快速插入无序列表")
+                    ShortcutRow(keys: "⌘ O", action: "快速插入有序列表")
+                    ShortcutRow(keys: "⌘ T", action: "快速插入待办任务框")
+                    ShortcutRow(keys: "⌘ /", action: "将选区包裹为代码区块")
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("智能编辑器书写特性")
+                        .font(.subheadline.bold())
+                    Text("• 在待办列表、有序/无序列表、引用或首行缩进处按 **回车 (Return)**，会自动在下一行延续排版标记。")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("• 在空列表项处按 **回车 (Return)**，会自动清除当前的格式前缀。")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(16)
+        }
+    }
+}
+
+struct ShortcutRow: View {
+    let keys: String
+    let action: String
+
+    var body: some View {
+        HStack {
+            Text(action)
+                .foregroundColor(.primary)
+            Spacer()
+            Text(keys)
+                .font(.system(.subheadline, design: .monospaced))
+                .fontWeight(.bold)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color.secondary.opacity(0.15))
+                .cornerRadius(6)
+        }
     }
 }
