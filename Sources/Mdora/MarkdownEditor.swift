@@ -266,15 +266,31 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             textStorage.beginEditing()
             textStorage.setAttributes(baseAttributes, range: fullRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
+            highlightInline(pattern: #"!\[[^\]]*\]\([^\)]+\)"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.accent.withAlphaComponent(0.10)
+            ])
+            highlightInline(pattern: #"!\[[^\]]*\]\[[^\]]*\]"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.accent.withAlphaComponent(0.10)
+            ])
             highlightInline(pattern: #"`[^`]+`"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
+            ])
+            highlightInline(pattern: #"\*\*[^*\n]+\*\*|__[^_\n]+__"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.text,
+                .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .bold)
+            ])
+            highlightInline(pattern: #"(?<!\*)\*[^*\n]+\*(?!\*)|(?<!_)_[^_\n]+_(?!_)"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.text,
+                .font: italicFont(size: 15)
             ])
             highlightInline(pattern: #"~~[^~]+~~"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .strikethroughStyle: NSUnderlineStyle.single.rawValue
             ])
-            highlightInline(pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
+            highlightInline(pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
             ])
@@ -290,6 +306,19 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
             ])
+            highlightInline(pattern: #"\[\^[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .baselineOffset: 3,
+                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+            ])
+            highlightInline(pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .underlineStyle: NSUnderlineStyle.single.rawValue
+            ])
+            highlightInline(pattern: #"(?<![\w@])([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})(?![\w@])"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .underlineStyle: NSUnderlineStyle.single.rawValue
+            ], options: [.caseInsensitive])
             highlightInline(pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
             ])
@@ -335,6 +364,14 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     return
                 }
 
+                if self.isFrontMatterFence(lineRange: lineRange, in: nsString) {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                    ], range: lineRange)
+                    return
+                }
+
                 if isInFence {
                     storage.addAttributes([
                         .foregroundColor: palette.muted,
@@ -359,6 +396,14 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 if self.isReferenceDefinition(trimmed) {
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                    ], range: lineRange)
+                    return
+                }
+
+                if self.isMetadataLine(trimmed, lineRange: lineRange, in: nsString) {
+                    storage.addAttributes([
+                        .foregroundColor: palette.muted,
                         .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
                     ], range: lineRange)
                     return
@@ -415,6 +460,41 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             return colon < line.endIndex && line[colon] == ":"
         }
 
+        private func isMetadataLine(_ line: String, lineRange: NSRange, in string: NSString) -> Bool {
+            guard lineRange.location > 0 else { return false }
+            guard line.contains(":") else { return false }
+            return isInsideFrontMatter(lineRange: lineRange, in: string)
+        }
+
+        private func isFrontMatterFence(lineRange: NSRange, in string: NSString) -> Bool {
+            let line = string.substring(with: lineRange).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard line == "---" else { return false }
+            return lineRange.location == 0 || isInsideFrontMatter(lineRange: lineRange, in: string)
+        }
+
+        private func isInsideFrontMatter(lineRange: NSRange, in string: NSString) -> Bool {
+            guard string.length > 0 else { return false }
+            let firstLineRange = string.lineRange(for: NSRange(location: 0, length: 0))
+            let firstLine = string.substring(with: firstLineRange).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard firstLine == "---" else { return false }
+            guard lineRange.location >= firstLineRange.upperBound else { return true }
+
+            var cursor = firstLineRange.upperBound
+
+            while cursor < string.length {
+                let candidateRange = string.lineRange(for: NSRange(location: cursor, length: 0))
+                let candidate = string.substring(with: candidateRange).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if candidate == "---" {
+                    return lineRange.location <= candidateRange.location
+                }
+
+                cursor = candidateRange.upperBound
+            }
+
+            return false
+        }
+
         @MainActor
         private func highlightCurrentLine(in textView: NSTextView, storage: NSTextStorage) {
             let selectedRange = textView.selectedRange()
@@ -435,9 +515,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             pattern: String,
             in textView: NSTextView,
             storage: NSTextStorage,
-            attributes: [NSAttributedString.Key: Any]
+            attributes: [NSAttributedString.Key: Any],
+            options: NSRegularExpression.Options = []
         ) {
-            guard let expression = try? NSRegularExpression(pattern: pattern) else { return }
+            guard let expression = try? NSRegularExpression(pattern: pattern, options: options) else { return }
 
             let text = textView.string
             let range = NSRange(text.startIndex ..< text.endIndex, in: text)
@@ -445,6 +526,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             for match in expression.matches(in: text, range: range) {
                 storage.addAttributes(attributes, range: match.range)
             }
+        }
+
+        private func italicFont(size: CGFloat) -> NSFont {
+            let base = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            return NSFontManager.shared.convert(base, toHaveTrait: .italicFontMask)
         }
     }
 }

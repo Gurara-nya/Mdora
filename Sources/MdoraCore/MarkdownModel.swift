@@ -3,17 +3,20 @@ import Foundation
 public struct ParsedMarkdownDocument: Equatable {
     public var blocks: [MarkdownBlock]
     public var outline: [DocumentSymbol]
+    public var metadata: [MetadataItem]
     public var markers: MarkdownMarkers
     public var stats: MarkdownStats
 
     public init(
         blocks: [MarkdownBlock],
         outline: [DocumentSymbol],
+        metadata: [MetadataItem] = [],
         markers: MarkdownMarkers,
         stats: MarkdownStats
     ) {
         self.blocks = blocks
         self.outline = outline
+        self.metadata = metadata
         self.markers = markers
         self.stats = stats
     }
@@ -148,6 +151,28 @@ public struct LinkReferenceDefinition: Equatable {
     }
 }
 
+public struct MetadataItem: Equatable, Hashable, Identifiable {
+    public var id: String { key }
+    public var key: String
+    public var value: String
+
+    public init(key: String, value: String) {
+        self.key = key
+        self.value = value
+    }
+}
+
+public struct BlockKindCount: Equatable, Hashable, Identifiable {
+    public var id: String { kind }
+    public var kind: String
+    public var count: Int
+
+    public init(kind: String, count: Int) {
+        self.kind = kind
+        self.count = count
+    }
+}
+
 public enum TableAlignment: String, Equatable {
     case leading
     case center
@@ -197,7 +222,9 @@ public struct DocumentSymbol: Equatable, Identifiable {
 public struct MarkdownMarkers: Equatable {
     public var links: [String]
     public var autoLinks: [String]
+    public var emailLinks: [String]
     public var images: [String]
+    public var imageReferences: [String]
     public var tags: [String]
     public var mentions: [String]
     public var wikiLinks: [String]
@@ -213,7 +240,9 @@ public struct MarkdownMarkers: Equatable {
     public init(
         links: [String] = [],
         autoLinks: [String] = [],
+        emailLinks: [String] = [],
         images: [String] = [],
+        imageReferences: [String] = [],
         tags: [String] = [],
         mentions: [String] = [],
         wikiLinks: [String] = [],
@@ -228,7 +257,9 @@ public struct MarkdownMarkers: Equatable {
     ) {
         self.links = links
         self.autoLinks = autoLinks
+        self.emailLinks = emailLinks
         self.images = images
+        self.imageReferences = imageReferences
         self.tags = tags
         self.mentions = mentions
         self.wikiLinks = wikiLinks
@@ -276,13 +307,22 @@ public struct MarkdownStats: Equatable {
     public var characters: Int
     public var lines: Int
     public var blocks: Int
+    public var blockKinds: [BlockKindCount]
     public var readingMinutes: Int
 
-    public init(words: Int, characters: Int, lines: Int, blocks: Int, readingMinutes: Int) {
+    public init(
+        words: Int,
+        characters: Int,
+        lines: Int,
+        blocks: Int,
+        blockKinds: [BlockKindCount] = [],
+        readingMinutes: Int
+    ) {
         self.words = words
         self.characters = characters
         self.lines = lines
         self.blocks = blocks
+        self.blockKinds = blockKinds
         self.readingMinutes = readingMinutes
     }
 }

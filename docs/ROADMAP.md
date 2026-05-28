@@ -17,6 +17,7 @@
 - Add document outline and marker inspection.
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
+- Add front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

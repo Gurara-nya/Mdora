@@ -228,10 +228,12 @@ public enum MarkdownHTMLRenderer {
         rendered = replace(rendered, pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, template: #"<a href="$2">$1</a>"#)
         rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[([^\]]+)\]"#, template: ##"<a href="#ref-$2">$1</a>"##)
         rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[\]"#, template: ##"<a href="#ref-$1">$1</a>"##)
+        rendered = replace(rendered, pattern: #"\!\[([^\]]*)\]\[([^\]]*)\]"#, template: ##"<span class="image-ref">$1 [$2]</span>"##)
         rendered = replace(rendered, pattern: #"\[\[([^\]]+)\]\]"#, template: #"<span class="wikilink">$1</span>"#)
         rendered = replace(rendered, pattern: #"\[\^([^\]]+)\]"#, template: #"<sup>$1</sup>"#)
         rendered = replace(rendered, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, template: #"<span class="math-inline">$1</span>"#)
         rendered = replace(rendered, pattern: #"(?<![\w">])(https?://[^\s<]+)"#, template: #"<a href="$1">$1</a>"#)
+        rendered = replace(rendered, pattern: #"(?<![\w@])([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})(?![\w@])"#, template: #"<a href="mailto:$1">$1</a>"#)
         rendered = replace(rendered, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, template: #"<span class="tag">#$1</span>"#)
         rendered = replace(rendered, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, template: #"<span class="mention">@$1</span>"#)
         return rendered
@@ -297,7 +299,7 @@ public enum MarkdownHTMLRenderer {
         .task-list { list-style: none; padding-left: 0; }
         .task.done { opacity: 0.68; text-decoration: line-through; }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }
-        .tag, .mention, .wikilink, .math-inline {
+        .tag, .mention, .wikilink, .math-inline, .image-ref {
           border-radius: 999px;
           padding: 0.08em 0.45em;
           background: rgba(45, 132, 214, 0.16);

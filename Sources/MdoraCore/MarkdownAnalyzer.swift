@@ -11,12 +11,39 @@ public enum MarkdownAnalyzer {
         }
     }
 
+    public static func metadata(from blocks: [MarkdownBlock]) -> [MetadataItem] {
+        guard let frontMatter = blocks.compactMap({ block -> [String]? in
+            if case let .frontMatter(lines) = block {
+                return lines
+            }
+
+            return nil
+        }).first else {
+            return []
+        }
+
+        return frontMatter.compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+            guard let separator = trimmed.firstIndex(of: ":") else { return nil }
+
+            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespaces)
+            var value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+
+            guard !key.isEmpty else { return nil }
+            return MetadataItem(key: key, value: value)
+        }
+    }
+
     public static func markers(in markdown: String, blocks: [MarkdownBlock]) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
 
         markers.links = unique(matches(in: markdown, pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, group: 2))
         markers.autoLinks = unique(matches(in: markdown, pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, group: 1))
+        markers.emailLinks = unique(matches(in: markdown, pattern: #"(?<![\w@])([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})(?![\w@])"#, group: 1))
         markers.images = unique(matches(in: markdown, pattern: #"\!\[([^\]]*)\]\(([^\)]+)\)"#, group: 2))
+        markers.imageReferences = unique(matches(in: markdown, pattern: #"\!\[[^\]]*\]\[([^\]]*)\]"#, group: 1))
         markers.tags = unique(matches(in: markdown, pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, group: 1))
         markers.mentions = unique(matches(in: markdown, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, group: 1))
         markers.wikiLinks = unique(matches(in: markdown, pattern: #"\[\[([^\]]+)\]\]"#, group: 1))
@@ -67,12 +94,13 @@ public enum MarkdownAnalyzer {
             characters: markdown.count,
             lines: max(1, markdown.components(separatedBy: .newlines).count),
             blocks: blocks.count,
+            blockKinds: blockKinds(from: blocks),
             readingMinutes: max(1, Int(ceil(Double(words) / 220.0)))
         )
     }
 
     private static func matches(in text: String, pattern: String, group: Int) -> [String] {
-        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return []
         }
 
@@ -96,6 +124,65 @@ public enum MarkdownAnalyzer {
         }
 
         return result
+    }
+
+    private static func blockKinds(from blocks: [MarkdownBlock]) -> [BlockKindCount] {
+        var counts: [String: Int] = [:]
+
+        for block in blocks {
+            counts[kindName(for: block), default: 0] += 1
+        }
+
+        return counts
+            .map { BlockKindCount(kind: $0.key, count: $0.value) }
+            .sorted { first, second in
+                if first.count == second.count {
+                    return first.kind < second.kind
+                }
+
+                return first.count > second.count
+            }
+    }
+
+    private static func kindName(for block: MarkdownBlock) -> String {
+        switch block {
+        case .frontMatter:
+            "Front Matter"
+        case .heading:
+            "Heading"
+        case .paragraph:
+            "Paragraph"
+        case .blockquote:
+            "Blockquote"
+        case .unorderedList:
+            "Bulleted List"
+        case .orderedList:
+            "Numbered List"
+        case .taskList:
+            "Task List"
+        case .codeBlock:
+            "Code"
+        case .diagram:
+            "Diagram"
+        case .mathBlock:
+            "Math"
+        case .table:
+            "Table"
+        case .definitionList:
+            "Definition List"
+        case .footnoteDefinition:
+            "Footnote"
+        case .linkReferenceDefinition:
+            "Reference"
+        case .image:
+            "Image"
+        case .thematicBreak:
+            "Divider"
+        case .htmlComment:
+            "Comment"
+        case .html:
+            "HTML"
+        }
     }
 
     private static func taskTokens(in markdown: String) -> [TaskToken] {

@@ -15,9 +15,10 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 
 1. `MarkdownDocument` owns the editable Markdown source.
 2. `MarkdownParser` converts source into `ParsedMarkdownDocument`.
-3. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
-4. `DocumentInspector` reads the same parsed document for outline and marker recognition.
-5. `MarkdownHTMLRenderer` uses the same parser for HTML export.
+3. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, and block distribution stats.
+4. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
+5. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, block distribution, and marker recognition.
+6. `MarkdownHTMLRenderer` uses the same parser for HTML export.
 
 This keeps preview, inspection, and export aligned around one parser.
 
@@ -55,6 +56,7 @@ The parser currently recognizes:
 - Footnote definitions and references.
 - Definition lists.
 - Reference link definitions and references.
+- Image reference syntax and email autolinks.
 - HTML comments.
 - Images, links, automatic links, wiki links, tags, mentions, and TODO-style tokens.
 

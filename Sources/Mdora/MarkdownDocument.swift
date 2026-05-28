@@ -36,7 +36,7 @@ extension MarkdownDocument {
 
     Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, `inline code`, #tags, @mentions, [[Wiki Links]], and [links](https://example.com).
 
-    Reference links are supported too: [Mdora][project].
+    Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized.
 
     <!-- Comments are parsed and visible in the inspector. -->
 
@@ -56,6 +56,8 @@ extension MarkdownDocument {
     | --- | ---: |
     | Native editor | Ready |
     | Rich preview | In progress |
+
+    ![Referenced image][sample-image]
 
     ```swift
     let app = "Mdora"
@@ -82,6 +84,7 @@ extension MarkdownDocument {
     [^1]: Mdora keeps this as Markdown source.
 
     [project]: https://github.com/Gurara-nya/Mdora "Mdora on GitHub"
+    [sample-image]: image.png "Local image reference"
     """
 }
 
