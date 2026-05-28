@@ -38,6 +38,34 @@ public enum MarkdownInternalLinkResolver {
         return indexForSearchTerm(searchTerm, in: blocks)
     }
 
+    public static func fileURLForWikiTarget(
+        _ target: String,
+        currentDocumentURL: URL?,
+        fileManager: FileManager = .default
+    ) -> URL? {
+        let reference = MarkdownWikiLinkReference.parse(target)
+        guard !reference.path.isEmpty,
+              !isSameDocumentReference(reference, currentDocumentURL: currentDocumentURL),
+              let currentDocumentURL else {
+            return nil
+        }
+
+        let baseURL = currentDocumentURL.deletingLastPathComponent()
+        let unresolvedURL = unresolvedFileURL(for: reference.path, relativeTo: baseURL)
+
+        for candidate in fileCandidates(for: unresolvedURL) {
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else {
+                continue
+            }
+
+            return candidate.standardizedFileURL
+        }
+
+        return nil
+    }
+
     public static func indexForFootnote(_ identifier: String, in blocks: [MarkdownBlock]) -> Int? {
         let normalizedIdentifier = identifier.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedIdentifier.isEmpty else { return nil }
@@ -167,6 +195,30 @@ public enum MarkdownInternalLinkResolver {
         let documentStem = currentDocumentURL.deletingPathExtension().lastPathComponent.lowercased()
 
         return referenceName == documentName || referenceName == documentStem || referenceStem == documentStem
+    }
+
+    private static func unresolvedFileURL(for path: String, relativeTo baseURL: URL) -> URL {
+        let path = path.removingPercentEncoding ?? path
+        if path.hasPrefix("~") {
+            return URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+        }
+
+        if path.hasPrefix("/") {
+            return URL(fileURLWithPath: path)
+        }
+
+        return baseURL.appendingPathComponent(path)
+    }
+
+    private static func fileCandidates(for url: URL) -> [URL] {
+        guard url.pathExtension.isEmpty else { return [url] }
+
+        return [
+            url,
+            url.appendingPathExtension("md"),
+            url.appendingPathExtension("markdown"),
+            url.appendingPathExtension("mdown")
+        ]
     }
 
     private static func headingAnchor(for text: String) -> String {

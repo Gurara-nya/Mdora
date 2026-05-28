@@ -164,6 +164,14 @@ struct MarkdownPreview: View {
                 in: parsed.blocks,
                 currentDocumentURL: documentURL
             )
+            if targetIndex == nil,
+               let fileURL = MarkdownInternalLinkResolver.fileURLForWikiTarget(
+                   parameter,
+                   currentDocumentURL: documentURL
+               ) {
+                openMarkdownDocument(at: fileURL)
+                return
+            }
         } else if url.host == "footnote" {
             targetIndex = MarkdownInternalLinkResolver.indexForFootnote(parameter, in: parsed.blocks)
         } else if url.host == "tag" {
@@ -175,6 +183,14 @@ struct MarkdownPreview: View {
         if let targetIndex {
             withAnimation(style.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
                 proxy.scrollTo(targetIndex, anchor: .center)
+            }
+        }
+    }
+
+    private func openMarkdownDocument(at url: URL) {
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+            if error != nil {
+                NSWorkspace.shared.open(url)
             }
         }
     }

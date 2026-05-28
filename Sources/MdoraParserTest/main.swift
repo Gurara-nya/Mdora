@@ -126,7 +126,31 @@ func runTests() {
     assert(MarkdownInternalLinkResolver.indexForMention("yeqi", in: navigationDocument.blocks) == 1)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
-    // 6. Load & parse real test.md
+    // 6. Test cross-file wiki link resolution
+    do {
+        let workspaceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mdora-wiki-resolution-\(UUID().uuidString)", isDirectory: true)
+        let notesURL = workspaceURL.appendingPathComponent("Notes", isDirectory: true)
+        let currentURL = workspaceURL.appendingPathComponent("Current.md")
+        let targetURL = notesURL.appendingPathComponent("Other.md")
+        let spacedTargetURL = workspaceURL.appendingPathComponent("Daily Note.md")
+
+        try FileManager.default.createDirectory(at: notesURL, withIntermediateDirectories: true)
+        try "# Current\n".write(to: currentURL, atomically: true, encoding: .utf8)
+        try "# Other\n".write(to: targetURL, atomically: true, encoding: .utf8)
+        try "# Daily\n".write(to: spacedTargetURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        assert(MarkdownInternalLinkResolver.fileURLForWikiTarget("Notes/Other#Details", currentDocumentURL: currentURL) == targetURL.standardizedFileURL)
+        assert(MarkdownInternalLinkResolver.fileURLForWikiTarget("Daily Note", currentDocumentURL: currentURL) == spacedTargetURL.standardizedFileURL)
+        assert(MarkdownInternalLinkResolver.fileURLForWikiTarget("Current#Intro", currentDocumentURL: currentURL) == nil)
+        assert(MarkdownInternalLinkResolver.fileURLForWikiTarget("Missing", currentDocumentURL: currentURL) == nil)
+        print("✅ Cross-file wiki links resolve neighboring Markdown files!")
+    } catch {
+        fatalError("❌ Failed cross-file wiki link test setup: \(error)")
+    }
+
+    // 7. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 

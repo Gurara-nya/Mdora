@@ -33,7 +33,7 @@ The first build includes:
 - Remote images and local image files are rendered in preview, with relative paths resolved from the current Markdown file location. Standalone wiki image embeds such as `![[Assets/mockup.png|App mockup]]` use the same preview path.
 - Local preview images are downsampled and cached with bounded cost, and first loads happen off the main thread so scrolling and hover redraws do not repeatedly read or decode the same files.
 - Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination, with custom heading anchors such as `{#section-id}` and Obsidian-style block ids such as `^block-id` preserved for outlines, table of contents entries, inspection, and HTML export.
-- Internal preview navigation resolves heading anchors, Obsidian wiki heading/block references, footnotes, tags, and @mentions back to the matching rendered block.
+- Internal preview navigation resolves heading anchors, Obsidian wiki heading/block references, footnotes, tags, and @mentions back to the matching rendered block, and cross-file wiki links can open neighboring Markdown files.
 - Preview task checkboxes can update the underlying Markdown task marker directly, with a context menu for extended states such as in-progress, forwarded, important, and question.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.
