@@ -367,6 +367,7 @@ public struct MarkdownMarkers: Equatable {
     public var tags: [String]
     public var mentions: [String]
     public var wikiLinks: [String]
+    public var customAnchors: [String]
     public var footnotes: [String]
     public var linkReferences: [String]
     public var htmlComments: [String]
@@ -396,6 +397,7 @@ public struct MarkdownMarkers: Equatable {
         tags: [String] = [],
         mentions: [String] = [],
         wikiLinks: [String] = [],
+        customAnchors: [String] = [],
         footnotes: [String] = [],
         linkReferences: [String] = [],
         htmlComments: [String] = [],
@@ -424,6 +426,7 @@ public struct MarkdownMarkers: Equatable {
         self.tags = tags
         self.mentions = mentions
         self.wikiLinks = wikiLinks
+        self.customAnchors = customAnchors
         self.footnotes = footnotes
         self.linkReferences = linkReferences
         self.htmlComments = htmlComments

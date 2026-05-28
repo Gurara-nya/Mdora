@@ -52,7 +52,7 @@ Writing preferences are intentionally stored outside the Markdown file. They aff
 
 The parser currently recognizes:
 
-- ATX and setext headings.
+- ATX and setext headings, including Markdown Extra/Pandoc-style custom heading anchors.
 - YAML, TOML, and JSON front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.

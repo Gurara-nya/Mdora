@@ -32,7 +32,7 @@ extension MarkdownDocument {
     app: Mdora
     ---
 
-    # Untitled
+    # Untitled {#welcome}
 
     Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, ==highlight==, H~2~O, 10^2^, `inline code`, #tags, @mentions, [[Wiki Links]], and [links](https://example.com).
 

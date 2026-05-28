@@ -339,6 +339,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.text,
                 .backgroundColor: NSColor.systemYellow.withAlphaComponent(0.22)
             ])
+            highlightInline(pattern: #"\{#[A-Za-z0-9_\-:\.]+(?:\s+[^}\n]+)?\}"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.accent.withAlphaComponent(0.12),
+                .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
+            ])
             highlightInline(pattern: #"\{\+\+[^\n]*?\+\+\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue

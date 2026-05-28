@@ -355,10 +355,14 @@ private struct BlockParser {
         guard markerEnd < trimmed.endIndex, trimmed[markerEnd] == " " else { return nil }
 
         let textStart = trimmed.index(after: markerEnd)
-        let text = String(trimmed[textStart...]).trimmed
+        let parsed = MarkdownHeadingAttributes.parse(String(trimmed[textStart...]))
         index += 1
 
-        return .heading(level: hashes, text: text, anchor: Self.anchor(for: text))
+        return .heading(
+            level: hashes,
+            text: parsed.text,
+            anchor: parsed.anchor ?? Self.anchor(for: parsed.text)
+        )
     }
 
     private mutating func parseSetextHeading() -> MarkdownBlock? {
@@ -368,9 +372,13 @@ private struct BlockParser {
         guard underline.count >= 2 else { return nil }
 
         let level = underline.first == "=" ? 1 : 2
-        let text = currentLine.trimmed
+        let parsed = MarkdownHeadingAttributes.parse(currentLine.trimmed)
         index += 2
-        return .heading(level: level, text: text, anchor: Self.anchor(for: text))
+        return .heading(
+            level: level,
+            text: parsed.text,
+            anchor: parsed.anchor ?? Self.anchor(for: parsed.text)
+        )
     }
 
     private mutating func parseThematicBreak() -> MarkdownBlock? {
@@ -794,6 +802,73 @@ private struct ParsedListLine {
     var depth: Int
     var isOrdered: Bool
     var taskDone: Bool?
+}
+
+enum MarkdownHeadingAttributes {
+    static func parse(_ rawText: String) -> (text: String, anchor: String?) {
+        let text = strippedClosingHashes(from: rawText)
+        guard let anchor = customAnchor(in: text),
+              let attributesStart = attributesStart(in: text) else {
+            return (text, nil)
+        }
+
+        let displayText = String(text[..<attributesStart]).trimmed
+        return (displayText.isEmpty ? text : displayText, anchor)
+    }
+
+    static func customAnchor(in text: String) -> String? {
+        guard let attributes = trailingAttributes(in: text) else { return nil }
+
+        return attributes
+            .split { $0.isWhitespace || $0.isNewline }
+            .compactMap { token -> String? in
+                guard token.hasPrefix("#") else { return nil }
+                let anchor = String(token.dropFirst()).trimmed
+                return anchor.isEmpty ? nil : anchor
+            }
+            .first
+    }
+
+    static func strippedClosingHashes(from rawText: String) -> String {
+        let text = rawText.trimmed
+        var end = text.endIndex
+
+        while end > text.startIndex, text[text.index(before: end)].isWhitespace {
+            end = text.index(before: end)
+        }
+
+        var hashStart = end
+        while hashStart > text.startIndex, text[text.index(before: hashStart)] == "#" {
+            hashStart = text.index(before: hashStart)
+        }
+
+        guard hashStart < end,
+              hashStart > text.startIndex,
+              text[text.index(before: hashStart)].isWhitespace else {
+            return text
+        }
+
+        return String(text[..<hashStart]).trimmed
+    }
+
+    private static func trailingAttributes(in text: String) -> String? {
+        guard let start = attributesStart(in: text) else { return nil }
+        let afterOpen = text.index(after: start)
+        let beforeClose = text.index(before: text.endIndex)
+        let attributes = String(text[afterOpen ..< beforeClose]).trimmed
+        return attributes.isEmpty ? nil : attributes
+    }
+
+    private static func attributesStart(in text: String) -> String.Index? {
+        let text = text.trimmed
+        guard text.hasSuffix("}") else { return nil }
+        guard let start = text.lastIndex(of: "{") else { return nil }
+        guard start > text.startIndex, text[text.index(before: start)].isWhitespace else { return nil }
+
+        let afterOpen = text.index(after: start)
+        guard afterOpen < text.endIndex else { return nil }
+        return String(text[afterOpen...]).contains("#") ? start : nil
+    }
 }
 
 private extension String {

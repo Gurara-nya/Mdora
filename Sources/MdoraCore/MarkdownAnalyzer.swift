@@ -163,6 +163,7 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.customAnchors = unique(customHeadingAnchors(in: markdown))
         markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
         markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
         markers.htmlComments = unique(htmlComments(in: blocks))
@@ -534,6 +535,35 @@ public enum MarkdownAnalyzer {
             }
 
             return nil
+        }
+    }
+
+    private static func customHeadingAnchors(in markdown: String) -> [String] {
+        let lines = markdown.components(separatedBy: .newlines)
+
+        return lines.enumerated().compactMap { index, line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.hasPrefix("#") {
+                let hashes = trimmed.prefix { $0 == "#" }.count
+                guard (1 ... 6).contains(hashes) else { return nil }
+
+                let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
+                guard markerEnd < trimmed.endIndex, trimmed[markerEnd].isWhitespace else { return nil }
+
+                let contentStart = trimmed.index(after: markerEnd)
+                let content = MarkdownHeadingAttributes.strippedClosingHashes(from: String(trimmed[contentStart...]))
+                return MarkdownHeadingAttributes.customAnchor(in: content)
+            }
+
+            guard lines.indices.contains(index + 1) else { return nil }
+            let underline = lines[index + 1].trimmingCharacters(in: .whitespaces)
+            guard underline.count >= 2,
+                  underline.allSatisfy({ $0 == "=" }) || underline.allSatisfy({ $0 == "-" }) else {
+                return nil
+            }
+
+            return MarkdownHeadingAttributes.customAnchor(in: trimmed)
         }
     }
 
