@@ -5,6 +5,7 @@ public struct ParsedMarkdownDocument: Equatable {
     public var outline: [DocumentSymbol]
     public var metadata: [MetadataItem]
     public var markers: MarkdownMarkers
+    public var diagnostics: [MarkdownDiagnostic]
     public var stats: MarkdownStats
 
     public init(
@@ -12,12 +13,14 @@ public struct ParsedMarkdownDocument: Equatable {
         outline: [DocumentSymbol],
         metadata: [MetadataItem] = [],
         markers: MarkdownMarkers,
+        diagnostics: [MarkdownDiagnostic] = [],
         stats: MarkdownStats
     ) {
         self.blocks = blocks
         self.outline = outline
         self.metadata = metadata
         self.markers = markers
+        self.diagnostics = diagnostics
         self.stats = stats
     }
 }
@@ -170,6 +173,38 @@ public struct BlockKindCount: Equatable, Hashable, Identifiable {
     public init(kind: String, count: Int) {
         self.kind = kind
         self.count = count
+    }
+}
+
+public struct MarkdownDiagnostic: Equatable, Hashable, Identifiable {
+    public var id: String
+    public var severity: MarkdownDiagnosticSeverity
+    public var title: String
+    public var message: String
+    public var line: Int?
+
+    public init(
+        id: String,
+        severity: MarkdownDiagnosticSeverity,
+        title: String,
+        message: String,
+        line: Int? = nil
+    ) {
+        self.id = id
+        self.severity = severity
+        self.title = title
+        self.message = message
+        self.line = line
+    }
+}
+
+public enum MarkdownDiagnosticSeverity: String, Equatable, Hashable, CaseIterable {
+    case info
+    case warning
+    case error
+
+    public var title: String {
+        rawValue.capitalized
     }
 }
 

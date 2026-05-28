@@ -26,6 +26,16 @@ struct DocumentInspector: View {
                     CompatibilitySummary(document: document, theme: theme)
                 }
 
+                if !document.diagnostics.isEmpty {
+                    InspectorSection(title: "Diagnostics", systemImage: "stethoscope", theme: theme) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(document.diagnostics) { diagnostic in
+                                DiagnosticRow(diagnostic: diagnostic, theme: theme)
+                            }
+                        }
+                    }
+                }
+
                 InspectorSection(title: "Outline", systemImage: "list.bullet.indent", theme: theme) {
                     if document.outline.isEmpty {
                         EmptyInspectorText("No headings", theme: theme)
@@ -133,6 +143,17 @@ private struct CompatibilitySummary: View {
                     .foregroundStyle(theme.palette.mutedColor)
             }
 
+            if !document.diagnostics.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+
+                    Text("\(document.diagnostics.count) diagnostics")
+                        .font(.caption)
+                        .foregroundStyle(theme.palette.mutedColor)
+                }
+            }
+
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 6)], alignment: .leading, spacing: 6) {
                 ForEach(detectedFeatures, id: \.self) { feature in
                     Text(feature)
@@ -173,6 +194,46 @@ private struct CompatibilitySummary: View {
         if document.stats.blockKinds.contains(where: { $0.kind == kind }) {
             features.append(title)
         }
+    }
+}
+
+private struct DiagnosticRow: View {
+    let diagnostic: MarkdownDiagnostic
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Image(systemName: diagnostic.severity.systemImage)
+                    .foregroundStyle(diagnostic.severity.color)
+                    .frame(width: 14)
+
+                Text(diagnostic.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.palette.textColor)
+
+                Spacer(minLength: 6)
+
+                if let line = diagnostic.line {
+                    Text("L\(line)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(theme.palette.mutedColor)
+                }
+            }
+
+            Text(diagnostic.message)
+                .font(.caption)
+                .foregroundStyle(theme.palette.mutedColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(diagnostic.severity.color.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(diagnostic.severity.color.opacity(0.26), lineWidth: 1)
+        )
     }
 }
 
@@ -299,5 +360,29 @@ private struct EmptyInspectorText: View {
         Text(text)
             .font(.caption)
             .foregroundStyle(theme.palette.mutedColor)
+    }
+}
+
+private extension MarkdownDiagnosticSeverity {
+    var systemImage: String {
+        switch self {
+        case .info:
+            "info.circle"
+        case .warning:
+            "exclamationmark.triangle"
+        case .error:
+            "xmark.octagon"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .info:
+            .blue
+        case .warning:
+            .orange
+        case .error:
+            .red
+        }
     }
 }

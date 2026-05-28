@@ -15,9 +15,9 @@ The first implementation is a native macOS SwiftUI app. It uses Apple's document
 
 1. `MarkdownDocument` owns the editable Markdown source.
 2. `MarkdownParser` converts source into `ParsedMarkdownDocument`.
-3. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, and block distribution stats.
+3. `MarkdownAnalyzer` derives outline, front matter metadata, marker indexes, diagnostics, and block distribution stats.
 4. `MarkdownPreview` renders parsed blocks as native SwiftUI views.
-5. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, block distribution, and marker recognition.
+5. `DocumentInspector` reads the same parsed document for outline, metadata, compatibility, diagnostics, block distribution, and marker recognition.
 6. `MarkdownHTMLRenderer` uses the same parser for HTML export.
 
 This keeps preview, inspection, and export aligned around one parser.
@@ -40,7 +40,7 @@ There are three viable levels:
 
 The recommended path is to ship level 1, grow into level 2, and only adopt level 3 if the product needs complex block manipulation.
 
-The current app is between level 1 and level 2: it keeps Markdown source as truth, but the preview already has block-level semantics for tables, callouts, tasks, code languages, diagrams, math, footnotes, definition lists, front matter, images, and document markers.
+The current app is between level 1 and level 2: it keeps Markdown source as truth, but the editor now adds smart return continuation, and the preview already has block-level semantics for tables, callouts, tasks, code languages, diagrams, math, footnotes, definition lists, front matter, images, and document markers.
 
 ## Compatibility Surface
 
@@ -59,6 +59,7 @@ The parser currently recognizes:
 - Image reference syntax and email autolinks.
 - HTML comments.
 - Images, links, automatic links, wiki links, tags, mentions, and TODO-style tokens.
+- Diagnostics for missing references, missing footnotes, duplicate heading anchors, and unclosed front matter, code fences, or math blocks.
 
 ## Risks
 

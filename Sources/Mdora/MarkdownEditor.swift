@@ -27,7 +27,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let textView = NSTextView()
+        let textView = MarkdownNSTextView()
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
@@ -47,6 +47,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             height: CGFloat.greatestFiniteMagnitude
         )
         textView.delegate = context.coordinator
+        textView.onSmartNewline = { [weak textView] in
+            guard let textView else { return }
+            context.coordinator.parent.text = textView.string
+            context.coordinator.highlight(textView)
+        }
 
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -532,6 +537,124 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             let base = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
             return NSFontManager.shared.convert(base, toHaveTrait: .italicFontMask)
         }
+    }
+}
+
+private final class MarkdownNSTextView: NSTextView {
+    var onSmartNewline: (() -> Void)?
+
+    override func insertNewline(_ sender: Any?) {
+        guard selectedRange().length == 0 else {
+            super.insertNewline(sender)
+            onSmartNewline?()
+            return
+        }
+
+        if let continuation = smartContinuation() {
+            insertText(continuation, replacementRange: selectedRange())
+            onSmartNewline?()
+        } else {
+            super.insertNewline(sender)
+            onSmartNewline?()
+        }
+    }
+
+    private func smartContinuation() -> String? {
+        let source = string as NSString
+        guard source.length > 0 else { return nil }
+
+        let selectedLocation = selectedRange().location
+        let lookupLocation = max(0, min(selectedLocation, source.length) - 1)
+        let lineRange = source.lineRange(for: NSRange(location: lookupLocation, length: 0))
+        let linePrefixLength = max(0, selectedLocation - lineRange.location)
+        let linePrefix = source.substring(with: NSRange(location: lineRange.location, length: linePrefixLength))
+        let leading = linePrefix.prefix { character in
+            character == " " || character == "\t"
+        }
+        let trimmed = linePrefix.trimmingCharacters(in: .whitespaces)
+
+        if trimmed.isEmpty {
+            return nil
+        }
+
+        if trimmed == ">" || trimmed == "> " {
+            return "\n"
+        }
+
+        if trimmed.hasPrefix("> ") {
+            return "\n\(leading)> "
+        }
+
+        if let taskContinuation = taskListContinuation(trimmed: trimmed, leading: String(leading)) {
+            return taskContinuation
+        }
+
+        if let bulletContinuation = bulletListContinuation(trimmed: trimmed, leading: String(leading)) {
+            return bulletContinuation
+        }
+
+        if let orderedContinuation = orderedListContinuation(trimmed: trimmed, leading: String(leading)) {
+            return orderedContinuation
+        }
+
+        if !leading.isEmpty {
+            return "\n\(leading)"
+        }
+
+        return nil
+    }
+
+    private func taskListContinuation(trimmed: String, leading: String) -> String? {
+        for bullet in ["-", "*", "+"] {
+            for checkbox in ["[ ]", "[x]", "[X]"] {
+                let marker = "\(bullet) \(checkbox)"
+
+                if trimmed == marker {
+                    return "\n"
+                }
+
+                if trimmed.hasPrefix(marker + " ") {
+                    return "\n\(leading)\(bullet) [ ] "
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func bulletListContinuation(trimmed: String, leading: String) -> String? {
+        if ["-", "*", "+"].contains(trimmed) {
+            return "\n"
+        }
+
+        for marker in ["- ", "* ", "+ "] where trimmed.hasPrefix(marker) {
+            guard trimmed.count > marker.count else {
+                return "\n"
+            }
+
+            return "\n\(leading)\(marker)"
+        }
+
+        return nil
+    }
+
+    private func orderedListContinuation(trimmed: String, leading: String) -> String? {
+        guard let dotIndex = trimmed.firstIndex(of: ".") else { return nil }
+
+        let numberPart = trimmed[..<dotIndex]
+        guard !numberPart.isEmpty, numberPart.allSatisfy({ $0.isNumber }) else { return nil }
+
+        let afterDot = trimmed.index(after: dotIndex)
+        guard afterDot < trimmed.endIndex, trimmed[afterDot] == " " else { return nil }
+
+        let contentStart = trimmed.index(after: afterDot)
+        let content = trimmed[contentStart...].trimmingCharacters(in: .whitespaces)
+        guard !content.isEmpty else {
+            return "\n"
+        }
+
+        let nextNumber = (Int(numberPart) ?? 0) + 1
+        return "\n\(leading)\(nextNumber). "
     }
 }
 

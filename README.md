@@ -32,8 +32,10 @@ The first build includes:
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Inspector for outline, metadata, block distribution, tags, mentions, wiki links, links, automatic links, email links, images, image references, footnotes, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for front matter, bold, italic, images, links, footnotes, URLs, emails, tables, comments, and more.
+- Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
+- Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
 - Subtle preview update animation and animated layout changes.
-- Status bar with word, character, line, link, tag, flag, and diagram counts.
+- Status bar with word, character, line, link, tag, flag, diagram, and diagnostic counts.
 - HTML export.
 
 ## Product Direction
@@ -59,7 +61,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented Markdown block parser for preview, export, metadata extraction, block distribution stats, and marker detection, including GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, reference links, image references, email autolinks, and HTML comments.
+- Parser: MdoraCore line-oriented Markdown block parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including GFM-style tables/tasks, callouts, math, diagrams, setext headings, indented code, footnotes, definition lists, reference links, image references, email autolinks, and HTML comments.
 
 Future stack candidates:
 

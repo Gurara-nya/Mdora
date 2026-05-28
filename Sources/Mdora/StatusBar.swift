@@ -4,6 +4,7 @@ import SwiftUI
 struct StatusBar: View {
     let stats: MarkdownStats
     let markers: MarkdownMarkers
+    let diagnostics: [MarkdownDiagnostic]
     let theme: MdoraTheme
     let message: String?
 
@@ -19,6 +20,7 @@ struct StatusBar: View {
             Text("\(markers.linkReferences.count) refs")
             Text("\(markers.taskTokens.count) flags")
             Text("\(markers.diagrams.count) diagrams")
+            Text("\(diagnostics.count) diagnostics")
 
             Spacer()
 

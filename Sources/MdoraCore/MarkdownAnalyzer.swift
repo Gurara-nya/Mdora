@@ -99,6 +99,31 @@ public enum MarkdownAnalyzer {
         )
     }
 
+    public static func diagnostics(
+        in markdown: String,
+        blocks: [MarkdownBlock],
+        outline: [DocumentSymbol]
+    ) -> [MarkdownDiagnostic] {
+        var diagnostics: [MarkdownDiagnostic] = []
+        diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
+        diagnostics.append(contentsOf: referenceDiagnostics(in: markdown, blocks: blocks))
+        diagnostics.append(contentsOf: footnoteDiagnostics(in: markdown, blocks: blocks))
+        diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
+
+        if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            diagnostics.append(
+                MarkdownDiagnostic(
+                    id: "empty-document",
+                    severity: .info,
+                    title: "Empty document",
+                    message: "Start typing Markdown to build a preview."
+                )
+            )
+        }
+
+        return diagnostics
+    }
+
     private static func matches(in text: String, pattern: String, group: Int) -> [String] {
         guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return []
@@ -253,5 +278,155 @@ public enum MarkdownAnalyzer {
 
             return nil
         }
+    }
+
+    private static func structuralDiagnostics(in markdown: String) -> [MarkdownDiagnostic] {
+        let lines = markdown.components(separatedBy: .newlines)
+        var diagnostics: [MarkdownDiagnostic] = []
+
+        if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == "---" {
+            let hasClosingFrontMatter = lines.dropFirst().contains { line in
+                line.trimmingCharacters(in: .whitespacesAndNewlines) == "---"
+            }
+
+            if !hasClosingFrontMatter {
+                diagnostics.append(
+                    MarkdownDiagnostic(
+                        id: "unclosed-front-matter",
+                        severity: .warning,
+                        title: "Unclosed front matter",
+                        message: "Front matter starts with --- but has no closing ---.",
+                        line: 1
+                    )
+                )
+            }
+        }
+
+        var openFence: (marker: String, line: Int)?
+        var openMathLine: Int?
+
+        for (offset, line) in lines.enumerated() {
+            let lineNumber = offset + 1
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                let marker = String(trimmed.prefix(3))
+
+                if let fence = openFence, fence.marker == marker {
+                    openFence = nil
+                } else if openFence == nil {
+                    openFence = (marker, lineNumber)
+                }
+            }
+
+            if trimmed == "$$" {
+                if openMathLine == nil {
+                    openMathLine = lineNumber
+                } else {
+                    openMathLine = nil
+                }
+            }
+        }
+
+        if let fence = openFence {
+            diagnostics.append(
+                MarkdownDiagnostic(
+                    id: "unclosed-code-fence-\(fence.line)",
+                    severity: .error,
+                    title: "Unclosed code fence",
+                    message: "A \(fence.marker) fence was opened but not closed.",
+                    line: fence.line
+                )
+            )
+        }
+
+        if let openMathLine {
+            diagnostics.append(
+                MarkdownDiagnostic(
+                    id: "unclosed-math-\(openMathLine)",
+                    severity: .warning,
+                    title: "Unclosed math block",
+                    message: "A $$ math block was opened but not closed.",
+                    line: openMathLine
+                )
+            )
+        }
+
+        return diagnostics
+    }
+
+    private static func referenceDiagnostics(in markdown: String, blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+        let definitions = Set(
+            blocks.compactMap { block -> String? in
+                if case let .linkReferenceDefinition(definition) = block {
+                    return definition.label.lowercased()
+                }
+
+                return nil
+            }
+        )
+
+        let referencedLabels = Set(
+            matches(in: markdown, pattern: #"(?<!\!)\[[^\]]+\]\[([^\]]+)\]"#, group: 1)
+                .map { $0.lowercased() }
+        )
+
+        let imageLabels = Set(
+            matches(in: markdown, pattern: #"\!\[[^\]]*\]\[([^\]]+)\]"#, group: 1)
+                .map { $0.lowercased() }
+        )
+
+        let missing = referencedLabels.union(imageLabels).subtracting(definitions).sorted()
+
+        return missing.map { label in
+            MarkdownDiagnostic(
+                id: "missing-reference-\(label)",
+                severity: .warning,
+                title: "Missing reference",
+                message: "No reference definition found for [\(label)]."
+            )
+        }
+    }
+
+    private static func footnoteDiagnostics(in markdown: String, blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+        let definitions = Set(
+            blocks.compactMap { block -> String? in
+                if case let .footnoteDefinition(identifier, _) = block {
+                    return identifier.lowercased()
+                }
+
+                return nil
+            }
+        )
+
+        let references = Set(
+            matches(in: markdown, pattern: #"\[\^([^\]]+)\]"#, group: 1)
+                .map { $0.lowercased() }
+        )
+
+        return references.subtracting(definitions).sorted().map { identifier in
+            MarkdownDiagnostic(
+                id: "missing-footnote-\(identifier)",
+                severity: .warning,
+                title: "Missing footnote",
+                message: "No footnote definition found for [^\(identifier)]."
+            )
+        }
+    }
+
+    private static func headingDiagnostics(outline: [DocumentSymbol]) -> [MarkdownDiagnostic] {
+        let grouped = Dictionary(grouping: outline, by: \.anchor)
+
+        return grouped.compactMap { anchor, symbols in
+            guard symbols.count > 1 else { return nil }
+
+            return MarkdownDiagnostic(
+                id: "duplicate-heading-\(anchor)",
+                severity: .info,
+                title: "Duplicate heading anchor",
+                message: "\(symbols.count) headings produce the same #\(anchor) anchor."
+            )
+        }
+        .sorted { $0.id < $1.id }
     }
 }

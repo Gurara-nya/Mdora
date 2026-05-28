@@ -66,6 +66,7 @@ struct EditorWindow: View {
             StatusBar(
                 stats: parsed.stats,
                 markers: parsed.markers,
+                diagnostics: parsed.diagnostics,
                 theme: theme,
                 message: exportMessage
             )
