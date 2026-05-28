@@ -16,6 +16,7 @@
 - Add basic theming.
 - Add document outline and marker inspection.
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
+- Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

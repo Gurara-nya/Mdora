@@ -54,6 +54,8 @@ The parser currently recognizes:
 - Blockquotes and GitHub-style callouts.
 - Footnote definitions and references.
 - Definition lists.
+- Reference link definitions and references.
+- HTML comments.
 - Images, links, automatic links, wiki links, tags, mentions, and TODO-style tokens.
 
 ## Risks

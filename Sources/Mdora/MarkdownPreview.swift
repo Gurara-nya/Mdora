@@ -77,12 +77,16 @@ private struct MarkdownBlockView: View {
             DefinitionListView(items: items, theme: theme)
         case let .footnoteDefinition(identifier, text):
             FootnoteDefinitionView(identifier: identifier, text: text, theme: theme)
+        case let .linkReferenceDefinition(definition):
+            LinkReferenceDefinitionView(definition: definition, theme: theme)
         case let .image(alt, source, title):
             ImageBlockView(alt: alt, source: source, title: title, theme: theme)
         case .thematicBreak:
             Divider()
                 .overlay(theme.palette.borderColor)
                 .padding(.vertical, 10)
+        case let .htmlComment(comment):
+            HTMLCommentView(comment: comment, theme: theme)
         case let .html(html):
             HTMLBlockView(html: html, theme: theme)
         }
@@ -534,6 +538,38 @@ private struct FootnoteDefinitionView: View {
     }
 }
 
+private struct LinkReferenceDefinitionView: View {
+    let definition: LinkReferenceDefinition
+    let theme: MdoraTheme
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Label(definition.label, systemImage: "link.badge.plus")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.accentColor)
+                .frame(minWidth: 80, alignment: .leading)
+
+            Text(definition.destination)
+                .font(.caption.monospaced())
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .foregroundStyle(theme.palette.textColor)
+
+            if let title = definition.title {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(theme.palette.mutedColor)
+                    .lineLimit(1)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 private struct ImageBlockView: View {
     let alt: String
     let source: String
@@ -576,6 +612,32 @@ private struct ImageBlockView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(theme.palette.borderColor.opacity(0.45), lineWidth: 1)
             )
+    }
+}
+
+private struct HTMLCommentView: View {
+    let comment: String
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Comment", systemImage: "text.bubble")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.mutedColor)
+
+            Text(comment)
+                .font(.system(size: 13, design: .monospaced))
+                .textSelection(.enabled)
+                .foregroundStyle(theme.palette.mutedColor)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor.opacity(0.65))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.borderColor.opacity(0.35), lineWidth: 1)
+        )
     }
 }
 

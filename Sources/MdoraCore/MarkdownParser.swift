@@ -88,7 +88,17 @@ private struct BlockParser {
                 continue
             }
 
+            if let block = parseLinkReferenceDefinition() {
+                blocks.append(block)
+                continue
+            }
+
             if let block = parseImage() {
+                blocks.append(block)
+                continue
+            }
+
+            if let block = parseHTMLComment() {
                 blocks.append(block)
                 continue
             }
@@ -340,6 +350,15 @@ private struct BlockParser {
         return .image(alt: image.alt, source: image.source, title: image.title)
     }
 
+    private mutating func parseLinkReferenceDefinition() -> MarkdownBlock? {
+        guard let definition = Self.parseLinkReferenceDefinitionLine(currentLine.trimmed) else {
+            return nil
+        }
+
+        index += 1
+        return .linkReferenceDefinition(definition)
+    }
+
     private mutating func parseFootnoteDefinition() -> MarkdownBlock? {
         let trimmed = currentLine.trimmed
         guard trimmed.hasPrefix("[^") else { return nil }
@@ -420,6 +439,29 @@ private struct BlockParser {
         return .html(currentLine)
     }
 
+    private mutating func parseHTMLComment() -> MarkdownBlock? {
+        let trimmed = currentLine.trimmed
+        guard trimmed.hasPrefix("<!--") else { return nil }
+
+        var commentLines = [currentLine]
+        let isSingleLine = trimmed.contains("-->")
+        index += 1
+
+        if !isSingleLine {
+            while index < lines.count {
+                commentLines.append(currentLine)
+                let line = currentLine.trimmed
+                index += 1
+
+                if line.contains("-->") {
+                    break
+                }
+            }
+        }
+
+        return .htmlComment(commentLines.joined(separator: "\n"))
+    }
+
     private mutating func parseParagraph() -> MarkdownBlock {
         var paragraphLines: [String] = []
 
@@ -432,6 +474,8 @@ private struct BlockParser {
             if Self.parseListLine(line) != nil { break }
             if Self.isFootnoteDefinition(line) { break }
             if Self.isDefinitionLine(self.line(at: 1)) { break }
+            if Self.parseLinkReferenceDefinitionLine(line.trimmed) != nil { break }
+            if line.trimmed.hasPrefix("<!--") { break }
             if line.trimmed.hasPrefix(">") { break }
             if Self.headingLevel(line) != nil { break }
 
@@ -574,6 +618,56 @@ private struct BlockParser {
         }
 
         return (alt, content, nil)
+    }
+
+    private static func parseLinkReferenceDefinitionLine(_ line: String) -> LinkReferenceDefinition? {
+        guard line.hasPrefix("[") else { return nil }
+        guard let closeLabel = line.firstIndex(of: "]") else { return nil }
+
+        let colonIndex = line.index(after: closeLabel)
+        guard colonIndex < line.endIndex, line[colonIndex] == ":" else { return nil }
+
+        let labelStart = line.index(after: line.startIndex)
+        let label = String(line[labelStart ..< closeLabel]).trimmed
+        guard !label.isEmpty else { return nil }
+
+        let remainderStart = line.index(after: colonIndex)
+        var remainder = String(line[remainderStart...]).trimmed
+        guard !remainder.isEmpty else { return nil }
+
+        let destination: String
+
+        if remainder.hasPrefix("<"), let closeDestination = remainder.firstIndex(of: ">") {
+            let destinationStart = remainder.index(after: remainder.startIndex)
+            destination = String(remainder[destinationStart ..< closeDestination])
+            remainder = String(remainder[remainder.index(after: closeDestination)...]).trimmed
+        } else {
+            let parts = remainder.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            guard let first = parts.first else { return nil }
+            destination = String(first)
+            remainder = parts.count > 1 ? String(parts[1]).trimmed : ""
+        }
+
+        let title = parseReferenceTitle(remainder)
+        return LinkReferenceDefinition(label: label, destination: destination, title: title)
+    }
+
+    private static func parseReferenceTitle(_ text: String) -> String? {
+        guard text.count >= 2 else { return nil }
+
+        let pairs: [(Character, Character)] = [
+            ("\"", "\""),
+            ("'", "'"),
+            ("(", ")")
+        ]
+
+        for pair in pairs where text.first == pair.0 && text.last == pair.1 {
+            let start = text.index(after: text.startIndex)
+            let end = text.index(before: text.endIndex)
+            return String(text[start ..< end])
+        }
+
+        return nil
     }
 
     private static func parseCallout(from line: String?) -> CalloutKind? {

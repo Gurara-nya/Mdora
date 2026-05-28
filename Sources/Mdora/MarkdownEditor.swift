@@ -101,6 +101,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         var parent: NativeMarkdownTextView
         weak var textView: NSTextView?
         var lastCommandID: UUID?
+        var isHighlighting = false
 
         init(_ parent: NativeMarkdownTextView) {
             self.parent = parent
@@ -109,6 +110,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
+            highlight(textView)
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
             highlight(textView)
         }
 
@@ -150,13 +156,28 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 wrapSelection(prefix: "```\(kind.rawValue)\n", suffix: "\n```", placeholder: diagramPlaceholder(for: kind))
             case .footnote:
                 replaceSelection(with: "[^1]\n\n[^1]: Footnote text")
+            case .linkReference:
+                replaceSelection(with: "[reference]: https://example.com \"Optional title\"")
             case .definitionList:
                 replaceSelection(with: "Term\n: Definition")
+            case let .tableOfContents(symbols):
+                replaceSelection(with: tableOfContents(for: symbols))
             case .table:
                 replaceSelection(with: "| Name | Value |\n| --- | --- |\n| Mdora | Native Markdown |")
             case let .callout(kind):
                 replaceSelection(with: "> [!\(kind.rawValue.uppercased())]\n> \(kind.title)")
             }
+        }
+
+        private func tableOfContents(for symbols: [DocumentSymbol]) -> String {
+            guard !symbols.isEmpty else {
+                return "- [Untitled](#untitled)"
+            }
+
+            return symbols.map { symbol in
+                let indent = String(repeating: "  ", count: max(0, symbol.level - 1))
+                return "\(indent)- [\(symbol.title)](#\(symbol.anchor))"
+            }.joined(separator: "\n")
         }
 
         private func diagramPlaceholder(for kind: DiagramKind) -> String {
@@ -227,7 +248,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         @MainActor
         func highlight(_ textView: NSTextView) {
+            guard !isHighlighting else { return }
             guard let textStorage = textView.textStorage else { return }
+
+            isHighlighting = true
+            defer { isHighlighting = false }
 
             let selectedRange = textView.selectedRange()
             let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
@@ -253,6 +278,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
             ])
+            highlightInline(pattern: #"(?<!\!)\[[^\]]+\]\[[^\]]*\]"#, in: textView, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .underlineStyle: NSUnderlineStyle.single.rawValue
+            ])
             highlightInline(pattern: #"\[\[[^\]]+\]\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.12)
@@ -271,6 +300,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
             ])
+            highlightCurrentLine(in: textView, storage: textStorage)
             textStorage.endEditing()
 
             textView.typingAttributes = baseAttributes
@@ -315,9 +345,37 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 }
 
                 if trimmed.hasPrefix("#") {
+                    let level = trimmed.prefix { character in
+                        character == "#"
+                    }.count
+                    let size = max(15, 22 - CGFloat(level * 2))
                     storage.addAttributes([
                         .foregroundColor: palette.accent,
-                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+                        .font: NSFont.monospacedSystemFont(ofSize: size, weight: .semibold)
+                    ], range: lineRange)
+                    return
+                }
+
+                if self.isReferenceDefinition(trimmed) {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
+                    ], range: lineRange)
+                    return
+                }
+
+                if trimmed.hasPrefix("<!--") {
+                    storage.addAttributes([
+                        .foregroundColor: palette.muted,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .regular)
+                    ], range: lineRange)
+                    return
+                }
+
+                if trimmed.hasPrefix("|") {
+                    storage.addAttributes([
+                        .foregroundColor: palette.accent,
+                        .font: NSFont.monospacedSystemFont(ofSize: 15, weight: .medium)
                     ], range: lineRange)
                     return
                 }
@@ -348,6 +406,28 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     ], range: lineRange)
                 }
             }
+        }
+
+        private func isReferenceDefinition(_ line: String) -> Bool {
+            guard line.hasPrefix("[") else { return false }
+            guard let close = line.firstIndex(of: "]") else { return false }
+            let colon = line.index(after: close)
+            return colon < line.endIndex && line[colon] == ":"
+        }
+
+        @MainActor
+        private func highlightCurrentLine(in textView: NSTextView, storage: NSTextStorage) {
+            let selectedRange = textView.selectedRange()
+            let nsString = textView.string as NSString
+            guard nsString.length > 0 else { return }
+
+            let clampedLocation = min(selectedRange.location, max(0, nsString.length - 1))
+            let lineRange = nsString.lineRange(for: NSRange(location: clampedLocation, length: 0))
+            let palette = parent.theme.palette
+
+            storage.addAttributes([
+                .backgroundColor: palette.accent.withAlphaComponent(0.07)
+            ], range: lineRange)
         }
 
         @MainActor

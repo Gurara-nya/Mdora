@@ -31,7 +31,9 @@ enum EditorAction: Equatable {
     case mathBlock
     case diagram(DiagramKind)
     case footnote
+    case linkReference
     case definitionList
+    case tableOfContents([DocumentSymbol])
     case table
     case callout(CalloutKind)
 }

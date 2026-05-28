@@ -67,10 +67,14 @@ public enum MarkdownHTMLRenderer {
             return renderDefinitionList(items)
         case let .footnoteDefinition(identifier, text):
             return "<p class=\"footnote-definition\" id=\"fn-\(escapeHTML(identifier))\"><sup>\(escapeHTML(identifier))</sup> \(renderInline(text))</p>"
+        case let .linkReferenceDefinition(definition):
+            return renderLinkReferenceDefinition(definition)
         case let .image(alt, source, title):
             return renderImage(alt: alt, source: source, title: title)
         case .thematicBreak:
             return "<hr>"
+        case let .htmlComment(comment):
+            return "<pre class=\"html-comment\"><code>\(escapeHTML(comment))</code></pre>"
         case let .html(html):
             return "<pre class=\"html-block\"><code>\(escapeHTML(html))</code></pre>"
         }
@@ -177,6 +181,18 @@ public enum MarkdownHTMLRenderer {
         return "<dl>\n\(body)\n</dl>"
     }
 
+    private static func renderLinkReferenceDefinition(_ definition: LinkReferenceDefinition) -> String {
+        let title = definition.title.map { " <span>\(renderInline($0))</span>" } ?? ""
+
+        return [
+            "<p class=\"link-reference\">",
+            "  <strong>[\(escapeHTML(definition.label))]</strong>",
+            "  <a href=\"\(escapeHTML(definition.destination))\">\(escapeHTML(definition.destination))</a>",
+            title,
+            "</p>"
+        ].joined(separator: "")
+    }
+
     private static func renderImage(alt: String, source: String, title: String?) -> String {
         let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
         let image = "<img src=\"\(escapeHTML(source))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
@@ -210,6 +226,8 @@ public enum MarkdownHTMLRenderer {
         rendered = replace(rendered, pattern: #"\*([^*]+)\*"#, template: #"<em>$1</em>"#)
         rendered = replace(rendered, pattern: #"_([^_]+)_"#, template: #"<em>$1</em>"#)
         rendered = replace(rendered, pattern: #"\[([^\]]+)\]\(([^\)]+)\)"#, template: #"<a href="$2">$1</a>"#)
+        rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[([^\]]+)\]"#, template: ##"<a href="#ref-$2">$1</a>"##)
+        rendered = replace(rendered, pattern: #"(?<!\!)\[([^\]]+)\]\[\]"#, template: ##"<a href="#ref-$1">$1</a>"##)
         rendered = replace(rendered, pattern: #"\[\[([^\]]+)\]\]"#, template: #"<span class="wikilink">$1</span>"#)
         rendered = replace(rendered, pattern: #"\[\^([^\]]+)\]"#, template: #"<sup>$1</sup>"#)
         rendered = replace(rendered, pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, template: #"<span class="math-inline">$1</span>"#)
@@ -266,8 +284,16 @@ public enum MarkdownHTMLRenderer {
         }
         img { max-width: 100%; border-radius: 8px; }
         figcaption { opacity: 0.65; font-size: 0.9em; text-align: center; }
-        .front-matter, .html-block { opacity: 0.82; }
+        .front-matter, .html-block, .html-comment { opacity: 0.82; }
+        .html-comment { color: rgba(127, 127, 127, 0.9); }
         .footnote-definition { font-size: 0.92em; opacity: 0.86; }
+        .link-reference {
+          display: flex;
+          gap: 0.65em;
+          align-items: baseline;
+          font-size: 0.92em;
+          opacity: 0.86;
+        }
         .task-list { list-style: none; padding-left: 0; }
         .task.done { opacity: 0.68; text-decoration: line-through; }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }

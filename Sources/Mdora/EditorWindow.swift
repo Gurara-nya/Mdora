@@ -184,8 +184,16 @@ struct EditorWindow: View {
                         commandCenter.send(.footnote)
                     }
 
+                    Button("Reference Link") {
+                        commandCenter.send(.linkReference)
+                    }
+
                     Button("Definition List") {
                         commandCenter.send(.definitionList)
+                    }
+
+                    Button("Table of Contents") {
+                        commandCenter.send(.tableOfContents(parsed.outline))
                     }
 
                     Divider()

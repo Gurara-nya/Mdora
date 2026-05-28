@@ -36,6 +36,10 @@ extension MarkdownDocument {
 
     Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, `inline code`, #tags, @mentions, [[Wiki Links]], and [links](https://example.com).
 
+    Reference links are supported too: [Mdora][project].
+
+    <!-- Comments are parsed and visible in the inspector. -->
+
     > [!NOTE]
     > Mdora recognizes callouts, symbols, tables, code fences, links, images, and document outline markers.
 
@@ -76,6 +80,8 @@ extension MarkdownDocument {
     Footnotes work too.[^1]
 
     [^1]: Mdora keeps this as Markdown source.
+
+    [project]: https://github.com/Gurara-nya/Mdora "Mdora on GitHub"
     """
 }
 

@@ -33,8 +33,10 @@ public enum MarkdownBlock: Equatable {
     case table(TableBlock)
     case definitionList([DefinitionItem])
     case footnoteDefinition(identifier: String, text: String)
+    case linkReferenceDefinition(LinkReferenceDefinition)
     case image(alt: String, source: String, title: String?)
     case thematicBreak
+    case htmlComment(String)
     case html(String)
 }
 
@@ -134,6 +136,18 @@ public struct DefinitionItem: Equatable {
     }
 }
 
+public struct LinkReferenceDefinition: Equatable {
+    public var label: String
+    public var destination: String
+    public var title: String?
+
+    public init(label: String, destination: String, title: String? = nil) {
+        self.label = label
+        self.destination = destination
+        self.title = title
+    }
+}
+
 public enum TableAlignment: String, Equatable {
     case leading
     case center
@@ -188,6 +202,8 @@ public struct MarkdownMarkers: Equatable {
     public var mentions: [String]
     public var wikiLinks: [String]
     public var footnotes: [String]
+    public var linkReferences: [String]
+    public var htmlComments: [String]
     public var taskTokens: [TaskToken]
     public var mathExpressions: [String]
     public var codeLanguages: [String]
@@ -202,6 +218,8 @@ public struct MarkdownMarkers: Equatable {
         mentions: [String] = [],
         wikiLinks: [String] = [],
         footnotes: [String] = [],
+        linkReferences: [String] = [],
+        htmlComments: [String] = [],
         taskTokens: [TaskToken] = [],
         mathExpressions: [String] = [],
         codeLanguages: [String] = [],
@@ -215,6 +233,8 @@ public struct MarkdownMarkers: Equatable {
         self.mentions = mentions
         self.wikiLinks = wikiLinks
         self.footnotes = footnotes
+        self.linkReferences = linkReferences
+        self.htmlComments = htmlComments
         self.taskTokens = taskTokens
         self.mathExpressions = mathExpressions
         self.codeLanguages = codeLanguages

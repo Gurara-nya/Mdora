@@ -21,6 +21,8 @@ public enum MarkdownAnalyzer {
         markers.mentions = unique(matches(in: markdown, pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, group: 1))
         markers.wikiLinks = unique(matches(in: markdown, pattern: #"\[\[([^\]]+)\]\]"#, group: 1))
         markers.footnotes = unique(matches(in: markdown, pattern: #"\[\^([^\]]+)\]"#, group: 1))
+        markers.linkReferences = unique(referenceLabels(in: markdown, blocks: blocks))
+        markers.htmlComments = unique(htmlComments(in: blocks))
         markers.taskTokens = taskTokens(in: markdown)
         markers.mathExpressions = unique(mathExpressions(in: markdown, blocks: blocks))
 
@@ -137,5 +139,32 @@ public enum MarkdownAnalyzer {
         return expressions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func referenceLabels(in markdown: String, blocks: [MarkdownBlock]) -> [String] {
+        var labels = blocks.compactMap { block -> String? in
+            if case let .linkReferenceDefinition(definition) = block {
+                return definition.label
+            }
+
+            return nil
+        }
+
+        labels.append(contentsOf: matches(in: markdown, pattern: #"(?<!\!)\[[^\]]+\]\[([^\]]+)\]"#, group: 1))
+        labels.append(contentsOf: matches(in: markdown, pattern: #"(?<!\!)\[([^\]]+)\]\[\]"#, group: 1))
+
+        return labels
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private static func htmlComments(in blocks: [MarkdownBlock]) -> [String] {
+        blocks.compactMap { block in
+            if case let .htmlComment(comment) = block {
+                return comment
+            }
+
+            return nil
+        }
     }
 }
