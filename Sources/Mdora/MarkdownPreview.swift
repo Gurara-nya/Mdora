@@ -142,26 +142,6 @@ struct MarkdownPreview: View {
         }
     }
 
-    private func indexForAnchor(_ anchor: String, in blocks: [MarkdownBlock]) -> Int? {
-        let normalizedAnchor = anchor.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        for (index, block) in blocks.enumerated() {
-            switch block {
-            case let .heading(_, _, blockAnchor):
-                if blockAnchor.lowercased() == normalizedAnchor {
-                    return index
-                }
-            case let .paragraph(text):
-                if let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)?.identifier,
-                   blockID.lowercased() == normalizedAnchor {
-                    return index
-                }
-            default:
-                break
-            }
-        }
-        return nil
-    }
-
     private func handlePreviewNavigation(_ url: URL, in parsed: ParsedMarkdownDocument, proxy: ScrollViewProxy) {
         guard url.scheme == "mdora" else { return }
 
@@ -171,71 +151,31 @@ struct MarkdownPreview: View {
         var targetIndex: Int? = nil
 
         if url.host == "scroll" {
-            targetIndex = indexForAnchor(parameter, in: parsed.blocks)
+            targetIndex = MarkdownInternalLinkResolver.indexForAnchor(parameter, in: parsed.blocks)
         } else if url.host == "line" {
             if let line = Int(parameter) {
                 targetIndex = parsed.sourceMap.first(where: { $0.contains(line: line) })?.blockIndex
             }
         } else if url.host == "search" {
-            targetIndex = indexForSearchTerm(parameter, in: parsed.blocks)
+            targetIndex = MarkdownInternalLinkResolver.indexForSearchTerm(parameter, in: parsed.blocks)
+        } else if url.host == "wiki" {
+            targetIndex = MarkdownInternalLinkResolver.indexForWikiTarget(
+                parameter,
+                in: parsed.blocks,
+                currentDocumentURL: documentURL
+            )
+        } else if url.host == "footnote" {
+            targetIndex = MarkdownInternalLinkResolver.indexForFootnote(parameter, in: parsed.blocks)
+        } else if url.host == "tag" {
+            targetIndex = MarkdownInternalLinkResolver.indexForTag(parameter, in: parsed.blocks)
+        } else if url.host == "mention" {
+            targetIndex = MarkdownInternalLinkResolver.indexForMention(parameter, in: parsed.blocks)
         }
 
         if let targetIndex {
             withAnimation(style.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
                 proxy.scrollTo(targetIndex, anchor: .center)
             }
-        }
-    }
-
-    private func indexForSearchTerm(_ term: String, in blocks: [MarkdownBlock]) -> Int? {
-        for (index, block) in blocks.enumerated() {
-            if blockContainsTerm(block, term: term) {
-                return index
-            }
-        }
-        return nil
-    }
-
-    private func blockContainsTerm(_ block: MarkdownBlock, term: String) -> Bool {
-        let lowerTerm = term.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !lowerTerm.isEmpty else { return false }
-
-        switch block {
-        case .frontMatter(let fm):
-            return fm.lines.contains { $0.lowercased().contains(lowerTerm) }
-        case .heading(_, let text, let anchor):
-            return text.lowercased().contains(lowerTerm) || anchor.lowercased().contains(lowerTerm)
-        case .paragraph(let text):
-            return text.lowercased().contains(lowerTerm)
-        case .blockquote(let subBlocks, _):
-            return subBlocks.contains { blockContainsTerm($0, term: term) }
-        case .unorderedList(let items), .orderedList(let items):
-            return items.contains { $0.text.lowercased().contains(lowerTerm) }
-        case .taskList(let items):
-            return items.contains { $0.text.lowercased().contains(lowerTerm) }
-        case .codeBlock(let lang, let code):
-            return (lang?.lowercased().contains(lowerTerm) ?? false) || code.lowercased().contains(lowerTerm)
-        case .diagram(let diag):
-            return diag.kind.rawValue.lowercased().contains(lowerTerm) || diag.source.lowercased().contains(lowerTerm)
-        case .mathBlock(let expr):
-            return expr.lowercased().contains(lowerTerm)
-        case .table(let table):
-            return table.headers.contains { $0.lowercased().contains(lowerTerm) } ||
-                   table.rows.contains { row in
-                       row.contains { $0.lowercased().contains(lowerTerm) }
-                   }
-        case .definitionList(let defs):
-            return defs.contains { $0.term.lowercased().contains(lowerTerm) || $0.definitions.contains { $0.lowercased().contains(lowerTerm) } }
-        case .linkReferenceDefinition(let def):
-            return def.label.lowercased().contains(lowerTerm) || def.destination.lowercased().contains(lowerTerm) || (def.title?.lowercased().contains(lowerTerm) ?? false)
-        case .abbreviationDefinition(let abbr):
-            return abbr.term.lowercased().contains(lowerTerm) || abbr.expansion.lowercased().contains(lowerTerm)
-        case .image(let alt, let url, let title):
-            return alt.lowercased().contains(lowerTerm) || url.lowercased().contains(lowerTerm) || (title?.lowercased().contains(lowerTerm) ?? false)
-        case .footnoteDefinition(let identifier, let text):
-            return identifier.lowercased().contains(lowerTerm) || text.lowercased().contains(lowerTerm)
-        case .thematicBreak, .htmlComment, .html:
-            return false
         }
     }
 }
@@ -1423,7 +1363,7 @@ private struct InlineMarkdownText: View {
             str.foregroundColor = theme.palette.accentColor
             if destination.hasPrefix("#") {
                 let anchor = String(destination.dropFirst())
-                if let url = URL(string: "mdora://scroll/\(anchor.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? anchor)") {
+                if let url = internalURL(host: "scroll", parameter: anchor) {
                     str.link = url
                 }
             } else if let url = URL(string: destination) {
@@ -1436,7 +1376,7 @@ private struct InlineMarkdownText: View {
                 str.foregroundColor = theme.palette.accentColor
                 if definition.destination.hasPrefix("#") {
                     let anchor = String(definition.destination.dropFirst())
-                    if let url = URL(string: "mdora://scroll/\(anchor.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? anchor)") {
+                    if let url = internalURL(host: "scroll", parameter: anchor) {
                         str.link = url
                     }
                 } else if let url = URL(string: definition.destination) {
@@ -1483,7 +1423,7 @@ private struct InlineMarkdownText: View {
             str = AttributedString(ref.displayText)
             str.foregroundColor = theme.palette.accentColor
             str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
-            if let url = URL(string: "mdora://wiki/\(ref.target.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? ref.target)") {
+            if let url = internalURL(host: "wiki", parameter: ref.target) {
                 str.link = url
             }
         case let .wikiEmbed(value):
@@ -1491,7 +1431,7 @@ private struct InlineMarkdownText: View {
             str = AttributedString(ref.embedPreviewText)
             str.foregroundColor = theme.palette.accentColor
             str.font = .system(size: max(12, style.bodyFontSize - 3), weight: .medium)
-            if let url = URL(string: "mdora://wiki/\(ref.target.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? ref.target)") {
+            if let url = internalURL(host: "wiki", parameter: ref.target) {
                 str.link = url
             }
         case let .footnote(identifier):
@@ -1499,7 +1439,7 @@ private struct InlineMarkdownText: View {
             str.font = .system(size: max(10, style.bodyFontSize - 5))
             str.baselineOffset = 4
             str.foregroundColor = theme.palette.accentColor
-            if let url = URL(string: "mdora://footnote/\(identifier.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? identifier)") {
+            if let url = internalURL(host: "footnote", parameter: identifier) {
                 str.link = url
             }
         case let .inlineMath(value):
@@ -1522,14 +1462,14 @@ private struct InlineMarkdownText: View {
             str = AttributedString("#\(value)")
             str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
             str.foregroundColor = theme.palette.accentColor
-            if let url = URL(string: "mdora://tag/\(value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? value)") {
+            if let url = internalURL(host: "tag", parameter: value) {
                 str.link = url
             }
         case let .mention(value):
             str = AttributedString("@\(value)")
             str.font = .system(size: max(13, style.bodyFontSize - 1), weight: .medium)
             str.foregroundColor = theme.palette.accentColor
-            if let url = URL(string: "mdora://mention/\(value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? value)") {
+            if let url = internalURL(host: "mention", parameter: value) {
                 str.link = url
             }
         }
@@ -1547,6 +1487,14 @@ private struct InlineMarkdownText: View {
             return .handled
         }
         return .systemAction
+    }
+
+    private func internalURL(host: String, parameter: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = "mdora"
+        components.host = host
+        components.path = "/\(parameter)"
+        return components.url
     }
 
     private func imageReferenceTitle(alt: String, label: String) -> String {

@@ -40,6 +40,7 @@
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
 - Add source-map-backed task checkbox editing from preview, including extended task states.
+- Resolve internal preview navigation for wiki heading/block links, footnotes, tags, and mentions.
 - Add export to HTML.
 
 ## Phase 2: Live Preview Editing

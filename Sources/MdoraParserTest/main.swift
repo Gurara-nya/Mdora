@@ -105,7 +105,28 @@ func runTests() {
     assert(updatedTasks?.contains("4. [x] Ship preview") == true)
     print("✅ Task source editing updates the targeted Markdown marker!")
 
-    // 5. Load & parse real test.md
+    // 5. Test internal preview link navigation targets
+    let navigationMarkdown = """
+    # Intro
+
+    Tagged #perf and @yeqi with a footnote.[^nav]
+
+    ## Deep Dive
+
+    Anchor target paragraph ^block-target
+
+    [^nav]: Navigation note
+    """
+
+    let navigationDocument = MarkdownParser.parse(navigationMarkdown)
+    assert(MarkdownInternalLinkResolver.indexForWikiTarget("#Deep Dive", in: navigationDocument.blocks) == 2)
+    assert(MarkdownInternalLinkResolver.indexForWikiTarget("^block-target", in: navigationDocument.blocks) == 3)
+    assert(MarkdownInternalLinkResolver.indexForFootnote("nav", in: navigationDocument.blocks) == 4)
+    assert(MarkdownInternalLinkResolver.indexForTag("perf", in: navigationDocument.blocks) == 1)
+    assert(MarkdownInternalLinkResolver.indexForMention("yeqi", in: navigationDocument.blocks) == 1)
+    print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
+
+    // 6. Load & parse real test.md
     let currentDir = FileManager.default.currentDirectoryPath
     let filePath = currentDir + "/test.md"
 
