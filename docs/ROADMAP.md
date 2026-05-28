@@ -18,9 +18,10 @@
 - Add math, diagram, footnote, definition list, wiki link, and TODO-style marker recognition.
 - Add reference link definitions, HTML comment recognition, current-line focus feedback, and generated table of contents insertion.
 - Add custom heading anchors for stable outline, table of contents, preview, and HTML export targets.
+- Add Obsidian-style block ids for block references, preview cleanup, inspector recognition, and HTML export anchors.
 - Add Markdown Extra abbreviation definitions with preview, export, and inspector support.
 - Add YAML/TOML/JSON front matter metadata extraction, block distribution stats, email autolinks, image references, and richer editor semantic highlighting.
-- Add parser diagnostics for missing references, missing footnotes, duplicate anchors, and unclosed Markdown structures.
+- Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Add shared inline parsing for preview, marker analysis, and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.

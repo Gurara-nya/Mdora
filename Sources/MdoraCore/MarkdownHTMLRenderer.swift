@@ -69,9 +69,13 @@ public enum MarkdownHTMLRenderer {
         case let .frontMatter(frontMatter):
             return "<pre class=\"front-matter front-matter-\(frontMatter.kind.rawValue)\"><code>\(escapeHTML(frontMatter.lines.joined(separator: "\n")))</code></pre>"
         case let .heading(level, text, anchor):
-            return "<h\(level) id=\"\(escapeHTML(anchor))\">\(renderInline(text, context: context))</h\(level)>"
+            let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)
+            let content = blockID?.content ?? text
+            return "<h\(level) id=\"\(escapeHTML(anchor))\"\(blockIDDataAttribute(blockID?.identifier))>\(renderInline(content, context: context))</h\(level)>"
         case let .paragraph(text):
-            return "<p>\(renderInline(text, context: context))</p>"
+            let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)
+            let content = blockID?.content ?? text
+            return "<p\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</p>"
         case let .blockquote(lines, callout):
             return renderBlockquote(lines: lines, callout: callout, context: context)
         case let .unorderedList(items):
@@ -112,14 +116,16 @@ public enum MarkdownHTMLRenderer {
         callout: CalloutKind?,
         context: RenderContext
     ) -> String {
-        let body = lines.map { renderInline($0, context: context) }.joined(separator: "<br>")
+        let parsed = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines)
+        let body = parsed.lines.map { renderInline($0, context: context) }.joined(separator: "<br>")
+        let attributes = blockIDAttributes(parsed.identifier)
 
         guard let callout else {
-            return "<blockquote>\(body)</blockquote>"
+            return "<blockquote\(attributes)>\(body)</blockquote>"
         }
 
         return [
-            "<aside class=\"callout callout-\(callout.rawValue)\">",
+            "<aside class=\"callout callout-\(callout.rawValue)\"\(attributes)>",
             "  <p class=\"callout-title\">\(escapeHTML(callout.title))</p>",
             "  <p>\(body)</p>",
             "</aside>"
@@ -132,8 +138,10 @@ public enum MarkdownHTMLRenderer {
         context: RenderContext
     ) -> String {
         let renderedItems = items.map { item in
+            let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: item.text)
+            let content = blockID?.content ?? item.text
             let indentClass = item.depth > 0 ? " class=\"depth-\(item.depth)\"" : ""
-            return "<li\(indentClass)>\(renderInline(item.text, context: context))</li>"
+            return "<li\(indentClass)\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</li>"
         }.joined(separator: "\n")
 
         return "<\(tag)>\n\(renderedItems)\n</\(tag)>"
@@ -144,12 +152,25 @@ public enum MarkdownHTMLRenderer {
         context: RenderContext
     ) -> String {
         let renderedItems = items.map { item in
+            let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: item.text)
+            let content = blockID?.content ?? item.text
             let checked = item.isDone ? " checked" : ""
             let doneClass = item.isDone ? " done" : ""
-            return "<li class=\"task\(doneClass)\"><input type=\"checkbox\" disabled\(checked)> \(renderInline(item.text, context: context))</li>"
+            return "<li class=\"task\(doneClass)\"\(blockIDAttributes(blockID?.identifier))><input type=\"checkbox\" disabled\(checked)> \(renderInline(content, context: context))</li>"
         }.joined(separator: "\n")
 
         return "<ul class=\"task-list\">\n\(renderedItems)\n</ul>"
+    }
+
+    private static func blockIDAttributes(_ identifier: String?) -> String {
+        guard let identifier else { return "" }
+        let escaped = escapeHTML(identifier)
+        return " id=\"\(escaped)\" data-block-id=\"\(escaped)\""
+    }
+
+    private static func blockIDDataAttribute(_ identifier: String?) -> String {
+        guard let identifier else { return "" }
+        return " data-block-id=\"\(escapeHTML(identifier))\""
     }
 
     private static func renderCodeBlock(language: String?, code: String) -> String {

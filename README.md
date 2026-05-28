@@ -31,14 +31,14 @@ The first build includes:
 - Shared inline Markdown parser for preview, marker recognition, and HTML export, covering emphasis, strong text, strikethrough, highlights, superscript, subscript, CriticMarkup review marks, inline code, links, reference links, inline images, image references, wiki links and embeds with aliases and heading/block targets, citations, resolved emoji shortcodes, keyboard tags, tags, mentions, footnotes, Markdown Extra abbreviations, raw and angle-bracket autolinks, email links, and inline math.
 - Reference link definitions, abbreviation definitions, and HTML comments are parsed as visible, inspectable structures, with references, reference images, and abbreviations resolved in preview and HTML export.
 - Remote images and local image files are rendered in preview, with relative paths resolved from the current Markdown file location. Standalone wiki image embeds such as `![[Assets/mockup.png|App mockup]]` use the same preview path.
-- Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination, with custom heading anchors such as `{#section-id}` preserved for outlines, table of contents entries, and HTML export.
+- Parser source maps connect Markdown blocks back to their source line ranges for editor/preview coordination, with custom heading anchors such as `{#section-id}` and Obsidian-style block ids such as `^block-id` preserved for outlines, table of contents entries, inspection, and HTML export.
 - Themes for system, paper, graphite, dusk, and high contrast writing modes.
 - Writing view settings for editor font size, preview font size, preview line width, focus mode, inspector visibility, preview animation, and editor-synchronized preview scrolling.
-- Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, wiki embeds, custom heading anchors, abbreviations, citations, resolved emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, CriticMarkup review marks, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
+- Inspector for outline, metadata, front matter type, block distribution, tags, mentions, wiki links, wiki embeds, block ids, custom heading anchors, abbreviations, citations, resolved emoji shortcodes, keyboard tags, links, automatic links, email links, images, image references, footnotes, highlights, superscript, subscript, CriticMarkup review marks, math, code languages, diagrams, TODO-style tokens, comments, and callouts.
 - Editor focus feedback with current-line highlight and richer Markdown syntax coloring for YAML/TOML front matter, bold, italic, highlights, superscript, subscript, CriticMarkup review marks, citations, emoji shortcodes, keyboard tags, images, links, footnotes, URLs, emails, tables, comments, and more.
 - Selection-aware preview feedback highlights the block that contains the editor caret and can keep that block scrolled into view.
 - Smart return handling that continues lists, task lists, ordered lists, quotes, and indentation while writing.
-- Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, and duplicate heading anchors.
+- Live diagnostics for empty files, unclosed front matter, code fences, math blocks, missing link/image references, missing footnotes, duplicate heading anchors, and duplicate block ids.
 - Optional preview update animation and animated layout changes.
 - Status bar with word, character, line, caret position, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
 - HTML export.
@@ -66,7 +66,7 @@ Chosen first stack:
 - Package/build system: Swift Package Manager.
 - Document model: SwiftUI `DocumentGroup` and `FileDocument`.
 - Editor: AppKit `NSTextView` wrapped in SwiftUI for native text selection and undo.
-- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, custom heading anchors, indented code, footnotes, definition lists, Markdown Extra abbreviations, highlights, superscript, subscript, CriticMarkup additions/deletions/substitutions/comments/highlights, citations, resolved emoji shortcodes, keyboard tags, wiki link aliases and embeds, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
+- Parser: MdoraCore line-oriented block parser plus shared inline parser for preview, export, metadata extraction, block distribution stats, marker detection, and diagnostics, including YAML/TOML/JSON front matter, GFM-style tables/tasks, callouts, math, diagrams, setext headings, custom heading anchors, Obsidian-style block ids, indented code, footnotes, definition lists, Markdown Extra abbreviations, highlights, superscript, subscript, CriticMarkup additions/deletions/substitutions/comments/highlights, citations, resolved emoji shortcodes, keyboard tags, wiki link aliases and embeds, reference links, image references, raw and angle-bracket autolinks, email autolinks, and HTML comments.
 
 Future stack candidates:
 

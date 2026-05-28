@@ -163,10 +163,11 @@ private struct MarkdownBlockView: View {
         case let .heading(level, text, _):
             HeadingView(level: level, text: text, theme: theme)
         case let .paragraph(text):
-            if let embed = standaloneWikiEmbed(in: text) {
+            let visibleText = MarkdownBlockIDParser.contentWithoutTrailingIdentifier(text)
+            if let embed = standaloneWikiEmbed(in: visibleText) {
                 WikiEmbedBlockView(value: embed, theme: theme)
             } else {
-                InlineMarkdownText(text, theme: theme)
+                InlineMarkdownText(visibleText, theme: theme)
                     .font(.system(size: style.bodyFontSize))
                     .lineSpacing(5)
             }
@@ -221,7 +222,7 @@ private struct HeadingView: View {
     @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
-        InlineMarkdownText(text, theme: theme)
+        InlineMarkdownText(MarkdownBlockIDParser.contentWithoutTrailingIdentifier(text), theme: theme)
             .font(.system(size: fontSize, weight: fontWeight, design: .default))
             .lineSpacing(2)
             .padding(.top, level == 1 ? 8 : 4)
@@ -280,8 +281,10 @@ private struct BlockquoteView: View {
     let theme: MdoraTheme
 
     var body: some View {
+        let visibleLines = MarkdownBlockIDParser.stripTrailingIdentifierFromLastLine(lines).lines
+
         if let callout {
-            CalloutView(kind: callout, lines: lines, theme: theme)
+            CalloutView(kind: callout, lines: visibleLines, theme: theme)
         } else {
             HStack(alignment: .top, spacing: 12) {
                 Rectangle()
@@ -289,7 +292,7 @@ private struct BlockquoteView: View {
                     .frame(width: 3)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    ForEach(Array(visibleLines.enumerated()), id: \.offset) { _, line in
                         InlineMarkdownText(line, theme: theme)
                             .foregroundStyle(theme.palette.mutedColor)
                     }
@@ -343,7 +346,7 @@ private struct ListBlockView: View {
                         .frame(width: 28, alignment: .trailing)
                         .padding(.leading, CGFloat(item.depth) * 18)
 
-                    InlineMarkdownText(item.text, theme: theme)
+                    InlineMarkdownText(MarkdownBlockIDParser.contentWithoutTrailingIdentifier(item.text), theme: theme)
                 }
             }
         }
@@ -363,7 +366,7 @@ private struct TaskListBlockView: View {
                         .frame(width: 20)
                         .padding(.leading, CGFloat(item.depth) * 18)
 
-                    InlineMarkdownText(item.text, theme: theme)
+                    InlineMarkdownText(MarkdownBlockIDParser.contentWithoutTrailingIdentifier(item.text), theme: theme)
                         .foregroundStyle(item.isDone ? theme.palette.mutedColor : theme.palette.textColor)
                         .strikethrough(item.isDone)
                 }

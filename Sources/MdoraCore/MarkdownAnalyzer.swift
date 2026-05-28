@@ -181,6 +181,7 @@ public enum MarkdownAnalyzer {
 
             return nil
         })
+        markers.blockIDs = unique(blockIdentifiers(in: blocks))
         markers.customAnchors = unique(customHeadingAnchors(in: markdown))
         markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
@@ -324,6 +325,7 @@ public enum MarkdownAnalyzer {
         diagnostics.append(contentsOf: referenceDiagnostics(in: markdown, blocks: blocks))
         diagnostics.append(contentsOf: footnoteDiagnostics(in: markdown, blocks: blocks))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
+        diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
 
         if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             diagnostics.append(
@@ -518,6 +520,29 @@ public enum MarkdownAnalyzer {
         return labels
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func blockIdentifiers(in blocks: [MarkdownBlock]) -> [String] {
+        blocks.flatMap(blockIdentifierTexts(from:)).compactMap(MarkdownBlockIDParser.trailingIdentifier)
+    }
+
+    private static func blockIdentifierTexts(from block: MarkdownBlock) -> [String] {
+        switch block {
+        case let .heading(_, text, _), let .paragraph(text):
+            return [text]
+        case let .blockquote(lines, _):
+            return lines
+        case let .unorderedList(items), let .orderedList(items):
+            return items.map(\.text)
+        case let .taskList(items):
+            return items.map(\.text)
+        case let .definitionList(items):
+            return items.flatMap { [$0.term] + $0.definitions }
+        case let .footnoteDefinition(_, text):
+            return [text]
+        case .frontMatter, .codeBlock, .diagram, .mathBlock, .table, .linkReferenceDefinition, .abbreviationDefinition, .image, .thematicBreak, .htmlComment, .html:
+            return []
+        }
     }
 
     private static func inlineSegments(from blocks: [MarkdownBlock]) -> [InlineMarkdownSegment] {
@@ -753,6 +778,22 @@ public enum MarkdownAnalyzer {
                 severity: .info,
                 title: "Duplicate heading anchor",
                 message: "\(symbols.count) headings produce the same #\(anchor) anchor."
+            )
+        }
+        .sorted { $0.id < $1.id }
+    }
+
+    private static func blockIDDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+        let grouped = Dictionary(grouping: blockIdentifiers(in: blocks), by: { $0 })
+
+        return grouped.compactMap { identifier, identifiers in
+            guard identifiers.count > 1 else { return nil }
+
+            return MarkdownDiagnostic(
+                id: "duplicate-block-id-\(identifier)",
+                severity: .warning,
+                title: "Duplicate block id",
+                message: "\(identifiers.count) blocks use the same ^\(identifier) id."
             )
         }
         .sorted { $0.id < $1.id }

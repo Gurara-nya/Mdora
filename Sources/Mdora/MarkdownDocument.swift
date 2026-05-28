@@ -36,11 +36,11 @@ extension MarkdownDocument {
 
     Start writing in Markdown. Try **bold**, *italic*, ~~strikethrough~~, ==highlight==, H~2~O, 10^2^, :sparkles:, `inline code`, #tags, @mentions, [[Knowledge Base|wiki links]], and [links](https://example.com).
 
-    Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized.
+    Reference links are supported too: [Mdora][project]. Email autolinks such as hello@example.com are recognized. ^reference-demo
 
     Abbreviations are expanded in preview and export, so HTML can carry a title.
 
-    Obsidian-style embeds are recognized too: ![[Assets/mockup.png|App mockup]].
+    Obsidian-style embeds are recognized too: ![[Assets/mockup.png|App mockup]], and links can point to [[Untitled#^reference-demo|a block id]].
 
     Review marks are recognized: {++added++}, {--removed--}, {~~draft~>polished~~}, {>>editor note<<}, and {==review highlight==}.
 

@@ -55,6 +55,7 @@ Writing preferences are intentionally stored outside the Markdown file. They aff
 The parser currently recognizes:
 
 - ATX and setext headings, including Markdown Extra/Pandoc-style custom heading anchors.
+- Obsidian-style block ids such as `^block-id`, stripped from visible preview text and exported as HTML block anchors.
 - YAML, TOML, and JSON front matter.
 - Fenced and indented code blocks.
 - Diagram fences for Mermaid, Graphviz, PlantUML, sequence, and flowchart sources.
@@ -68,8 +69,8 @@ The parser currently recognizes:
 - Reference link definitions and references, including normalized lookup across preview, diagnostics, and export.
 - Image reference syntax with resolved reference definitions, plus email autolinks.
 - HTML comments.
-- Images, links, automatic links, wiki links, wiki embeds, tags, mentions, and TODO-style tokens.
-- Diagnostics for missing references, missing footnotes, duplicate heading anchors, and unclosed front matter, code fences, or math blocks.
+- Images, links, automatic links, wiki links, wiki embeds, block ids, tags, mentions, and TODO-style tokens.
+- Diagnostics for missing references, missing footnotes, duplicate heading anchors, duplicate block ids, and unclosed front matter, code fences, or math blocks.
 
 ## Risks
 

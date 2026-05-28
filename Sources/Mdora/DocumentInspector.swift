@@ -60,6 +60,7 @@ struct DocumentInspector: View {
                         MarkerRow(title: "Emails", value: document.markers.emailLinks.count, systemImage: "envelope", theme: theme)
                         MarkerRow(title: "Wiki Links", value: document.markers.wikiLinks.count, systemImage: "rectangle.stack", theme: theme)
                         MarkerRow(title: "Embeds", value: document.markers.wikiEmbeds.count, systemImage: "paperclip", theme: theme)
+                        MarkerRow(title: "Block IDs", value: document.markers.blockIDs.count, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
                         MarkerRow(title: "Anchors", value: document.markers.customAnchors.count, systemImage: "number.square", theme: theme)
                         MarkerRow(title: "Abbreviations", value: document.markers.abbreviations.count, systemImage: "textformat.abc.dottedunderline", theme: theme)
                         MarkerRow(title: "References", value: document.markers.linkReferences.count, systemImage: "link.badge.plus", theme: theme)
@@ -87,6 +88,7 @@ struct DocumentInspector: View {
                 MarkerList(title: "Diagrams", values: document.markers.diagrams.map(\.title), systemImage: "point.3.connected.trianglepath.dotted", theme: theme)
                 MarkerList(title: "Wiki Links", values: document.markers.wikiLinks.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "rectangle.stack", theme: theme)
                 MarkerList(title: "Embeds", values: document.markers.wikiEmbeds.map { MarkdownWikiLinkReference.parse($0).inspectorText }, systemImage: "paperclip", theme: theme)
+                MarkerList(title: "Block IDs", values: document.markers.blockIDs.map { "^\($0)" }, systemImage: "text.line.first.and.arrowtriangle.forward", theme: theme)
                 MarkerList(title: "Anchors", values: document.markers.customAnchors.map { "{#\($0)}" }, systemImage: "number.square", theme: theme)
                 MarkerList(title: "Abbreviations", values: document.markers.abbreviations.map { "*[\($0.term)]: \($0.expansion)" }, systemImage: "textformat.abc.dottedunderline", theme: theme)
                 MarkerList(title: "References", values: document.markers.linkReferences.map { "[\($0)]" }, systemImage: "link.badge.plus", theme: theme)
@@ -210,6 +212,7 @@ private struct CompatibilitySummary: View {
         appendIfBlock("Definitions", contains: "Definition List", to: &features)
         if !document.markers.wikiLinks.isEmpty { features.append("Wiki Links") }
         if !document.markers.wikiEmbeds.isEmpty { features.append("Embeds") }
+        if !document.markers.blockIDs.isEmpty { features.append("Block IDs") }
         if !document.markers.customAnchors.isEmpty { features.append("Custom Anchors") }
         if !document.markers.abbreviations.isEmpty { features.append("Abbreviations") }
         if !document.markers.linkReferences.isEmpty { features.append("References") }
