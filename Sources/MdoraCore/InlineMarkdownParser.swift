@@ -157,14 +157,28 @@ private struct InlineParser {
     }
 
     private mutating func consumeCode() -> InlineMarkdownSegment? {
-        guard hasPrefix("`") else { return nil }
-        let contentStart = text.index(after: index)
-        guard let close = closingIndex(for: "`", after: contentStart) else { return nil }
-        let value = String(text[contentStart ..< close])
-        guard !value.isEmpty else { return nil }
+        guard text[index] == "`" else { return nil }
 
-        index = text.index(after: close)
-        return .code(value)
+        let openingRun = backtickRun(at: index)
+        var cursor = openingRun.end
+
+        while cursor < text.endIndex {
+            guard text[cursor] == "`" else {
+                cursor = text.index(after: cursor)
+                continue
+            }
+
+            let closingRun = backtickRun(at: cursor)
+            if closingRun.count == openingRun.count {
+                let rawValue = String(text[openingRun.end ..< cursor])
+                index = closingRun.end
+                return .code(Self.normalizedCodeSpanContent(rawValue))
+            }
+
+            cursor = closingRun.end
+        }
+
+        return nil
     }
 
     private mutating func consumeCriticMarkup() -> InlineMarkdownSegment? {
@@ -610,6 +624,18 @@ private struct InlineParser {
         return nil
     }
 
+    private func backtickRun(at start: String.Index) -> (count: Int, end: String.Index) {
+        var cursor = start
+        var count = 0
+
+        while cursor < text.endIndex, text[cursor] == "`" {
+            count += 1
+            cursor = text.index(after: cursor)
+        }
+
+        return (count, cursor)
+    }
+
     private func hasPrefix(_ prefix: String) -> Bool {
         text[index...].hasPrefix(prefix)
     }
@@ -679,6 +705,22 @@ private struct InlineParser {
         }
 
         return nil
+    }
+
+    private static func normalizedCodeSpanContent(_ rawValue: String) -> String {
+        var normalized = rawValue
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\n", with: " ")
+
+        if normalized.first == " ",
+           normalized.last == " ",
+           normalized.contains(where: { $0 != " " }) {
+            normalized.removeFirst()
+            normalized.removeLast()
+        }
+
+        return normalized
     }
 
     private static func isAbsoluteURI(_ value: String) -> Bool {

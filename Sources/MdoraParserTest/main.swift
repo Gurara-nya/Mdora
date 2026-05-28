@@ -79,6 +79,19 @@ func runTests() {
     assert(MarkdownHTMLRenderer.renderFragment(entityMarkdown).contains("<p>AT&amp;T © © 🚀 &amp;notanentity;</p>"))
     print("✅ HTML entity references decode for preview/export and remain inspectable!")
 
+    // 4b. Test CommonMark code span delimiter runs
+    let codeSpanMarkdown = "Use `` `literal` `` plus ``  padded  `` and `line\nbreak`."
+    let codeSpanSegments = InlineMarkdownParser.parse(codeSpanMarkdown)
+    let codeSpanValues = codeSpanSegments.compactMap { segment -> String? in
+        if case let .code(value) = segment { return value }
+        return nil
+    }
+    assert(codeSpanValues == ["`literal`", " padded ", "line break"])
+
+    let codeSpanHTML = MarkdownHTMLRenderer.renderFragment("Use `` `<tag>` & value ``.")
+    assert(codeSpanHTML.contains("<code>`&lt;tag&gt;` &amp; value</code>"))
+    print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat

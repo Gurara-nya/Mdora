@@ -435,7 +435,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
             ])
-            highlightInline(pattern: #"`[^`]+`"#, in: textView, storage: textStorage, attributes: [
+            highlightInline(pattern: #"`+[^`\n]*(?:`(?!`)[^`\n]*)*`+"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.code
             ])
