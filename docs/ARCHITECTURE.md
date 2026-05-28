@@ -54,7 +54,7 @@ Task checkbox interactions use the same source-map bridge. `MarkdownTaskSourceEd
 
 Inline parsing is backed by a bounded, thread-safe cache. Preview redraws, marker extraction, and export often revisit identical inline strings, so the cache cuts repeated tokenization while skipping very large text runs to keep memory predictable.
 
-Preview rendering avoids allocating temporary enumerated arrays for block, list, table, and definition-list loops. Editor-driven preview sync also coalesces rapid caret changes with a short cancellable delay, while explicit link navigation remains immediate.
+Preview rendering avoids allocating temporary enumerated arrays for block, list, table, and definition-list loops. Source-map line lookups use binary search when mapping the editor caret or line-navigation requests back to a rendered block. Editor-driven preview sync also coalesces rapid caret changes with a short cancellable delay, while explicit link navigation remains immediate.
 
 Local preview images follow the same bounded-resource rule: the UI shows a stable placeholder, decodes a preview-sized thumbnail on a utility task, then reuses that cached `CGImage` for subsequent SwiftUI redraws. This keeps image-heavy notes from stalling the main thread while preserving the original file for open-in-Finder behavior.
 

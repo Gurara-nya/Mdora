@@ -365,7 +365,7 @@ struct EditorWindow: View {
         parsedDocument = MarkdownParser.parse(updatedMarkdown)
         parsedMarkdown = updatedMarkdown
         editorSelection = EditorSelection(
-            line: parsedDocument.sourceMap.first(where: { $0.blockIndex == blockIndex })?.startLine ?? editorSelection.line,
+            line: parsedDocument.sourceRange(forBlockIndex: blockIndex)?.startLine ?? editorSelection.line,
             column: editorSelection.column,
             selectedLength: editorSelection.selectedLength
         )

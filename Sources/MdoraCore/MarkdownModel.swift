@@ -36,6 +36,41 @@ public struct ParsedMarkdownDocument: Equatable {
 
 extension ParsedMarkdownDocument: @unchecked Sendable {}
 
+public extension ParsedMarkdownDocument {
+    func blockIndex(containingLine line: Int) -> Int? {
+        guard line > 0, !sourceMap.isEmpty else { return nil }
+
+        var lowerBound = 0
+        var upperBound = sourceMap.count
+
+        while lowerBound < upperBound {
+            let middle = lowerBound + (upperBound - lowerBound) / 2
+            let range = sourceMap[middle]
+
+            if line < range.startLine {
+                upperBound = middle
+            } else if line > range.endLine {
+                lowerBound = middle + 1
+            } else {
+                return range.blockIndex
+            }
+        }
+
+        return nil
+    }
+
+    func sourceRange(forBlockIndex blockIndex: Int) -> MarkdownBlockSourceRange? {
+        if sourceMap.indices.contains(blockIndex) {
+            let range = sourceMap[blockIndex]
+            if range.blockIndex == blockIndex {
+                return range
+            }
+        }
+
+        return sourceMap.first { $0.blockIndex == blockIndex }
+    }
+}
+
 public struct MarkdownBlockSourceRange: Equatable, Hashable, Identifiable {
     public var id: Int { blockIndex }
     public var blockIndex: Int

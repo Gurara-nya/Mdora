@@ -38,7 +38,7 @@
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
-- Reduce preview loop allocations and coalesce editor-driven sync scrolls for smoother large-document navigation.
+- Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
 - Add source-map-backed task checkbox editing from preview, including extended task states.
 - Resolve internal and neighboring-file preview navigation for wiki heading/block links, footnotes, tags, and mentions.

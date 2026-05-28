@@ -124,6 +124,13 @@ func runTests() {
     assert(MarkdownInternalLinkResolver.indexForFootnote("nav", in: navigationDocument.blocks) == 4)
     assert(MarkdownInternalLinkResolver.indexForTag("perf", in: navigationDocument.blocks) == 1)
     assert(MarkdownInternalLinkResolver.indexForMention("yeqi", in: navigationDocument.blocks) == 1)
+    assert(navigationDocument.blockIndex(containingLine: 1) == 0)
+    assert(navigationDocument.blockIndex(containingLine: 3) == 1)
+    assert(navigationDocument.blockIndex(containingLine: 5) == 2)
+    assert(navigationDocument.blockIndex(containingLine: 7) == 3)
+    assert(navigationDocument.blockIndex(containingLine: 9) == 4)
+    assert(navigationDocument.blockIndex(containingLine: 2) == nil)
+    assert(navigationDocument.sourceRange(forBlockIndex: 3)?.startLine == 7)
     print("✅ Internal preview navigation resolves wiki links, block ids, footnotes, tags, and mentions!")
 
     // 6. Test cross-file wiki link resolution

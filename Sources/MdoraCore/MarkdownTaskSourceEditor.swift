@@ -13,7 +13,7 @@ public enum MarkdownTaskSourceEditor {
               items.indices.contains(itemIndex),
               let markerRange = taskMarkerRange(
                 in: markdown,
-                sourceMap: document.sourceMap,
+                document: document,
                 blockIndex: blockIndex,
                 itemIndex: itemIndex
               ) else {
@@ -27,11 +27,11 @@ public enum MarkdownTaskSourceEditor {
 
     private static func taskMarkerRange(
         in markdown: String,
-        sourceMap: [MarkdownBlockSourceRange],
+        document: ParsedMarkdownDocument,
         blockIndex: Int,
         itemIndex: Int
     ) -> NSRange? {
-        guard let blockRange = sourceMap.first(where: { $0.blockIndex == blockIndex }) else { return nil }
+        guard let blockRange = document.sourceRange(forBlockIndex: blockIndex) else { return nil }
 
         let string = markdown as NSString
         var lineNumber = 1

@@ -141,9 +141,7 @@ struct MarkdownPreview: View {
 
     private func activeBlockIndex(in document: ParsedMarkdownDocument) -> Int? {
         guard let activeLine else { return nil }
-        return document.sourceMap.first { range in
-            range.contains(line: activeLine)
-        }?.blockIndex
+        return document.blockIndex(containingLine: activeLine)
     }
 
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {
@@ -181,7 +179,7 @@ struct MarkdownPreview: View {
             targetIndex = MarkdownInternalLinkResolver.indexForAnchor(parameter, in: parsed.blocks)
         } else if url.host == "line" {
             if let line = Int(parameter) {
-                targetIndex = parsed.sourceMap.first(where: { $0.contains(line: line) })?.blockIndex
+                targetIndex = parsed.blockIndex(containingLine: line)
             }
         } else if url.host == "search" {
             targetIndex = MarkdownInternalLinkResolver.indexForSearchTerm(parameter, in: parsed.blocks)
