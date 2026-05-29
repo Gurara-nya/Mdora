@@ -64,6 +64,7 @@ struct MarkdownPreview: View {
 
     var body: some View {
         let parsed = document
+        let renderStyle = effectiveStyle
         let activeBlockIndex = activeBlockIndex(in: parsed)
 
         ScrollViewReader { proxy in
@@ -82,12 +83,12 @@ struct MarkdownPreview: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                .frame(maxWidth: style.lineWidth, alignment: .leading)
+                .frame(maxWidth: renderStyle.lineWidth, alignment: .leading)
                 .padding(.horizontal, 34)
                 .padding(.vertical, 30)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .environment(\.mdoraPreviewStyle, style)
+            .environment(\.mdoraPreviewStyle, renderStyle)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .environment(\.mdoraAbbreviationDefinitions, parsed.abbreviationDefinitions)
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
@@ -103,12 +104,12 @@ struct MarkdownPreview: View {
                 Rectangle()
                     .fill(theme.palette.accentColor)
                     .frame(height: 2)
-                    .opacity(style.animationsEnabled && updatePulse ? 0.75 : 0)
-                    .animation(style.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
+                    .opacity(renderStyle.animationsEnabled && updatePulse ? 0.75 : 0)
+                    .animation(renderStyle.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
             }
-            .animation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
+            .animation(renderStyle.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
             .onChange(of: markdown) { _, _ in
-                guard style.animationsEnabled else { return }
+                guard renderStyle.animationsEnabled else { return }
                 updatePulse = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
                     updatePulse = false
@@ -144,8 +145,21 @@ struct MarkdownPreview: View {
         return document.blockIndex(containingLine: activeLine)
     }
 
+    private var effectiveStyle: MarkdownPreviewStyle {
+        var resolvedStyle = style
+        if shouldDisablePreviewAnimations {
+            resolvedStyle.animationsEnabled = false
+        }
+        return resolvedStyle
+    }
+
+    private var shouldDisablePreviewAnimations: Bool {
+        markdown.count > 60_000 || document.blocks.count > 900
+    }
+
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {
-        guard style.syncsToEditor, let blockIndex, blockIndex != lastSyncedBlockIndex else { return }
+        let renderStyle = effectiveStyle
+        guard renderStyle.syncsToEditor, let blockIndex, blockIndex != lastSyncedBlockIndex else { return }
 
         pendingActiveScrollWorkItem?.cancel()
 
@@ -157,12 +171,13 @@ struct MarkdownPreview: View {
     }
 
     private func scrollToActiveBlock(_ blockIndex: Int?, proxy: ScrollViewProxy, force: Bool = false) {
-        guard style.syncsToEditor, let blockIndex else { return }
+        let renderStyle = effectiveStyle
+        guard renderStyle.syncsToEditor, let blockIndex else { return }
         guard force || blockIndex != lastSyncedBlockIndex else { return }
 
         lastSyncedBlockIndex = blockIndex
 
-        withAnimation(style.animationsEnabled ? .easeInOut(duration: 0.18) : nil) {
+        withAnimation(renderStyle.animationsEnabled ? .easeInOut(duration: 0.18) : nil) {
             proxy.scrollTo(blockIndex, anchor: .center)
         }
     }
@@ -208,7 +223,7 @@ struct MarkdownPreview: View {
 
         if let targetIndex {
             pendingActiveScrollWorkItem?.cancel()
-            withAnimation(style.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
+            withAnimation(effectiveStyle.animationsEnabled ? .spring(response: 0.38, dampingFraction: 0.72) : nil) {
                 proxy.scrollTo(targetIndex, anchor: .center)
             }
         }

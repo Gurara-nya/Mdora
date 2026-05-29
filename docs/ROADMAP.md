@@ -90,6 +90,7 @@
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.
+- Suppress preview update and scroll animations automatically for large documents.
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
 - Collect inline markers in one pass to reduce analyzer work after live preview parsing.
 - Add source-map-backed task checkbox editing from preview, including extended task states.

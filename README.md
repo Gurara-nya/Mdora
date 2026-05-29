@@ -45,7 +45,7 @@ The first build includes:
 - Bounded inline parsing cache and single-pass marker collection reduce repeated inline Markdown work across preview redraws, marker analysis, and export.
 - Smart return and Tab/Shift-Tab handling that continues and reshapes lists, task lists, ordered task lists, quotes, quoted lists, and indentation while writing.
 - Live diagnostics for empty files, unclosed front matter, variable-length code fences, math blocks, missing or duplicate link/image references including collapsed references, missing footnotes, duplicate explicit heading anchors, and duplicate block ids.
-- Optional preview update animation and animated layout changes.
+- Optional preview update animation and animated layout changes, with preview animations automatically suppressed for large documents.
 - Status bar with word, character, line, caret position, reading time, link, tag, flag, diagram, focus, and diagnostic counts.
 - HTML export.
 
