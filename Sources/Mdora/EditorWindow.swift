@@ -296,6 +296,15 @@ struct EditorWindow: View {
                 .help("专注模式")
 
                 Menu {
+                    Button {
+                        refreshPreviewNow()
+                    } label: {
+                        Label("立即刷新预览/分析", systemImage: "arrow.clockwise")
+                    }
+                    .keyboardShortcut("r", modifiers: .command)
+
+                    Divider()
+
                     Toggle("启用过渡动画", isOn: $previewAnimations)
                     Toggle("同步滚动跟随", isOn: $syncPreviewWithEditor)
                     Toggle("专注无干扰模式", isOn: $focusMode)
@@ -398,6 +407,16 @@ struct EditorWindow: View {
         scheduleParsedDocumentUpdate(for: markdown, force: true)
     }
 
+    @MainActor
+    private func refreshPreviewNow() {
+        pendingParseTask?.cancel()
+        pendingEditingIdleTask?.cancel()
+        isEditorEditing = false
+        pendingPreviewMarkdown = nil
+        refreshParsedDocument(for: document.text)
+        exportMessage = "预览与分析已刷新"
+    }
+
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
         guard let updatedMarkdown = MarkdownTaskSourceEditor.updatingTaskState(
             in: document.text,
@@ -455,6 +474,11 @@ struct EditorWindow: View {
     @MainActor
     private func refreshParsedDocumentIfNeeded(for markdown: String) {
         guard parsedMarkdown != markdown else { return }
+        refreshParsedDocument(for: markdown)
+    }
+
+    @MainActor
+    private func refreshParsedDocument(for markdown: String) {
         parsedDocument = MarkdownParser.parse(markdown)
         parsedMarkdown = markdown
     }
