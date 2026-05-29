@@ -14,6 +14,13 @@ struct EditorCommand: Equatable {
     let action: EditorAction
 }
 
+enum EditorCommitReason: Equatable {
+    case save
+    case refresh
+    case exportHTML
+    case exportPDF
+}
+
 enum EditorAction: Equatable {
     case bold
     case italic
@@ -41,5 +48,7 @@ enum EditorAction: Equatable {
     case tableOfContents([DocumentSymbol])
     case table
     case callout(CalloutKind)
+    case commitDraft(EditorCommitReason)
+    case acceptCommittedText(String)
     case refreshStyling
 }

@@ -74,14 +74,16 @@ struct EditorWindow: View {
                 HSplitView {
                     if selectedLayout.wrappedValue.showsEditor {
                         MarkdownEditor(
-                            text: $document.text,
+                            documentID: document.id,
+                            committedText: document.text,
                             commandCenter: commandCenter,
                             theme: theme,
                             fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
                             focusMode: focusMode,
                             documentURL: documentURL,
                             onSelectionChange: updateEditorSelection,
-                            onEditingActivity: noteEditorEditing
+                            onEditingActivity: noteEditorEditing,
+                            onDraftCommit: commitEditorDraft
                         )
                             .frame(minWidth: 360, idealWidth: 560)
                     }
@@ -351,10 +353,10 @@ struct EditorWindow: View {
 
                 Menu {
                     Button("导出为 HTML 网页...") {
-                        isExportingHTML = true
+                        requestEditorDraftCommit(reason: .exportHTML)
                     }
                     Button("导出为 PDF 电子书...") {
-                        exportToPDF()
+                        requestEditorDraftCommit(reason: .exportPDF)
                     }
                 } label: {
                     Label("文件导出", systemImage: "square.and.arrow.up")
@@ -397,6 +399,7 @@ struct EditorWindow: View {
 
     @MainActor
     private func noteEditorEditing() {
+        guard !isEditorEditing || !isPreviewStale else { return }
         isEditorEditing = true
         isPreviewStale = true
         pendingParseTask?.cancel()
@@ -412,20 +415,37 @@ struct EditorWindow: View {
 
     @MainActor
     private func refreshPreviewNow() {
-        refreshParsedDocumentFromCurrentText(successMessage: "预览与分析已刷新")
+        requestEditorDraftCommit(reason: .refresh)
     }
 
     @MainActor
     private func refreshAfterDocumentWrite(_ notification: Notification) {
-        guard let documentID = notification.object as? UUID,
-              documentID == document.id else {
+        guard let snapshot = notification.object as? MarkdownDocumentWriteSnapshot,
+              snapshot.documentID == document.id else {
             return
         }
 
-        refreshParsedDocumentFromCurrentText(successMessage: "已保存并刷新预览")
+        let latestDraft = MarkdownDraftRegistry.shared.text(for: document.id)
+        guard latestDraft == nil || latestDraft == snapshot.text else {
+            isEditorEditing = true
+            isPreviewStale = true
+            setStatusMessage("已保存，仍有未刷新编辑", autoClear: false)
+            return
+        }
+
+        document.text = snapshot.text
+        MarkdownDraftRegistry.shared.clear(for: document.id, matching: snapshot.text)
+        refreshParsedDocument(from: snapshot.text, successMessage: "已保存并刷新预览")
     }
 
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
+        guard !isEditorEditing,
+              !isPreviewStale,
+              !MarkdownDraftRegistry.shared.isDirty(document.id) else {
+            setStatusMessage("编辑中，先保存或刷新后再改预览任务", autoClear: false)
+            return
+        }
+
         guard let updatedMarkdown = MarkdownTaskSourceEditor.updatingTaskState(
             in: document.text,
             document: parsedDocument,
@@ -452,13 +472,45 @@ struct EditorWindow: View {
     }
 
     @MainActor
-    private func refreshParsedDocumentFromCurrentText(successMessage: String) {
+    private func requestEditorDraftCommit(reason: EditorCommitReason) {
+        if selectedLayout.wrappedValue.showsEditor {
+            commandCenter.send(.commitDraft(reason))
+            return
+        }
+
+        let markdown = MarkdownDraftRegistry.shared.text(for: document.id) ?? document.text
+        commitEditorDraft(markdown, reason: reason)
+    }
+
+    @MainActor
+    private func commitEditorDraft(_ markdown: String, reason: EditorCommitReason) {
+        document.text = markdown
+
+        switch reason {
+        case .save:
+            refreshParsedDocument(from: markdown, successMessage: "已保存并刷新预览")
+            DispatchQueue.main.async {
+                NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: nil)
+            }
+        case .refresh:
+            refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
+        case .exportHTML:
+            refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
+            isExportingHTML = true
+        case .exportPDF:
+            refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
+            exportToPDF(markdown: markdown)
+        }
+    }
+
+    @MainActor
+    private func refreshParsedDocument(from markdown: String, successMessage: String) {
         pendingParseTask?.cancel()
         isEditorEditing = false
-        let markdown = document.text
 
         guard parsedMarkdown != markdown || isPreviewStale else {
-            commandCenter.send(.refreshStyling)
+            MarkdownDraftRegistry.shared.clear(for: document.id, matching: markdown)
+            commandCenter.send(.acceptCommittedText(markdown))
             setStatusMessage(successMessage)
             return
         }
@@ -480,7 +532,8 @@ struct EditorWindow: View {
             parsedDocument = parsed
             parsedMarkdown = markdown
             isPreviewStale = false
-            commandCenter.send(.refreshStyling)
+            MarkdownDraftRegistry.shared.clear(for: document.id, matching: markdown)
+            commandCenter.send(.acceptCommittedText(markdown))
             setStatusMessage(successMessage)
         }
     }
@@ -530,7 +583,7 @@ struct EditorWindow: View {
         }
     }
 
-    private func exportToPDF() {
+    private func exportToPDF(markdown: String) {
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.pdf]
         savePanel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
@@ -554,7 +607,7 @@ struct EditorWindow: View {
             }
 
             PDFExporter.export(
-                markdown: document.text,
+                markdown: markdown,
                 title: defaultName,
                 baseURL: documentURL?.deletingLastPathComponent(),
                 destinationURL: destinationURL

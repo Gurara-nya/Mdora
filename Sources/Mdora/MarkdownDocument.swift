@@ -1,5 +1,98 @@
+import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
+
+final class MarkdownDraftRegistry: @unchecked Sendable {
+    static let shared = MarkdownDraftRegistry()
+
+    private let lock = NSLock()
+    private var fallbackDrafts: [UUID: String] = [:]
+    private var providers: [UUID: () -> String?] = [:]
+    private var dirtyDocuments: Set<UUID> = []
+
+    private init() {}
+
+    func registerProvider(for documentID: UUID, provider: @escaping () -> String?) {
+        lock.lock()
+        providers[documentID] = provider
+        lock.unlock()
+    }
+
+    func unregisterProvider(for documentID: UUID, fallbackText: String?) {
+        lock.lock()
+        providers[documentID] = nil
+        if let fallbackText {
+            fallbackDrafts[documentID] = fallbackText
+        }
+        lock.unlock()
+    }
+
+    func markDirty(for documentID: UUID) {
+        lock.lock()
+        dirtyDocuments.insert(documentID)
+        lock.unlock()
+    }
+
+    func storeFallback(_ text: String, for documentID: UUID) {
+        lock.lock()
+        fallbackDrafts[documentID] = text
+        lock.unlock()
+    }
+
+    func text(for documentID: UUID) -> String? {
+        let provider: (() -> String?)?
+        let fallback: String?
+        lock.lock()
+        provider = providers[documentID]
+        fallback = fallbackDrafts[documentID]
+        lock.unlock()
+
+        if let provider {
+            if Thread.isMainThread {
+                return provider() ?? fallback
+            }
+
+            var providedText: String?
+            DispatchQueue.main.sync {
+                providedText = provider()
+            }
+
+            if let providedText {
+                return providedText
+            }
+        }
+
+        return fallback
+    }
+
+    func clear(for documentID: UUID, matching text: String? = nil) {
+        let currentText = self.text(for: documentID)
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard text == nil || currentText == text else {
+            return
+        }
+
+        if text == nil || fallbackDrafts[documentID] == text {
+            fallbackDrafts[documentID] = nil
+        }
+        dirtyDocuments.remove(documentID)
+    }
+
+    func isDirty(_ documentID: UUID) -> Bool {
+        lock.lock()
+        let isDirty = dirtyDocuments.contains(documentID)
+        lock.unlock()
+        return isDirty
+    }
+}
+
+struct MarkdownDocumentWriteSnapshot {
+    let documentID: UUID
+    let text: String
+}
 
 struct MarkdownDocument: FileDocument {
     static var readableContentTypes: [UTType] {
@@ -24,8 +117,12 @@ struct MarkdownDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        NotificationCenter.default.post(name: .mdoraDocumentDidWrite, object: id)
-        return FileWrapper(regularFileWithContents: Data(text.utf8))
+        let latestText = MarkdownDraftRegistry.shared.text(for: id) ?? text
+        NotificationCenter.default.post(
+            name: .mdoraDocumentDidWrite,
+            object: MarkdownDocumentWriteSnapshot(documentID: id, text: latestText)
+        )
+        return FileWrapper(regularFileWithContents: Data(latestText.utf8))
     }
 }
 

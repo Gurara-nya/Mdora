@@ -11,7 +11,8 @@ struct EditorSelection: Equatable {
 }
 
 struct MarkdownEditor: View {
-    @Binding var text: String
+    let documentID: UUID
+    let committedText: String
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
@@ -19,24 +20,28 @@ struct MarkdownEditor: View {
     let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
+    let onDraftCommit: (String, EditorCommitReason) -> Void
 
     var body: some View {
         NativeMarkdownTextView(
-            text: $text,
+            documentID: documentID,
+            committedText: committedText,
             commandCenter: commandCenter,
             theme: theme,
             fontSize: fontSize,
             focusMode: focusMode,
             documentURL: documentURL,
             onSelectionChange: onSelectionChange,
-            onEditingActivity: onEditingActivity
+            onEditingActivity: onEditingActivity,
+            onDraftCommit: onDraftCommit
         )
         .background(theme.palette.editorColor)
     }
 }
 
 private struct NativeMarkdownTextView: NSViewRepresentable {
-    @Binding var text: String
+    let documentID: UUID
+    let committedText: String
     @ObservedObject var commandCenter: EditorCommandCenter
     let theme: MdoraTheme
     let fontSize: CGFloat
@@ -44,6 +49,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
+    let onDraftCommit: (String, EditorCommitReason) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -59,6 +65,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
+        let initialText = MarkdownDraftRegistry.shared.text(for: documentID) ?? committedText
+        textView.string = initialText
         textView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainerInset = NSSize(width: 20, height: 18)
         textView.minSize = NSSize(width: 0, height: 0)
@@ -72,11 +80,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         )
         textView.delegate = context.coordinator
         textView.registerForDraggedTypes([.fileURL])
+        textView.onSaveShortcut = {
+            context.coordinator.commitCurrentDraft(reason: .save)
+        }
         textView.onSmartNewline = { [weak textView] in
             guard let textView else { return }
-            context.coordinator.cancelPendingHighlight()
-            context.coordinator.parent.onEditingActivity()
-            context.coordinator.parent.text = textView.string
+            context.coordinator.noteLocalTextChanged(in: textView)
         }
 
         let scrollView = NSScrollView()
@@ -87,7 +96,31 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         scrollView.documentView = textView
 
         context.coordinator.textView = textView
+        context.coordinator.lastAppliedCommittedText = committedText
+        context.coordinator.hasUncommittedLocalChanges = initialText != committedText
+        if initialText != committedText {
+            MarkdownDraftRegistry.shared.markDirty(for: documentID)
+        }
+        MarkdownDraftRegistry.shared.registerProvider(for: documentID) { [weak textView] in
+            textView?.string
+        }
         return scrollView
+    }
+
+    static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
+        let fallbackText: String?
+        if coordinator.hasUncommittedLocalChanges,
+           let textView = scrollView.documentView as? NSTextView {
+            fallbackText = textView.string
+        } else {
+            fallbackText = nil
+        }
+
+        MarkdownDraftRegistry.shared.unregisterProvider(
+            for: coordinator.parent.documentID,
+            fallbackText: fallbackText
+        )
+        coordinator.cancelPendingHighlight()
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
@@ -100,7 +133,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         let themeChanged = context.coordinator.lastHighlightedTheme != theme
         let sizeChanged = context.coordinator.lastHighlightedFontSize != fontSize
         let focusModeChanged = context.coordinator.lastHighlightedFocusMode != focusMode
-        let externalTextChanged = textView.string != text
+        let committedTextChanged = context.coordinator.lastAppliedCommittedText != committedText
 
         if let textView = textView as? MarkdownNSTextView {
             textView.markdownDocumentURL = documentURL
@@ -116,18 +149,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             context.coordinator.lastHighlightedFocusMode = focusMode
         }
 
-        if externalTextChanged {
-            if context.coordinator.shouldPreserveLocalEditorText(in: textView) {
-                let localText = textView.string
-                let binding = $text
-                DispatchQueue.main.async {
-                    if binding.wrappedValue != localText {
-                        binding.wrappedValue = localText
-                    }
-                }
-            } else {
+        if committedTextChanged {
+            context.coordinator.lastAppliedCommittedText = committedText
+            if !context.coordinator.hasUncommittedLocalChanges {
                 let selectedRange = textView.selectedRange()
-                textView.string = text
+                textView.string = committedText
                 textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
                 context.coordinator.invalidateSelectionCache()
                 context.coordinator.scheduleHighlight(in: textView)
@@ -137,9 +163,6 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         if let command = commandCenter.command, command.id != context.coordinator.lastCommandID {
             context.coordinator.lastCommandID = command.id
             context.coordinator.apply(command.action)
-            DispatchQueue.main.async {
-                text = textView.string
-            }
             context.coordinator.invalidateSelectionCache()
         }
 
@@ -167,6 +190,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         weak var textView: NSTextView?
         var lastCommandID: UUID?
         var isHighlighting = false
+        var hasUncommittedLocalChanges = false
+        var lastAppliedCommittedText: String?
         private var pendingHighlightTask: Task<Void, Never>?
 
         var lastHighlightedTheme: MdoraTheme?
@@ -185,11 +210,6 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         func invalidateSelectionCache() {
             lastSelectionComputation = nil
-        }
-
-        @MainActor
-        func shouldPreserveLocalEditorText(in textView: NSTextView) -> Bool {
-            textView.window?.firstResponder === textView || textView.hasMarkedText()
         }
 
         @MainActor
@@ -213,23 +233,47 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
+        func noteLocalTextChanged(in textView: NSTextView) {
+            cancelPendingHighlight()
+            MarkdownDraftRegistry.shared.markDirty(for: parent.documentID)
+
+            let becameDirty = !hasUncommittedLocalChanges
+            hasUncommittedLocalChanges = true
+
+            if becameDirty {
+                if let document = textView.window?.windowController?.document as? NSDocument {
+                    document.updateChangeCount(.changeDone)
+                }
+                parent.onEditingActivity()
+            }
+        }
+
+        @MainActor
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            cancelPendingHighlight()
-            parent.onEditingActivity()
-            parent.text = textView.string
-            _ = reportSelection(in: textView)
+            noteLocalTextChanged(in: textView)
         }
 
         @MainActor
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            guard !hasUncommittedLocalChanges else { return }
             _ = reportSelection(in: textView)
         }
 
         @MainActor
         func apply(_ action: EditorAction) {
             guard let textView else { return }
+
+            if case let .commitDraft(reason) = action {
+                commitDraft(in: textView, reason: reason)
+                return
+            }
+
+            if case let .acceptCommittedText(text) = action {
+                acceptCommittedText(text, in: textView)
+                return
+            }
 
             if action == .refreshStyling {
                 highlight(textView)
@@ -293,9 +337,42 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 replaceSelection(with: "| Name | Value |\n| --- | --- |\n| Mdora | Native Markdown |")
             case let .callout(kind):
                 replaceSelection(with: "> [!\(kind.rawValue.uppercased())]\n> \(kind.title)")
+            case .commitDraft, .acceptCommittedText:
+                break
             case .refreshStyling:
                 break
             }
+        }
+
+        @MainActor
+        func commitCurrentDraft(reason: EditorCommitReason) {
+            guard let textView else { return }
+            commitDraft(in: textView, reason: reason)
+        }
+
+        @MainActor
+        private func commitDraft(in textView: NSTextView, reason: EditorCommitReason) {
+            cancelPendingHighlight()
+            let markdown = textView.string
+            MarkdownDraftRegistry.shared.storeFallback(markdown, for: parent.documentID)
+            hasUncommittedLocalChanges = false
+            lastAppliedCommittedText = markdown
+            parent.onDraftCommit(markdown, reason)
+            _ = reportSelection(in: textView)
+        }
+
+        @MainActor
+        private func acceptCommittedText(_ text: String, in textView: NSTextView) {
+            guard textView.string == text else {
+                hasUncommittedLocalChanges = true
+                return
+            }
+
+            hasUncommittedLocalChanges = false
+            lastAppliedCommittedText = text
+            MarkdownDraftRegistry.shared.clear(for: parent.documentID, matching: text)
+            _ = reportSelection(in: textView)
+            highlight(textView)
         }
 
         private func tableOfContents(for symbols: [DocumentSymbol]) -> String {
@@ -1084,8 +1161,20 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 private final class MarkdownNSTextView: NSTextView {
     private static let backtickCodeUnit: unichar = 96
 
+    var onSaveShortcut: (() -> Void)?
     var onSmartNewline: (() -> Void)?
     var markdownDocumentURL: URL?
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "s" {
+            onSaveShortcut?()
+            return true
+        }
+
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
         guard let typedString = string as? String, typedString.count == 1 else {
