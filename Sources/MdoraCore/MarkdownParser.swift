@@ -562,7 +562,9 @@ private struct BlockParser {
             )
         }
 
-        let items = listLines.map { ListItem(text: $0.text, depth: $0.depth) }
+        let items = listLines.map {
+            ListItem(text: $0.text, depth: $0.depth, markerNumber: $0.markerNumber)
+        }
         return first.isOrdered ? .orderedList(items) : .unorderedList(items)
     }
 
@@ -855,7 +857,8 @@ private struct BlockParser {
                 text: taskText(from: text) ?? text,
                 depth: depth,
                 isOrdered: false,
-                taskState: taskState(from: text)
+                taskState: taskState(from: text),
+                markerNumber: nil
             )
         }
 
@@ -873,7 +876,8 @@ private struct BlockParser {
             text: taskText(from: text) ?? text,
             depth: depth,
             isOrdered: true,
-            taskState: taskState(from: text)
+            taskState: taskState(from: text),
+            markerNumber: Int(numberPart)
         )
     }
 
@@ -1200,6 +1204,7 @@ private struct ParsedListLine {
     var depth: Int
     var isOrdered: Bool
     var taskState: TaskState?
+    var markerNumber: Int?
 
     var taskDone: Bool? {
         taskState.map { $0 == .done }

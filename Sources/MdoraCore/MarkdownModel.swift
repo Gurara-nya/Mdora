@@ -174,10 +174,12 @@ public enum InlineMarkdownSegment: Equatable, Hashable {
 public struct ListItem: Equatable {
     public var text: String
     public var depth: Int
+    public var markerNumber: Int?
 
-    public init(text: String, depth: Int = 0) {
+    public init(text: String, depth: Int = 0, markerNumber: Int? = nil) {
         self.text = text
         self.depth = depth
+        self.markerNumber = markerNumber
     }
 }
 

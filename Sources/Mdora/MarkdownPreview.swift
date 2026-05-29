@@ -479,7 +479,7 @@ private struct ListBlockView: View {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index]
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(isOrdered ? "\(index + 1)." : "•")
+                    Text(markerText(for: item, at: index))
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(theme.palette.mutedColor)
                         .frame(width: 28, alignment: .trailing)
@@ -489,6 +489,13 @@ private struct ListBlockView: View {
                 }
             }
         }
+    }
+
+    private func markerText(for item: ListItem, at index: Int) -> String {
+        guard isOrdered else { return "•" }
+        let startNumber = items.first?.markerNumber ?? 1
+        let number = item.markerNumber ?? startNumber + index
+        return "\(number)."
     }
 }
 

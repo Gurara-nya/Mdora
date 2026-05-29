@@ -404,6 +404,19 @@ func runTests() {
         fatalError("❌ Expected parenthesized ordered marker sample to parse as an ordered list")
     }
     assert(parenthesizedOrderedItems.map(\.text) == ["First step", "Second step"])
+    assert(parenthesizedOrderedItems.map(\.markerNumber) == [1, 2])
+
+    let orderedStartMarkdown = """
+    4. Fourth step
+    5. Fifth step
+    """
+    let orderedStartDocument = MarkdownParser.parse(orderedStartMarkdown)
+    guard case .orderedList(let orderedStartItems) = orderedStartDocument.blocks[0] else {
+        fatalError("❌ Expected non-one ordered marker sample to parse as an ordered list")
+    }
+    assert(orderedStartItems.map(\.text) == ["Fourth step", "Fifth step"])
+    assert(orderedStartItems.map(\.markerNumber) == [4, 5])
+    assert(MarkdownHTMLRenderer.renderFragment(orderedStartMarkdown).contains(#"<ol start="4">"#))
 
     let parenthesizedTaskMarkdown = """
     1) [ ] Draft

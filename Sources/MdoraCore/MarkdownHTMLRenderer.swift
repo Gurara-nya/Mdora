@@ -84,7 +84,12 @@ public enum MarkdownHTMLRenderer {
         case let .unorderedList(items):
             return renderList(tag: "ul", items: items, context: context)
         case let .orderedList(items):
-            return renderList(tag: "ol", items: items, context: context)
+            return renderList(
+                tag: "ol",
+                items: items,
+                context: context,
+                startNumber: items.first?.markerNumber
+            )
         case let .taskList(items):
             return renderTaskList(items, context: context)
         case let .codeBlock(language, code):
@@ -153,7 +158,8 @@ public enum MarkdownHTMLRenderer {
     private static func renderList(
         tag: String,
         items: [ListItem],
-        context: RenderContext
+        context: RenderContext,
+        startNumber: Int? = nil
     ) -> String {
         let renderedItems = items.map { item in
             let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: item.text)
@@ -162,7 +168,13 @@ public enum MarkdownHTMLRenderer {
             return "<li\(indentClass)\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</li>"
         }.joined(separator: "\n")
 
-        return "<\(tag)>\n\(renderedItems)\n</\(tag)>"
+        let startAttribute: String
+        if tag == "ol", let startNumber, startNumber != 1 {
+            startAttribute = " start=\"\(startNumber)\""
+        } else {
+            startAttribute = ""
+        }
+        return "<\(tag)\(startAttribute)>\n\(renderedItems)\n</\(tag)>"
     }
 
     private static func renderTaskList(
