@@ -1,6 +1,5 @@
 import MdoraCore
 import AppKit
-import Combine
 import SwiftUI
 
 struct EditorWindow: View {
@@ -383,9 +382,6 @@ struct EditorWindow: View {
         .onAppear {
             refreshParsedDocumentIfNeeded(for: document.text)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .mdoraDocumentDidWrite).receive(on: RunLoop.main)) { notification in
-            refreshAfterDocumentWrite(notification)
-        }
         .onDisappear {
             pendingParseTask?.cancel()
             pendingStatusClearTask?.cancel()
@@ -416,26 +412,6 @@ struct EditorWindow: View {
     @MainActor
     private func refreshPreviewNow() {
         requestEditorDraftCommit(reason: .refresh)
-    }
-
-    @MainActor
-    private func refreshAfterDocumentWrite(_ notification: Notification) {
-        guard let snapshot = notification.object as? MarkdownDocumentWriteSnapshot,
-              snapshot.documentID == document.id else {
-            return
-        }
-
-        let latestDraft = MarkdownDraftRegistry.shared.text(for: document.id)
-        guard latestDraft == nil || latestDraft == snapshot.text else {
-            isEditorEditing = true
-            isPreviewStale = true
-            setStatusMessage("已保存，仍有未刷新编辑", autoClear: false)
-            return
-        }
-
-        document.text = snapshot.text
-        MarkdownDraftRegistry.shared.clear(for: document.id, matching: snapshot.text)
-        refreshParsedDocument(from: snapshot.text, successMessage: "已保存并刷新预览")
     }
 
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {

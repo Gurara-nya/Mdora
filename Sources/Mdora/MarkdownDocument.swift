@@ -89,11 +89,6 @@ final class MarkdownDraftRegistry: @unchecked Sendable {
     }
 }
 
-struct MarkdownDocumentWriteSnapshot {
-    let documentID: UUID
-    let text: String
-}
-
 struct MarkdownDocument: FileDocument {
     static var readableContentTypes: [UTType] {
         [.mdoraMarkdown, .plainText]
@@ -118,16 +113,8 @@ struct MarkdownDocument: FileDocument {
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         let latestText = MarkdownDraftRegistry.shared.text(for: id) ?? text
-        NotificationCenter.default.post(
-            name: .mdoraDocumentDidWrite,
-            object: MarkdownDocumentWriteSnapshot(documentID: id, text: latestText)
-        )
         return FileWrapper(regularFileWithContents: Data(latestText.utf8))
     }
-}
-
-extension Notification.Name {
-    static let mdoraDocumentDidWrite = Notification.Name("MdoraDocumentDidWrite")
 }
 
 extension MarkdownDocument {
