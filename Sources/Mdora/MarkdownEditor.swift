@@ -234,18 +234,16 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         @MainActor
         func noteLocalTextChanged(in textView: NSTextView) {
+            guard !hasUncommittedLocalChanges else { return }
+
             cancelPendingHighlight()
+            hasUncommittedLocalChanges = true
             MarkdownDraftRegistry.shared.markDirty(for: parent.documentID)
 
-            let becameDirty = !hasUncommittedLocalChanges
-            hasUncommittedLocalChanges = true
-
-            if becameDirty {
-                if let document = textView.window?.windowController?.document as? NSDocument {
-                    document.updateChangeCount(.changeDone)
-                }
-                parent.onEditingActivity()
+            if let document = textView.window?.windowController?.document as? NSDocument {
+                document.updateChangeCount(.changeDone)
             }
+            parent.onEditingActivity()
         }
 
         @MainActor
