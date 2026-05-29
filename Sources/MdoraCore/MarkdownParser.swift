@@ -1120,6 +1120,8 @@ private struct BlockParser {
         }
 
         let title = parseReferenceTitle(remainder)
+        guard remainder.isEmpty || title != nil else { return nil }
+
         return ParsedLinkReferenceDefinitionLine(
             definition: LinkReferenceDefinition(label: label, destination: destination, title: title),
             allowsContinuationTitle: title == nil && remainder.isEmpty

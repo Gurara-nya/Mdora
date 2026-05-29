@@ -418,6 +418,24 @@ func runTests() {
     assert(multilineReferenceTitleHTML.contains("<p>After the reference.</p>"))
     print("✅ Reference definitions accept CommonMark titles on the following line!")
 
+    let invalidReferenceTitleMarkdown = """
+    [bad]: https://example.com "Title" trailing
+    [Uses bad][bad]
+    """
+    let invalidReferenceTitleDocument = MarkdownParser.parse(invalidReferenceTitleMarkdown)
+    assert(invalidReferenceTitleDocument.referenceDefinitions["bad"] == nil)
+    guard case .paragraph(let invalidReferenceParagraph) = invalidReferenceTitleDocument.blocks[0] else {
+        fatalError("❌ Expected invalid reference definition with trailing title text to stay a paragraph")
+    }
+    assert(invalidReferenceParagraph == #"[bad]: https://example.com "Title" trailing [Uses bad][bad]"#)
+    assert(invalidReferenceTitleDocument.diagnostics.contains { $0.id == "missing-reference-bad" })
+
+    let invalidReferenceTitleHTML = MarkdownHTMLRenderer.renderFragment(invalidReferenceTitleMarkdown)
+    guard invalidReferenceTitleHTML.contains(##"<p>[bad]: <a href="https://example.com">https://example.com</a> &quot;Title&quot; trailing <a href="#ref-bad">Uses bad</a></p>"##) else {
+        fatalError("❌ Invalid reference title HTML mismatch: \(invalidReferenceTitleHTML)")
+    }
+    print("✅ Invalid reference titles with trailing text remain paragraph content!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat
