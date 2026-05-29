@@ -41,4 +41,5 @@ enum EditorAction: Equatable {
     case tableOfContents([DocumentSymbol])
     case table
     case callout(CalloutKind)
+    case refreshStyling
 }

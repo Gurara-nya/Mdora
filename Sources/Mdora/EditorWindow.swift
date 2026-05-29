@@ -1,5 +1,6 @@
 import MdoraCore
 import AppKit
+import Combine
 import SwiftUI
 
 struct EditorWindow: View {
@@ -22,9 +23,8 @@ struct EditorWindow: View {
     @State private var parsedDocument: ParsedMarkdownDocument
     @State private var parsedMarkdown: String
     @State private var pendingParseTask: Task<Void, Never>?
-    @State private var pendingEditingIdleTask: Task<Void, Never>?
     @State private var isEditorEditing = false
-    @State private var pendingPreviewMarkdown: String?
+    @State private var isPreviewStale = false
 
     init(document: Binding<MarkdownDocument>, documentURL: URL?) {
         self._document = document
@@ -92,7 +92,7 @@ struct EditorWindow: View {
                             document: parsed,
                             theme: theme,
                             style: previewStyle,
-                            activeLine: selectedLayout.wrappedValue.showsEditor ? editorSelection.line : nil,
+                            activeLine: selectedLayout.wrappedValue.showsEditor && !isEditorEditing ? editorSelection.line : nil,
                             documentURL: documentURL,
                             onTaskStateChange: updateTaskState
                         )
@@ -296,13 +296,20 @@ struct EditorWindow: View {
                 }
                 .help("专注模式")
 
+                Button {
+                    refreshPreviewNow()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("立即刷新预览/分析 (⌘R)")
+                .keyboardShortcut("r", modifiers: .command)
+
                 Menu {
                     Button {
                         refreshPreviewNow()
                     } label: {
                         Label("立即刷新预览/分析", systemImage: "arrow.clockwise")
                     }
-                    .keyboardShortcut("r", modifiers: .command)
 
                     Divider()
 
@@ -369,14 +376,16 @@ struct EditorWindow: View {
             }
         }
         .onChange(of: document.text) { _, newMarkdown in
-            scheduleParsedDocumentUpdate(for: newMarkdown)
+            noteDocumentTextChanged(newMarkdown)
         }
         .onAppear {
             refreshParsedDocumentIfNeeded(for: document.text)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .mdoraDocumentDidWrite).receive(on: RunLoop.main)) { notification in
+            refreshAfterDocumentWrite(notification)
+        }
         .onDisappear {
             pendingParseTask?.cancel()
-            pendingEditingIdleTask?.cancel()
             pendingStatusClearTask?.cancel()
         }
     }
@@ -389,35 +398,31 @@ struct EditorWindow: View {
     @MainActor
     private func noteEditorEditing() {
         isEditorEditing = true
-        setStatusMessage("编辑中，预览暂停", autoClear: false)
-        pendingEditingIdleTask?.cancel()
-        pendingEditingIdleTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: editingPreviewPauseDelay)
-            } catch {
-                return
-            }
-
-            finishEditorEditingPause()
-        }
+        isPreviewStale = true
+        pendingParseTask?.cancel()
+        setStatusMessage("编辑中，预览暂停，保存或 ⌘R 刷新", autoClear: false)
     }
 
     @MainActor
-    private func finishEditorEditingPause() {
-        isEditorEditing = false
-        let markdown = pendingPreviewMarkdown ?? document.text
-        pendingPreviewMarkdown = nil
-        scheduleParsedDocumentUpdate(for: markdown, force: true)
+    private func noteDocumentTextChanged(_ markdown: String) {
+        guard parsedMarkdown != markdown else { return }
+        isPreviewStale = true
+        pendingParseTask?.cancel()
     }
 
     @MainActor
     private func refreshPreviewNow() {
-        pendingParseTask?.cancel()
-        pendingEditingIdleTask?.cancel()
-        isEditorEditing = false
-        pendingPreviewMarkdown = nil
-        refreshParsedDocument(for: document.text)
-        setStatusMessage("预览与分析已刷新")
+        refreshParsedDocumentFromCurrentText(successMessage: "预览与分析已刷新")
+    }
+
+    @MainActor
+    private func refreshAfterDocumentWrite(_ notification: Notification) {
+        guard let documentID = notification.object as? UUID,
+              documentID == document.id else {
+            return
+        }
+
+        refreshParsedDocumentFromCurrentText(successMessage: "已保存并刷新预览")
     }
 
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
@@ -435,50 +440,48 @@ struct EditorWindow: View {
         document.text = updatedMarkdown
         parsedDocument = MarkdownParser.parse(updatedMarkdown)
         parsedMarkdown = updatedMarkdown
+        isPreviewStale = false
+        isEditorEditing = false
         editorSelection = EditorSelection(
             line: parsedDocument.sourceRange(forBlockIndex: blockIndex)?.startLine ?? editorSelection.line,
             column: editorSelection.column,
             selectedLength: editorSelection.selectedLength
         )
+        commandCenter.send(.refreshStyling)
         setStatusMessage("任务状态已更新为 \(state.title)")
     }
 
     @MainActor
-    private func scheduleParsedDocumentUpdate(for markdown: String, force: Bool = false) {
+    private func refreshParsedDocumentFromCurrentText(successMessage: String) {
         pendingParseTask?.cancel()
+        isEditorEditing = false
+        let markdown = document.text
 
-        if isEditorEditing && !force {
-            pendingPreviewMarkdown = markdown
+        guard parsedMarkdown != markdown || isPreviewStale else {
+            commandCenter.send(.refreshStyling)
+            setStatusMessage(successMessage)
             return
         }
 
-        let delay = parseDebounceDelay(for: markdown)
+        setStatusMessage("正在刷新预览...", autoClear: false)
         pendingParseTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: delay)
-            } catch {
-                return
-            }
-
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                setStatusMessage("正在刷新预览...", autoClear: false)
-            }
-
             let parsed = await Task.detached(priority: .userInitiated) {
                 MarkdownParser.parse(markdown)
             }.value
 
             guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard parsedMarkdown != markdown else {
-                    setStatusMessage(nil)
-                    return
-                }
-                parsedDocument = parsed
-                parsedMarkdown = markdown
-                setStatusMessage("预览已更新")
+
+            guard document.text == markdown else {
+                isPreviewStale = true
+                setStatusMessage("编辑中，预览暂停，保存或 ⌘R 刷新", autoClear: false)
+                return
             }
+
+            parsedDocument = parsed
+            parsedMarkdown = markdown
+            isPreviewStale = false
+            commandCenter.send(.refreshStyling)
+            setStatusMessage(successMessage)
         }
     }
 
@@ -492,6 +495,7 @@ struct EditorWindow: View {
     private func refreshParsedDocument(for markdown: String) {
         parsedDocument = MarkdownParser.parse(markdown)
         parsedMarkdown = markdown
+        isPreviewStale = false
     }
 
     @MainActor
@@ -524,14 +528,6 @@ struct EditorWindow: View {
                 statusMessage = nil
             }
         }
-    }
-
-    private func parseDebounceDelay(for markdown: String) -> UInt64 {
-        markdown.count > 60_000 ? 450_000_000 : 180_000_000
-    }
-
-    private var editingPreviewPauseDelay: UInt64 {
-        document.text.count > 60_000 ? 1_000_000_000 : 650_000_000
     }
 
     private func exportToPDF() {

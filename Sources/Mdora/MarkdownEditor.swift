@@ -74,9 +74,9 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         textView.registerForDraggedTypes([.fileURL])
         textView.onSmartNewline = { [weak textView] in
             guard let textView else { return }
+            context.coordinator.cancelPendingHighlight()
             context.coordinator.parent.onEditingActivity()
             context.coordinator.parent.text = textView.string
-            context.coordinator.highlight(textView)
         }
 
         let scrollView = NSScrollView()
@@ -129,7 +129,6 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 let selectedRange = textView.selectedRange()
                 textView.string = text
                 textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
-                context.coordinator.lastHighlightedText = text
                 context.coordinator.invalidateSelectionCache()
                 context.coordinator.scheduleHighlight(in: textView)
             }
@@ -142,7 +141,6 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 text = textView.string
             }
             context.coordinator.invalidateSelectionCache()
-            context.coordinator.scheduleHighlight(in: textView)
         }
 
         // Highlight immediately on theme/fontSize change to avoid styling flicker
@@ -174,7 +172,6 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         var lastHighlightedTheme: MdoraTheme?
         var lastHighlightedFontSize: CGFloat?
         var lastHighlightedFocusMode: Bool?
-        var lastHighlightedText: String?
         private var lastReportedSelection = EditorSelection.start
         private var lastSelectionComputation: SelectionComputation?
         private var currentHighlightRange: NSRange?
@@ -210,28 +207,36 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
+        func cancelPendingHighlight() {
+            pendingHighlightTask?.cancel()
+            pendingHighlightTask = nil
+        }
+
+        @MainActor
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            cancelPendingHighlight()
             parent.onEditingActivity()
             parent.text = textView.string
-            scheduleHighlight(in: textView)
             _ = reportSelection(in: textView)
         }
 
         @MainActor
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            let previousLine = lastReportedSelection.line
-            let selection = reportSelection(in: textView)
-
-            if parent.focusMode || selection.line != previousLine {
-                scheduleHighlight(in: textView)
-            }
+            _ = reportSelection(in: textView)
         }
 
         @MainActor
         func apply(_ action: EditorAction) {
             guard let textView else { return }
+
+            if action == .refreshStyling {
+                highlight(textView)
+                return
+            }
+
+            cancelPendingHighlight()
             parent.onEditingActivity()
             textView.window?.makeFirstResponder(textView)
 
@@ -288,6 +293,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 replaceSelection(with: "| Name | Value |\n| --- | --- |\n| Mdora | Native Markdown |")
             case let .callout(kind):
                 replaceSelection(with: "> [!\(kind.rawValue.uppercased())]\n> \(kind.title)")
+            case .refreshStyling:
+                break
             }
         }
 

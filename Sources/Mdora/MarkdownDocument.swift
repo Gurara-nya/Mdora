@@ -6,9 +6,11 @@ struct MarkdownDocument: FileDocument {
         [.mdoraMarkdown, .plainText]
     }
 
+    let id: UUID
     var text: String
 
-    init(text: String = MarkdownDocument.defaultText) {
+    init(text: String = MarkdownDocument.defaultText, id: UUID = UUID()) {
+        self.id = id
         self.text = text
     }
 
@@ -17,12 +19,18 @@ struct MarkdownDocument: FileDocument {
             throw CocoaError(.fileReadCorruptFile)
         }
 
+        id = UUID()
         text = String(decoding: data, as: UTF8.self)
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: Data(text.utf8))
+        NotificationCenter.default.post(name: .mdoraDocumentDidWrite, object: id)
+        return FileWrapper(regularFileWithContents: Data(text.utf8))
     }
+}
+
+extension Notification.Name {
+    static let mdoraDocumentDidWrite = Notification.Name("MdoraDocumentDidWrite")
 }
 
 extension MarkdownDocument {

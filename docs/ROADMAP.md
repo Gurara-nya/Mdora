@@ -73,7 +73,7 @@
 - Recognize GFM-style `www.` autolinks across preview, export, inspector markers, and editor highlighting.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
-- Pause preview parsing during active editor input and resume after idle so split-view updates cannot steal focus or selection.
+- Pause preview parsing, inspector analysis, active preview highlighting, and editor syntax repainting during active input; refresh them only after Save/Command-S or Command-R.
 - Add Command-R manual preview refresh that cancels pending parse work and updates preview, inspector, and status immediately.
 - Show lightweight status-bar feedback for paused, refreshing, and completed preview parse states.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
