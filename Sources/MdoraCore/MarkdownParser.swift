@@ -1152,22 +1152,50 @@ private struct BlockParser {
         guard !remainder.isEmpty else { return nil }
 
         let destination: String
+        let isBareDestination: Bool
 
         if remainder.hasPrefix("<"), let closeDestination = remainder.firstIndex(of: ">") {
             let destinationStart = remainder.index(after: remainder.startIndex)
             destination = String(remainder[destinationStart ..< closeDestination])
             remainder = String(remainder[remainder.index(after: closeDestination)...]).trimmed
+            isBareDestination = false
         } else {
             let parts = remainder.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
             guard let first = parts.first else { return nil }
             destination = String(first)
             remainder = parts.count > 1 ? String(parts[1]).trimmed : ""
+            isBareDestination = true
         }
+
+        guard !isBareDestination || isBalancedBareReferenceDestination(destination) else { return nil }
 
         let title = parseReferenceTitle(remainder)
         guard remainder.isEmpty || title != nil else { return nil }
 
         return (destination, title, title == nil && remainder.isEmpty)
+    }
+
+    private static func isBalancedBareReferenceDestination(_ destination: String) -> Bool {
+        var cursor = destination.startIndex
+        var depth = 0
+
+        while cursor < destination.endIndex {
+            if isEscaped(cursor, in: destination) {
+                cursor = destination.index(after: cursor)
+                continue
+            }
+
+            if destination[cursor] == "(" {
+                depth += 1
+            } else if destination[cursor] == ")" {
+                guard depth > 0 else { return false }
+                depth -= 1
+            }
+
+            cursor = destination.index(after: cursor)
+        }
+
+        return depth == 0
     }
 
     private static func closingReferenceLabelIndex(

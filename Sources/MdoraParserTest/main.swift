@@ -466,6 +466,23 @@ func runTests() {
     assert(multilineReferenceDestinationHTML.contains("<p>After the split destination.</p>"))
     print("✅ Reference definitions accept destinations on the following line!")
 
+    let balancedReferenceDestinationMarkdown = """
+    [Balanced][balanced-ref]
+    [Broken][broken-ref]
+
+    [balanced-ref]: https://example.com/a_(b) "Balanced"
+    [broken-ref]: https://example.com/a_(b "Broken"
+    """
+    let balancedReferenceDestinationDocument = MarkdownParser.parse(balancedReferenceDestinationMarkdown)
+    assert(balancedReferenceDestinationDocument.referenceDefinitions["balanced-ref"]?.destination == "https://example.com/a_(b)")
+    assert(balancedReferenceDestinationDocument.referenceDefinitions["broken-ref"] == nil)
+    assert(balancedReferenceDestinationDocument.diagnostics.contains { $0.id == "missing-reference-broken-ref" })
+
+    let balancedReferenceDestinationHTML = MarkdownHTMLRenderer.renderFragment(balancedReferenceDestinationMarkdown)
+    assert(balancedReferenceDestinationHTML.contains(#"<a href="https://example.com/a_(b)" title="Balanced">Balanced</a>"#))
+    assert(balancedReferenceDestinationHTML.contains(##"<a href="#ref-broken-ref">Broken</a>"##))
+    print("✅ Reference definition destinations require balanced unescaped parentheses!")
+
     let collapsedReferenceMarkdown = """
     [Known][] and ![Known][]
     [Missing][] and ![Chart][] plus `[Code][]`

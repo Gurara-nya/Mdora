@@ -71,6 +71,7 @@
 - Support escaped brackets in reference definition labels and reject unescaped brackets or overlong labels.
 - Support CommonMark reference definition destinations on the following line.
 - Support CommonMark reference definition titles on the following line with correct source maps.
+- Require balanced unescaped parentheses in bare reference definition destinations.
 - Reject malformed reference definitions that contain invalid trailing title text instead of dropping the extra text.
 - Drive missing-reference diagnostics from parsed inline segments so collapsed links and images are covered without scanning code spans.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
