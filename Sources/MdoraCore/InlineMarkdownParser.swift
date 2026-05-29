@@ -420,21 +420,24 @@ private struct InlineParser {
 
         let alt = String(text[altStart ..< closeAlt])
         let afterAlt = text.index(after: closeAlt)
-        guard afterAlt < text.endIndex else { return nil }
 
-        if text[afterAlt] == "(",
+        if afterAlt < text.endIndex,
+           text[afterAlt] == "(",
            let destination = parseParenthesizedDestination(from: afterAlt) {
             index = destination.end
             return .image(alt: alt, source: destination.destination, title: destination.title)
         }
 
-        if text[afterAlt] == "[",
+        if afterAlt < text.endIndex,
+           text[afterAlt] == "[",
            let label = parseBracketedText(from: afterAlt) {
             index = label.end
             return .imageReference(alt: alt, label: label.value.isEmpty ? alt : label.value)
         }
 
-        return nil
+        guard !alt.isEmpty else { return nil }
+        index = afterAlt
+        return .shortcutImageReference(alt: alt)
     }
 
     private mutating func consumeCitation() -> InlineMarkdownSegment? {
@@ -452,6 +455,7 @@ private struct InlineParser {
 
     private mutating func consumeLinkOrFootnote() -> InlineMarkdownSegment? {
         guard hasPrefix("[") else { return nil }
+        guard !hasPrefix("[[") else { return nil }
 
         if hasPrefix("[^") {
             let idStart = text.index(index, offsetBy: 2)
@@ -467,15 +471,16 @@ private struct InlineParser {
 
         let labelText = String(text[textStart ..< closeText])
         let afterText = text.index(after: closeText)
-        guard afterText < text.endIndex else { return nil }
 
-        if text[afterText] == "(",
+        if afterText < text.endIndex,
+           text[afterText] == "(",
            let destination = parseParenthesizedDestination(from: afterText) {
             index = destination.end
             return .link(text: labelText, destination: destination.destination, title: destination.title)
         }
 
-        if text[afterText] == "[",
+        if afterText < text.endIndex,
+           text[afterText] == "[",
            let reference = parseBracketedText(from: afterText) {
             let label = reference.value.isEmpty ? labelText : reference.value
             guard !label.isEmpty else { return nil }
@@ -483,7 +488,9 @@ private struct InlineParser {
             return .referenceLink(text: labelText, label: label)
         }
 
-        return nil
+        guard !labelText.isEmpty else { return nil }
+        index = afterText
+        return .shortcutReferenceLink(text: labelText)
     }
 
     private mutating func consumeWikiLink() -> InlineMarkdownSegment? {

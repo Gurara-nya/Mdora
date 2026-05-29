@@ -539,6 +539,9 @@ func runTests() {
     let collapsedReferenceMarkdown = """
     [Known][] and ![Known][]
     [Missing][] and ![Chart][] plus `[Code][]`
+    Shortcut [Known] and ![Known] stay resolved.
+    Plain [brackets] and ![missing-shortcut] stay text.
+    [[Wiki Page]] remains a wiki link.
 
     [known]: https://example.com/known
     """
@@ -547,13 +550,19 @@ func runTests() {
     assert(collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
     assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-known" })
     assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-code" })
+    assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-brackets" })
+    assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-missing-shortcut" })
+    assert(collapsedReferenceDocument.markers.linkReferences.contains("Known"))
+    assert(collapsedReferenceDocument.markers.wikiLinks.contains("Wiki Page"))
 
     let collapsedReferenceHTML = MarkdownHTMLRenderer.renderFragment(collapsedReferenceMarkdown)
     assert(collapsedReferenceHTML.contains(#"<a href="https://example.com/known">Known</a>"#))
     assert(collapsedReferenceHTML.contains(#"<img src="https://example.com/known" alt="Known">"#))
     assert(collapsedReferenceHTML.contains(##"<a href="#ref-Missing">Missing</a>"##))
     assert(collapsedReferenceHTML.contains(#"<span class="image-ref">Chart [Chart]</span>"#))
-    print("✅ Collapsed reference links and images participate in missing-reference diagnostics!")
+    assert(collapsedReferenceHTML.contains(#"Plain [brackets] and ![missing-shortcut] stay text."#))
+    assert(collapsedReferenceHTML.contains(#"<span class="wikilink" data-target="Wiki Page" data-path="Wiki Page">Wiki Page</span>"#))
+    print("✅ Collapsed and shortcut reference links/images resolve without false missing diagnostics!")
 
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing

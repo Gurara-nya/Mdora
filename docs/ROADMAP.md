@@ -79,6 +79,7 @@
 - Keep incomplete split reference definitions as paragraphs instead of prematurely splitting text.
 - Reject malformed reference definitions that contain invalid trailing title text instead of dropping the extra text.
 - Drive missing-reference diagnostics from parsed inline segments so collapsed links and images are covered without scanning code spans.
+- Resolve CommonMark shortcut reference links and images only when matching definitions exist, keeping ordinary bracket text untouched.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.

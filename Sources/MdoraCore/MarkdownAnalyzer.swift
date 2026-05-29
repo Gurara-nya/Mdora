@@ -119,6 +119,7 @@ public enum MarkdownAnalyzer {
     public static func markers(in markdown: String, blocks: [MarkdownBlock]) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
         let inlineSegments = inlineSegments(from: blocks)
+        let references = referenceDefinitions(from: blocks)
 
         var links: [String] = []
         var autoLinks: [String] = []
@@ -155,6 +156,10 @@ public enum MarkdownAnalyzer {
                 images.append(source)
             case let .imageReference(_, label):
                 imageReferences.append(label)
+            case let .shortcutImageReference(alt):
+                if references[LinkReferenceDefinition.normalizedLabel(alt)] != nil {
+                    imageReferences.append(alt)
+                }
             case let .tag(tag):
                 tags.append(tag)
             case let .mention(mention):
@@ -189,7 +194,7 @@ public enum MarkdownAnalyzer {
                 emojiShortcodes.append(name)
             case let .keyboard(value):
                 keyboardShortcuts.append(value)
-            case .text, .hardBreak, .strong, .emphasis, .strikethrough, .code, .referenceLink, .footnote, .inlineMath:
+            case .text, .hardBreak, .strong, .emphasis, .strikethrough, .code, .referenceLink, .shortcutReferenceLink, .footnote, .inlineMath:
                 break
             }
         }
@@ -439,6 +444,7 @@ public enum MarkdownAnalyzer {
     }
 
     private static func referenceLabels(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
+        let references = referenceDefinitions(from: blocks)
         var labels = blocks.compactMap { block -> String? in
             if case let .linkReferenceDefinition(definition) = block {
                 return definition.label
@@ -449,6 +455,11 @@ public enum MarkdownAnalyzer {
 
         labels.append(contentsOf: segments.compactMap { segment in
             if case let .referenceLink(_, label) = segment {
+                return label
+            }
+
+            if case let .shortcutReferenceLink(label) = segment,
+               references[LinkReferenceDefinition.normalizedLabel(label)] != nil {
                 return label
             }
 

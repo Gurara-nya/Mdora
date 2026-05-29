@@ -388,6 +388,13 @@ public enum MarkdownHTMLRenderer {
 
             let titleAttribute = definition.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
             return "<a href=\"\(escapeHTML(definition.destination))\"\(titleAttribute)>\(renderInline(label, context: context))</a>"
+        case let .shortcutReferenceLink(label):
+            guard let definition = context.references[LinkReferenceDefinition.normalizedLabel(label)] else {
+                return "[\(escapeHTML(label))]"
+            }
+
+            let titleAttribute = definition.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+            return "<a href=\"\(escapeHTML(definition.destination))\"\(titleAttribute)>\(renderInline(label, context: context))</a>"
         case let .image(alt, source, title):
             let titleAttribute = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
             return "<img src=\"\(escapeHTML(source))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
@@ -398,6 +405,13 @@ public enum MarkdownHTMLRenderer {
             }
 
             return "<span class=\"image-ref\">\(escapeHTML(alt)) [\(escapeHTML(label))]</span>"
+        case let .shortcutImageReference(alt):
+            if let definition = context.references[LinkReferenceDefinition.normalizedLabel(alt)] {
+                let titleAttribute = definition.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+                return "<img src=\"\(escapeHTML(definition.destination))\" alt=\"\(escapeHTML(alt))\"\(titleAttribute)>"
+            }
+
+            return "![\(escapeHTML(alt))]"
         case let .autoLink(url):
             let href = MarkdownAutoLinkScanner.href(for: url)
             return "<a href=\"\(escapeHTML(href))\">\(escapeHTML(url))</a>"

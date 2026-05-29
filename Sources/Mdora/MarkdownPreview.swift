@@ -1447,6 +1447,22 @@ private struct InlineMarkdownText: View {
             } else {
                 str.foregroundColor = theme.palette.mutedColor
             }
+        case let .shortcutReferenceLink(label):
+            if let definition = resolvedReference(label) {
+                str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
+                str.underlineStyle = .single
+                str.foregroundColor = theme.palette.accentColor
+                if definition.destination.hasPrefix("#") {
+                    let anchor = String(definition.destination.dropFirst())
+                    if let url = internalURL(host: "scroll", parameter: anchor) {
+                        str.link = url
+                    }
+                } else if let url = URL(string: definition.destination) {
+                    str.link = url
+                }
+            } else {
+                str = AttributedString("[\(label)]")
+            }
         case let .image(alt, source, _):
             str = AttributedString("[image: \(alt.isEmpty ? source : alt)]")
             str.font = .system(size: max(11, style.bodyFontSize - 4))
@@ -1465,6 +1481,18 @@ private struct InlineMarkdownText: View {
                 }
             } else {
                 str.foregroundColor = theme.palette.mutedColor
+            }
+        case let .shortcutImageReference(alt):
+            if let definition = resolvedReference(alt) {
+                let title = imageReferenceTitle(alt: alt, label: alt)
+                str = AttributedString("[image: \(title)]")
+                str.font = .system(size: max(11, style.bodyFontSize - 4))
+                str.foregroundColor = theme.palette.accentColor
+                if let url = URL(string: definition.destination) {
+                    str.link = url
+                }
+            } else {
+                str = AttributedString("![\(alt)]")
             }
         case let .autoLink(url):
             str = AttributedString(url)
