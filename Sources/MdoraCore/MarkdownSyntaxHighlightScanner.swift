@@ -2,15 +2,18 @@ import Foundation
 
 public struct MarkdownSyntaxHighlightRanges: Equatable {
     public var fencedLineRanges: [NSRange]
+    public var mathBlockRanges: [NSRange]
     public var codeSpanRanges: [NSRange]
     public var inlineExcludedRanges: [NSRange]
 
     public init(
         fencedLineRanges: [NSRange],
+        mathBlockRanges: [NSRange] = [],
         codeSpanRanges: [NSRange],
         inlineExcludedRanges: [NSRange]
     ) {
         self.fencedLineRanges = fencedLineRanges
+        self.mathBlockRanges = mathBlockRanges
         self.codeSpanRanges = codeSpanRanges
         self.inlineExcludedRanges = inlineExcludedRanges
     }
@@ -25,27 +28,72 @@ public enum MarkdownSyntaxHighlightScanner {
         in markdown: String,
         intersecting targetRange: NSRange?
     ) -> MarkdownSyntaxHighlightRanges {
-        let fencedRanges: [NSRange]
+        let candidateFencedRanges: [NSRange]
+        let candidateMathBlockRanges: [NSRange]
         let candidateCodeSpanRanges: [NSRange]
 
         if let targetRange {
-            fencedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: markdown, intersecting: targetRange)
+            candidateFencedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: markdown, intersecting: targetRange)
+            candidateMathBlockRanges = MarkdownMathBlockScanner.mathBlockLineRanges(in: markdown, intersecting: targetRange)
             candidateCodeSpanRanges = MarkdownCodeSpanScanner.codeSpanRanges(in: markdown, intersecting: targetRange)
         } else {
-            fencedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: markdown)
+            candidateFencedRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: markdown)
+            candidateMathBlockRanges = MarkdownMathBlockScanner.mathBlockLineRanges(in: markdown)
             candidateCodeSpanRanges = MarkdownCodeSpanScanner.codeSpanRanges(in: markdown)
         }
 
+        let blockRanges = nonOverlappingBlockRanges(
+            fencedRanges: candidateFencedRanges,
+            mathBlockRanges: candidateMathBlockRanges
+        )
+        let fencedRanges = blockRanges.fencedRanges
+        let mathBlockRanges = blockRanges.mathBlockRanges
+
         let codeSpanRanges = candidateCodeSpanRanges.filter { codeSpanRange in
-            !fencedRanges.contains { fencedRange in
-                NSIntersectionRange(codeSpanRange, fencedRange).length > 0
+            !(fencedRanges + mathBlockRanges).contains { protectedRange in
+                NSIntersectionRange(codeSpanRange, protectedRange).length > 0
             }
         }
 
         return MarkdownSyntaxHighlightRanges(
             fencedLineRanges: fencedRanges,
+            mathBlockRanges: mathBlockRanges,
             codeSpanRanges: codeSpanRanges,
-            inlineExcludedRanges: mergedRanges(fencedRanges + codeSpanRanges)
+            inlineExcludedRanges: mergedRanges(fencedRanges + mathBlockRanges + codeSpanRanges)
+        )
+    }
+
+    private static func nonOverlappingBlockRanges(
+        fencedRanges: [NSRange],
+        mathBlockRanges: [NSRange]
+    ) -> (fencedRanges: [NSRange], mathBlockRanges: [NSRange]) {
+        let candidates = fencedRanges.map { ProtectedBlockRange(kind: .fence, range: $0) } +
+            mathBlockRanges.map { ProtectedBlockRange(kind: .math, range: $0) }
+        let sortedCandidates = candidates.sorted { lhs, rhs in
+            if lhs.range.location == rhs.range.location {
+                if lhs.kind == rhs.kind {
+                    return lhs.range.length > rhs.range.length
+                }
+
+                return lhs.kind.sortOrder < rhs.kind.sortOrder
+            }
+
+            return lhs.range.location < rhs.range.location
+        }
+
+        var accepted: [ProtectedBlockRange] = []
+
+        for candidate in sortedCandidates {
+            guard !accepted.contains(where: { NSIntersectionRange($0.range, candidate.range).length > 0 }) else {
+                continue
+            }
+
+            accepted.append(candidate)
+        }
+
+        return (
+            accepted.compactMap { $0.kind == .fence ? $0.range : nil },
+            accepted.compactMap { $0.kind == .math ? $0.range : nil }
         )
     }
 
@@ -79,6 +127,25 @@ public enum MarkdownSyntaxHighlightScanner {
 
         return merged
     }
+}
+
+private struct ProtectedBlockRange {
+    enum Kind {
+        case fence
+        case math
+
+        var sortOrder: Int {
+            switch self {
+            case .fence:
+                0
+            case .math:
+                1
+            }
+        }
+    }
+
+    var kind: Kind
+    var range: NSRange
 }
 
 private extension NSRange {

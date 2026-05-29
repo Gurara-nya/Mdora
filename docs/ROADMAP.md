@@ -42,6 +42,7 @@
 - Recover smart-punctuation fence markers such as `‘’‘text` and `’‘’` as backtick-compatible code fences before inline coloring runs.
 - Protect editor inline-code contents from later emphasis, link, tag, and TODO highlighters.
 - Support multiline CommonMark code span highlighting in the editor without mistaking code fences for spans.
+- Protect display math blocks from later inline editor highlighters and resolve overlaps with code fences by source order.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Continue list, task-list, and ordered-list markers inside blockquotes and nested blockquotes.

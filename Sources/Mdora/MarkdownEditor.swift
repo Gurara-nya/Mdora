@@ -430,6 +430,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 intersecting: targetRange
             )
             currentInlineHighlightExcludedRanges = syntaxHighlightRanges.inlineExcludedRanges
+            highlightMathBlocks(syntaxHighlightRanges.mathBlockRanges, storage: textStorage, attributes: [
+                .foregroundColor: palette.accent,
+                .backgroundColor: palette.code,
+                .font: baseFont
+            ])
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
             ])
@@ -961,6 +966,17 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         ) {
             for codeSpanRange in ranges {
                 storage.addAttributes(attributes, range: codeSpanRange)
+            }
+        }
+
+        @MainActor
+        private func highlightMathBlocks(
+            _ ranges: [NSRange],
+            storage: NSTextStorage,
+            attributes: [NSAttributedString.Key: Any]
+        ) {
+            for mathBlockRange in ranges {
+                storage.addAttributes(attributes, range: mathBlockRange)
             }
         }
 

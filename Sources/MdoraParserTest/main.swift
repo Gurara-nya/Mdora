@@ -375,6 +375,79 @@ func runTests() {
     } == ["`**not\nbold either**`"])
     print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
 
+    let mathHighlightMarkdown = #"""
+    Before **bold**
+    $$
+    a_1 + **not bold** + `not code`
+    $$
+    After **bold**
+    \[
+    [not a link](https://example.com) and `not code either`
+    \]
+    Tail `code`
+    """#
+    let mathHighlightNSString = mathHighlightMarkdown as NSString
+    let mathBlockRanges = MarkdownMathBlockScanner.mathBlockLineRanges(in: mathHighlightMarkdown)
+    assert(mathBlockRanges.count == 2)
+    assert(mathHighlightNSString.substring(with: mathBlockRanges[0]) == "$$\na_1 + **not bold** + `not code`\n$$\n")
+    assert(mathHighlightNSString.substring(with: mathBlockRanges[1]) == "\\[\n[not a link](https://example.com) and `not code either`\n\\]\n")
+
+    let mathSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(in: mathHighlightMarkdown)
+    let mathSyntaxCodeSpans = mathSyntaxRanges.codeSpanRanges.map {
+        mathHighlightNSString.substring(with: $0)
+    }
+    assert(mathSyntaxCodeSpans == ["`code`"])
+
+    let mathProtectedBoldRange = mathHighlightNSString.range(of: "**not bold**")
+    let mathProtectedLinkRange = mathHighlightNSString.range(of: "[not a link](https://example.com)")
+    let mathOutsideBoldRange = mathHighlightNSString.range(of: "**bold**")
+    assert(mathSyntaxRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, mathProtectedBoldRange).length > 0
+    })
+    assert(mathSyntaxRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, mathProtectedLinkRange).length > 0
+    })
+    assert(!mathSyntaxRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, mathOutsideBoldRange).length > 0
+    })
+
+    let mathWindowRange = mathHighlightNSString.range(of: "`not code either`")
+    assert(MarkdownMathBlockScanner.mathBlockLineRanges(
+        in: mathHighlightMarkdown,
+        intersecting: mathWindowRange
+    ).map { mathHighlightNSString.substring(with: $0) } == ["\\[\n[not a link](https://example.com) and `not code either`\n\\]\n"])
+
+    let mathContainingFenceMarkdown = #"""
+    $$
+    ```swift
+    let value = "**still math**"
+    ```
+    $$
+    After `code`
+    """#
+    let mathContainingFenceRanges = MarkdownSyntaxHighlightScanner.ranges(in: mathContainingFenceMarkdown)
+    assert(mathContainingFenceRanges.mathBlockRanges.count == 1)
+    assert(mathContainingFenceRanges.fencedLineRanges.isEmpty)
+    assert(mathContainingFenceRanges.codeSpanRanges.map {
+        (mathContainingFenceMarkdown as NSString).substring(with: $0)
+    } == ["`code`"])
+
+    let fenceContainingMathMarkdown = #"""
+    ```text
+    $$
+    **still code**
+    $$
+    ```
+    After `code`
+    """#
+    let fenceContainingMathRanges = MarkdownSyntaxHighlightScanner.ranges(in: fenceContainingMathMarkdown)
+    assert(fenceContainingMathRanges.fencedLineRanges.count == 1)
+    assert(fenceContainingMathRanges.mathBlockRanges.isEmpty)
+    assert(fenceContainingMathRanges.codeSpanRanges.map {
+        (fenceContainingMathMarkdown as NSString).substring(with: $0)
+    } == ["`code`"])
+    print("✅ Editor syntax highlighting protects display math blocks from inline recoloring!")
+
     // 4c. Test balanced parentheses in inline link and image destinations
     let balancedDestinationMarkdown = #"[Wiki](https://example.com/a_(b)) and ![Chart](assets/chart_(1).png "Chart (1)")"#
     let balancedDestinationSegments = InlineMarkdownParser.parse(balancedDestinationMarkdown)
