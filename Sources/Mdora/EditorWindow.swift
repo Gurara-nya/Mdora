@@ -24,6 +24,7 @@ struct EditorWindow: View {
     @State private var pendingParseTask: Task<Void, Never>?
     @State private var isEditorEditing = false
     @State private var isPreviewStale = false
+    @State private var pendingCommittedMarkdown: String?
 
     init(document: Binding<MarkdownDocument>, documentURL: URL?) {
         self._document = document
@@ -415,6 +416,11 @@ struct EditorWindow: View {
 
     @MainActor
     private func noteDocumentTextChanged(_ markdown: String) {
+        if pendingCommittedMarkdown == markdown {
+            pendingCommittedMarkdown = nil
+            return
+        }
+
         guard parsedMarkdown != markdown else { return }
         isPreviewStale = true
         pendingParseTask?.cancel()
@@ -471,6 +477,7 @@ struct EditorWindow: View {
 
     @MainActor
     private func commitEditorDraft(_ markdown: String, reason: EditorCommitReason) {
+        pendingCommittedMarkdown = markdown
         document.text = markdown
 
         switch reason {
