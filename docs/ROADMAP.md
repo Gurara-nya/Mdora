@@ -39,6 +39,7 @@
 - Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
 - Replace loose editor inline-code regex matching with exact backtick-run scanning so code fences are not partially recolored.
 - Make editor backtick auto-pairing fence-aware so typing triple backticks creates real code fences.
+- Recover smart-punctuation fence markers such as `‘’‘text` and `’‘’` as backtick-compatible code fences before inline coloring runs.
 - Protect editor inline-code contents from later emphasis, link, tag, and TODO highlighters.
 - Support multiline CommonMark code span highlighting in the editor without mistaking code fences for spans.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
@@ -51,6 +52,7 @@
 - Preserve CommonMark hard line breaks in preview and HTML export.
 - Support CommonMark multi-backtick code spans with spacing normalization across preview, export, and editor highlighting.
 - Keep balanced parentheses inside inline link and image destinations.
+- Unescape CommonMark backslash escapes inside inline link/image destinations and titles.
 - Keep nested brackets inside inline link labels and image alt text.
 - Decode and inspect HTML entity references in preview and HTML export.
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
@@ -76,6 +78,7 @@
 - Support CommonMark reference definition destinations on the following line.
 - Support CommonMark reference definition titles on the following line with correct source maps.
 - Require balanced unescaped parentheses in bare reference definition destinations.
+- Unescape CommonMark backslash escapes inside reference definition destinations and titles.
 - Keep incomplete split reference definitions as paragraphs instead of prematurely splitting text.
 - Reject malformed reference definitions that contain invalid trailing title text instead of dropping the extra text.
 - Drive missing-reference diagnostics from parsed inline segments so collapsed links and images are covered without scanning code spans.

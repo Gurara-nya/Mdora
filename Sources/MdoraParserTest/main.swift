@@ -96,6 +96,11 @@ func runTests() {
     assert(bareFenceSyntaxRanges.fencedLineRanges.count == 1)
     assert(bareFenceSyntaxRanges.codeSpanRanges.isEmpty)
 
+    let bareSmartQuoteFenceMarkdown = "‘’‘"
+    let bareSmartQuoteFenceSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(in: bareSmartQuoteFenceMarkdown)
+    assert(bareSmartQuoteFenceSyntaxRanges.fencedLineRanges.count == 1)
+    assert(bareSmartQuoteFenceSyntaxRanges.codeSpanRanges.isEmpty)
+
     let afterFenceRange = (fencedHighlightMarkdown as NSString).range(of: "After `inline`")
     assert(MarkdownCodeFenceScanner.fencedLineRanges(
         in: fencedHighlightMarkdown,
@@ -106,6 +111,26 @@ func runTests() {
     let unclosedFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: unclosedFenceMarkdown)
     assert(unclosedFenceRanges.count == 1)
     assert((unclosedFenceMarkdown as NSString).substring(with: unclosedFenceRanges[0]) == unclosedFenceMarkdown)
+
+    let smartQuoteFenceMarkdown = """
+    ‘’‘text
+    `not inline either`
+    ’‘’
+    After `inline`
+    """
+    let smartQuoteFenceDocument = MarkdownParser.parse(smartQuoteFenceMarkdown)
+    guard case .codeBlock(let smartQuoteFenceLanguage, let smartQuoteFenceCode) = smartQuoteFenceDocument.blocks[0] else {
+        fatalError("❌ Expected smart-quote fence markers to parse as a code block")
+    }
+    assert(smartQuoteFenceLanguage == "text")
+    assert(smartQuoteFenceCode == "`not inline either`")
+    let smartQuoteFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(in: smartQuoteFenceMarkdown)
+    assert(smartQuoteFenceRanges.count == 1)
+    let smartQuoteSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(in: smartQuoteFenceMarkdown)
+    let smartQuoteSyntaxCodeSpans = smartQuoteSyntaxRanges.codeSpanRanges.map {
+        (smartQuoteFenceMarkdown as NSString).substring(with: $0)
+    }
+    assert(smartQuoteSyntaxCodeSpans == ["`inline`"])
     print("✅ Editor syntax highlighting can skip fenced code ranges without coloring inner backticks!")
 
     // 3c. Test variable-length CommonMark code fences
@@ -369,6 +394,24 @@ func runTests() {
     assert(balancedDestinationHTML.contains(#"<img src="assets/chart_(1).png" alt="Chart" title="Chart (1)">"#))
     print("✅ Inline links and images keep balanced parentheses inside destinations and titles!")
 
+    let escapedInlineDestinationMarkdown = #"[Escaped](https://example.com/a\)b "Title \"quoted\"") and ![Pic](assets/a\(b\).png "Pic \"title\"")"#
+    let escapedInlineDestinationSegments = InlineMarkdownParser.parse(escapedInlineDestinationMarkdown)
+    let escapedInlineLink = escapedInlineDestinationSegments.compactMap { segment -> String? in
+        if case let .link(_, destination, title) = segment { return "\(destination)|\(title ?? "")" }
+        return nil
+    }
+    let escapedInlineImage = escapedInlineDestinationSegments.compactMap { segment -> String? in
+        if case let .image(_, source, title) = segment { return "\(source)|\(title ?? "")" }
+        return nil
+    }
+    assert(escapedInlineLink == [#"https://example.com/a)b|Title "quoted""#])
+    assert(escapedInlineImage == [#"assets/a(b).png|Pic "title""#])
+
+    let escapedInlineDestinationHTML = MarkdownHTMLRenderer.renderFragment(escapedInlineDestinationMarkdown)
+    assert(escapedInlineDestinationHTML.contains(#"<a href="https://example.com/a)b" title="Title &quot;quoted&quot;">Escaped</a>"#))
+    assert(escapedInlineDestinationHTML.contains(#"<img src="assets/a(b).png" alt="Pic" title="Pic &quot;title&quot;">"#))
+    print("✅ Inline link and image destinations unescape CommonMark backslash escapes!")
+
     let balancedAutoLinkMarkdown = "Visit https://example.com/a_(b), www.example.com/docs_(v2), and wrapped (https://example.com/plain). Email user@www.example.com. Code `https://example.com/not_(linked)`."
     let autoLinkSegments = InlineMarkdownParser.parse(balancedAutoLinkMarkdown).compactMap { segment -> String? in
         if case let .autoLink(url) = segment { return url }
@@ -523,6 +566,20 @@ func runTests() {
     assert(balancedReferenceDestinationHTML.contains(#"<a href="https://example.com/a_(b)" title="Balanced">Balanced</a>"#))
     assert(balancedReferenceDestinationHTML.contains(##"<a href="#ref-broken-ref">Broken</a>"##))
     print("✅ Reference definition destinations require balanced unescaped parentheses!")
+
+    let escapedReferenceDestinationMarkdown = #"""
+    [Escaped][escaped-destination]
+
+    [escaped-destination]: <https://example.com/a\>b> "Title \"quoted\""
+    """#
+    let escapedReferenceDestinationDocument = MarkdownParser.parse(escapedReferenceDestinationMarkdown)
+    let escapedReferenceDestinationDefinition = escapedReferenceDestinationDocument.referenceDefinitions["escaped-destination"]
+    assert(escapedReferenceDestinationDefinition?.destination == "https://example.com/a>b")
+    assert(escapedReferenceDestinationDefinition?.title == #"Title "quoted""#)
+
+    let escapedReferenceDestinationHTML = MarkdownHTMLRenderer.renderFragment(escapedReferenceDestinationMarkdown)
+    assert(escapedReferenceDestinationHTML.contains(#"<a href="https://example.com/a&gt;b" title="Title &quot;quoted&quot;">Escaped</a>"#))
+    print("✅ Reference definition destinations and titles unescape CommonMark backslash escapes!")
 
     let incompleteSplitReferenceMarkdown = """
     [dangling]:

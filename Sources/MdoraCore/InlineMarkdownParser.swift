@@ -147,7 +147,7 @@ private struct InlineParser {
         guard next < text.endIndex else { return false }
 
         let nextChar = text[next]
-        guard Self.markdownEscapeCharacters.contains(nextChar.unicodeScalars.first!) else {
+        guard MarkdownEscaping.isEscapable(nextChar) else {
             return false
         }
 
@@ -602,7 +602,7 @@ private struct InlineParser {
         var nestedDepth = 0
 
         while cursor < text.endIndex {
-            if isEscaped(cursor) {
+            if MarkdownEscaping.isEscaped(cursor, in: text) {
                 cursor = text.index(after: cursor)
                 continue
             }
@@ -635,7 +635,7 @@ private struct InlineParser {
         var nestedDepth = 0
 
         while cursor < text.endIndex {
-            if isEscaped(cursor) {
+            if MarkdownEscaping.isEscaped(cursor, in: text) {
                 cursor = text.index(after: cursor)
                 continue
             }
@@ -661,7 +661,7 @@ private struct InlineParser {
 
         while cursor < text.endIndex {
             guard let range = text[cursor...].range(of: marker) else { return nil }
-            if !isEscaped(range.lowerBound) {
+            if !MarkdownEscaping.isEscaped(range.lowerBound, in: text) {
                 return range.lowerBound
             }
 
@@ -705,35 +705,40 @@ private struct InlineParser {
         return !previous.isSymbolTokenCharacter
     }
 
-    private func isEscaped(_ position: String.Index) -> Bool {
-        var count = 0
-        var cursor = position
-
-        while cursor > text.startIndex {
-            let previous = text.index(before: cursor)
-            guard text[previous] == "\\" else { break }
-            count += 1
-            cursor = previous
-        }
-
-        return count % 2 == 1
-    }
-
     private static func parseDestinationAndTitle(_ text: String) -> (destination: String, title: String?) {
         var remainder = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let destination: String
-        if remainder.hasPrefix("<"), let close = remainder.firstIndex(of: ">") {
+        if remainder.hasPrefix("<"), let close = closingAngleDestinationIndex(in: remainder) {
             let start = remainder.index(after: remainder.startIndex)
-            destination = String(remainder[start ..< close])
+            destination = MarkdownEscaping.unescaped(String(remainder[start ..< close]))
             remainder = String(remainder[remainder.index(after: close)...]).trimmingCharacters(in: .whitespaces)
         } else {
             let parts = remainder.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-            destination = parts.first.map(String.init) ?? ""
+            destination = parts.first.map { MarkdownEscaping.unescaped(String($0)) } ?? ""
             remainder = parts.count > 1 ? String(parts[1]).trimmingCharacters(in: .whitespaces) : ""
         }
 
         return (destination, parseTitle(remainder))
+    }
+
+    private static func closingAngleDestinationIndex(in text: String) -> String.Index? {
+        var cursor = text.index(after: text.startIndex)
+
+        while cursor < text.endIndex {
+            if MarkdownEscaping.isEscaped(cursor, in: text) {
+                cursor = text.index(after: cursor)
+                continue
+            }
+
+            if text[cursor] == ">" {
+                return cursor
+            }
+
+            cursor = text.index(after: cursor)
+        }
+
+        return nil
     }
 
     private static func parseTitle(_ text: String) -> String? {
@@ -748,7 +753,7 @@ private struct InlineParser {
         for pair in pairs where text.first == pair.0 && text.last == pair.1 {
             let start = text.index(after: text.startIndex)
             let end = text.index(before: text.endIndex)
-            return String(text[start ..< end])
+            return MarkdownEscaping.unescaped(String(text[start ..< end]))
         }
 
         return nil
@@ -828,7 +833,6 @@ private struct InlineParser {
         options: [.caseInsensitive]
     )
 
-    private static let markdownEscapeCharacters = CharacterSet(charactersIn: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
 }
 
 private extension Character {

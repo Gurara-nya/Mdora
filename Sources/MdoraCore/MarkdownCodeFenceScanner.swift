@@ -13,11 +13,10 @@ public enum MarkdownCodeFenceScanner {
         }
 
         guard cursor < line.endIndex else { return nil }
-        let marker = line[cursor]
-        guard marker == "`" || marker == "~" else { return nil }
+        guard let marker = canonicalFenceMarker(for: line[cursor]) else { return nil }
 
         var length = 0
-        while cursor < line.endIndex, line[cursor] == marker {
+        while cursor < line.endIndex, isFenceMarker(line[cursor], matching: marker) {
             length += 1
             cursor = line.index(after: cursor)
         }
@@ -25,7 +24,7 @@ public enum MarkdownCodeFenceScanner {
         guard length >= 3 else { return nil }
         let info = String(line[cursor...])
         let trimmedInfo = info.trimmingCharacters(in: .whitespacesAndNewlines)
-        if marker == "`", trimmedInfo.contains("`") {
+        if marker == "`", containsBacktickLikeMarker(trimmedInfo) {
             return nil
         }
 
@@ -36,6 +35,28 @@ public enum MarkdownCodeFenceScanner {
             canClose: trimmedInfo.isEmpty,
             leadingSpaces: leadingSpaces
         )
+    }
+
+    private static func canonicalFenceMarker(for character: Character) -> Character? {
+        if character == "~" { return "~" }
+        if isBacktickLikeMarker(character) { return "`" }
+        return nil
+    }
+
+    private static func isFenceMarker(_ character: Character, matching marker: Character) -> Bool {
+        if marker == "`" {
+            return isBacktickLikeMarker(character)
+        }
+
+        return character == marker
+    }
+
+    private static func isBacktickLikeMarker(_ character: Character) -> Bool {
+        character == "`" || character == "‘" || character == "’"
+    }
+
+    private static func containsBacktickLikeMarker(_ text: String) -> Bool {
+        text.contains { isBacktickLikeMarker($0) }
     }
 
     public static func isClosingDelimiter(

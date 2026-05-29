@@ -1193,13 +1193,13 @@ private struct BlockParser {
         guard !content.isEmpty else { return nil }
 
         if let quoteStart = content.firstIndex(of: "\""), content.hasSuffix("\"") {
-            let source = String(content[..<quoteStart]).trimmed
+            let source = MarkdownEscaping.unescaped(String(content[..<quoteStart]).trimmed)
             let titleStart = content.index(after: quoteStart)
             let titleEnd = content.index(before: content.endIndex)
-            return (alt, source, String(content[titleStart ..< titleEnd]))
+            return (alt, source, MarkdownEscaping.unescaped(String(content[titleStart ..< titleEnd])))
         }
 
-        return (alt, content, nil)
+        return (alt, MarkdownEscaping.unescaped(content), nil)
     }
 
     private static func parseLinkReferenceDefinitionLine(_ line: String) -> ParsedLinkReferenceDefinitionLine? {
@@ -1241,28 +1241,47 @@ private struct BlockParser {
         var remainder = text.trimmed
         guard !remainder.isEmpty else { return nil }
 
-        let destination: String
+        let rawDestination: String
         let isBareDestination: Bool
 
-        if remainder.hasPrefix("<"), let closeDestination = remainder.firstIndex(of: ">") {
+        if remainder.hasPrefix("<"), let closeDestination = closingAngleReferenceDestinationIndex(in: remainder) {
             let destinationStart = remainder.index(after: remainder.startIndex)
-            destination = String(remainder[destinationStart ..< closeDestination])
+            rawDestination = String(remainder[destinationStart ..< closeDestination])
             remainder = String(remainder[remainder.index(after: closeDestination)...]).trimmed
             isBareDestination = false
         } else {
             let parts = remainder.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
             guard let first = parts.first else { return nil }
-            destination = String(first)
+            rawDestination = String(first)
             remainder = parts.count > 1 ? String(parts[1]).trimmed : ""
             isBareDestination = true
         }
 
-        guard !isBareDestination || isBalancedBareReferenceDestination(destination) else { return nil }
+        guard !isBareDestination || isBalancedBareReferenceDestination(rawDestination) else { return nil }
 
         let title = parseReferenceTitle(remainder)
         guard remainder.isEmpty || title != nil else { return nil }
 
-        return (destination, title, title == nil && remainder.isEmpty)
+        return (MarkdownEscaping.unescaped(rawDestination), title, title == nil && remainder.isEmpty)
+    }
+
+    private static func closingAngleReferenceDestinationIndex(in text: String) -> String.Index? {
+        var cursor = text.index(after: text.startIndex)
+
+        while cursor < text.endIndex {
+            if MarkdownEscaping.isEscaped(cursor, in: text) {
+                cursor = text.index(after: cursor)
+                continue
+            }
+
+            if text[cursor] == ">" {
+                return cursor
+            }
+
+            cursor = text.index(after: cursor)
+        }
+
+        return nil
     }
 
     private static func isBalancedBareReferenceDestination(_ destination: String) -> Bool {
@@ -1270,7 +1289,7 @@ private struct BlockParser {
         var depth = 0
 
         while cursor < destination.endIndex {
-            if isEscaped(cursor, in: destination) {
+            if MarkdownEscaping.isEscaped(cursor, in: destination) {
                 cursor = destination.index(after: cursor)
                 continue
             }
@@ -1295,7 +1314,7 @@ private struct BlockParser {
         var cursor = start
 
         while cursor < line.endIndex {
-            if isEscaped(cursor, in: line) {
+            if MarkdownEscaping.isEscaped(cursor, in: line) {
                 cursor = line.index(after: cursor)
                 continue
             }
@@ -1312,20 +1331,6 @@ private struct BlockParser {
         }
 
         return nil
-    }
-
-    private static func isEscaped(_ index: String.Index, in text: String) -> Bool {
-        var cursor = index
-        var slashCount = 0
-
-        while cursor > text.startIndex {
-            let previous = text.index(before: cursor)
-            guard text[previous] == "\\" else { break }
-            slashCount += 1
-            cursor = previous
-        }
-
-        return slashCount % 2 == 1
     }
 
     private static func parseAbbreviationDefinitionLine(_ line: String) -> AbbreviationDefinition? {
@@ -1358,7 +1363,7 @@ private struct BlockParser {
         for pair in pairs where text.first == pair.0 && text.last == pair.1 {
             let start = text.index(after: text.startIndex)
             let end = text.index(before: text.endIndex)
-            return String(text[start ..< end])
+            return MarkdownEscaping.unescaped(String(text[start ..< end]))
         }
 
         return nil
