@@ -445,6 +445,27 @@ func runTests() {
     assert(multilineReferenceTitleHTML.contains("<p>After the reference.</p>"))
     print("✅ Reference definitions accept CommonMark titles on the following line!")
 
+    let multilineReferenceDestinationMarkdown = """
+    [Use][next-destination]
+
+    [next-destination]:
+      https://example.com/next
+      'Next line title'
+
+    After the split destination.
+    """
+    let multilineReferenceDestinationDocument = MarkdownParser.parse(multilineReferenceDestinationMarkdown)
+    let multilineReferenceDestinationDefinition = multilineReferenceDestinationDocument.referenceDefinitions["next-destination"]
+    assert(multilineReferenceDestinationDefinition?.destination == "https://example.com/next")
+    assert(multilineReferenceDestinationDefinition?.title == "Next line title")
+    assert(multilineReferenceDestinationDocument.blocks.count == 3)
+    assert(multilineReferenceDestinationDocument.sourceRange(forBlockIndex: 1)?.endLine == 5)
+
+    let multilineReferenceDestinationHTML = MarkdownHTMLRenderer.renderFragment(multilineReferenceDestinationMarkdown)
+    assert(multilineReferenceDestinationHTML.contains(#"<a href="https://example.com/next" title="Next line title">Use</a>"#))
+    assert(multilineReferenceDestinationHTML.contains("<p>After the split destination.</p>"))
+    print("✅ Reference definitions accept destinations on the following line!")
+
     let collapsedReferenceMarkdown = """
     [Known][] and ![Known][]
     [Missing][] and ![Chart][] plus `[Code][]`

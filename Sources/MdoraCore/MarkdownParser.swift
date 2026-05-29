@@ -43,8 +43,15 @@ private struct BlockParser {
     }
 
     private struct ParsedLinkReferenceDefinitionLine {
-        var definition: LinkReferenceDefinition
+        var label: String
+        var destination: String?
+        var title: String?
         var allowsContinuationTitle: Bool
+
+        var definition: LinkReferenceDefinition? {
+            guard let destination else { return nil }
+            return LinkReferenceDefinition(label: label, destination: destination, title: title)
+        }
     }
 
     private let lines: [String]
@@ -600,16 +607,30 @@ private struct BlockParser {
             return nil
         }
 
-        index += 1
+        var consumedLineCount = 1
 
-        if parsed.allowsContinuationTitle,
-           let nextLine = line(at: 0),
-           let title = Self.parseReferenceTitle(nextLine.trimmed) {
-            parsed.definition.title = title
-            index += 1
+        if parsed.destination == nil {
+            guard let nextLine = line(at: consumedLineCount),
+                  let continuation = Self.parseReferenceDestinationAndTitle(nextLine.trimmed) else {
+                return nil
+            }
+
+            parsed.destination = continuation.destination
+            parsed.title = continuation.title
+            parsed.allowsContinuationTitle = continuation.allowsContinuationTitle
+            consumedLineCount += 1
         }
 
-        return .linkReferenceDefinition(parsed.definition)
+        if parsed.allowsContinuationTitle,
+           let nextLine = line(at: consumedLineCount),
+           let title = Self.parseReferenceTitle(nextLine.trimmed) {
+            parsed.title = title
+            consumedLineCount += 1
+        }
+
+        guard let definition = parsed.definition else { return nil }
+        index += consumedLineCount
+        return .linkReferenceDefinition(definition)
     }
 
     private mutating func parseAbbreviationDefinition() -> MarkdownBlock? {
@@ -1103,7 +1124,31 @@ private struct BlockParser {
         guard !label.isEmpty, label.count <= 999 else { return nil }
 
         let remainderStart = line.index(after: colonIndex)
-        var remainder = String(line[remainderStart...]).trimmed
+        let remainder = String(line[remainderStart...]).trimmed
+
+        guard !remainder.isEmpty else {
+            return ParsedLinkReferenceDefinitionLine(
+                label: label,
+                destination: nil,
+                title: nil,
+                allowsContinuationTitle: false
+            )
+        }
+
+        guard let parsed = parseReferenceDestinationAndTitle(remainder) else { return nil }
+
+        return ParsedLinkReferenceDefinitionLine(
+            label: label,
+            destination: parsed.destination,
+            title: parsed.title,
+            allowsContinuationTitle: parsed.allowsContinuationTitle
+        )
+    }
+
+    private static func parseReferenceDestinationAndTitle(
+        _ text: String
+    ) -> (destination: String, title: String?, allowsContinuationTitle: Bool)? {
+        var remainder = text.trimmed
         guard !remainder.isEmpty else { return nil }
 
         let destination: String
@@ -1122,10 +1167,7 @@ private struct BlockParser {
         let title = parseReferenceTitle(remainder)
         guard remainder.isEmpty || title != nil else { return nil }
 
-        return ParsedLinkReferenceDefinitionLine(
-            definition: LinkReferenceDefinition(label: label, destination: destination, title: title),
-            allowsContinuationTitle: title == nil && remainder.isEmpty
-        )
+        return (destination, title, title == nil && remainder.isEmpty)
     }
 
     private static func closingReferenceLabelIndex(
