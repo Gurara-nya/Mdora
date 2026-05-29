@@ -510,7 +510,10 @@ struct EditorWindow: View {
 
             guard !Task.isCancelled else { return }
 
-            guard document.text == markdown else {
+            let currentDraft = MarkdownDraftRegistry.shared.text(for: document.id)
+            guard document.text == markdown,
+                  currentDraft == nil || currentDraft == markdown else {
+                isEditorEditing = true
                 isPreviewStale = true
                 setStatusMessage("编辑中，预览暂停，保存或 ⌘R 刷新", autoClear: false)
                 return
