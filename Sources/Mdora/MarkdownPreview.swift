@@ -1470,7 +1470,7 @@ private struct InlineMarkdownText: View {
             str = AttributedString(url)
             str.underlineStyle = .single
             str.foregroundColor = theme.palette.accentColor
-            if let linkURL = URL(string: url) {
+            if let linkURL = URL(string: MarkdownAutoLinkScanner.href(for: url)) {
                 str.link = linkURL
             }
         case let .email(email):

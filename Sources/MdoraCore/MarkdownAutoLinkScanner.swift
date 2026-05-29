@@ -19,13 +19,29 @@ public enum MarkdownAutoLinkScanner {
         scanAutoLinks(in: markdown, intersecting: targetRange)
     }
 
+    public static func href(for url: String) -> String {
+        if url.hasPrefix("http://") || url.hasPrefix("https://") {
+            return url
+        }
+
+        return "http://\(url)"
+    }
+
     static func rawAutoLink(
         in text: String,
         at index: String.Index
     ) -> (url: String, end: String.Index)? {
-        guard text[index...].hasPrefix("http://") || text[index...].hasPrefix("https://") else {
+        let kind: AutoLinkKind
+        if text[index...].hasPrefix("https://") {
+            kind = .scheme(prefixLength: "https://".count)
+        } else if text[index...].hasPrefix("http://") {
+            kind = .scheme(prefixLength: "http://".count)
+        } else if text[index...].hasPrefix("www.") {
+            kind = .www
+        } else {
             return nil
         }
+
         guard isBoundaryBefore(index, in: text) else { return nil }
 
         var cursor = index
@@ -73,8 +89,7 @@ public enum MarkdownAutoLinkScanner {
 
         guard urlEnd > index else { return nil }
         let url = String(text[index ..< urlEnd])
-        let minimumLength = text[index...].hasPrefix("https://") ? "https://".count : "http://".count
-        guard url.count > minimumLength else { return nil }
+        guard kind.isValid(url) else { return nil }
         return (url, urlEnd)
     }
 
@@ -146,6 +161,37 @@ public enum MarkdownAutoLinkScanner {
     }
 
     private static let trailingPunctuation: Set<Character> = [".", ",", ";", ":", "!", "?"]
+
+    private enum AutoLinkKind {
+        case scheme(prefixLength: Int)
+        case www
+
+        func isValid(_ url: String) -> Bool {
+            switch self {
+            case let .scheme(prefixLength):
+                return url.count > prefixLength
+            case .www:
+                return Self.isValidWWWURL(url)
+            }
+        }
+
+        private static func isValidWWWURL(_ url: String) -> Bool {
+            guard url.hasPrefix("www.") else { return false }
+
+            let host = url
+                .dropFirst(4)
+                .prefix { character in
+                    character != "/" && character != "?" && character != "#"
+                }
+
+            guard let first = host.first,
+                  first.isLetter || first.isNumber else {
+                return false
+            }
+
+            return host.dropFirst().contains(".")
+        }
+    }
 }
 
 private extension Character {
@@ -155,6 +201,7 @@ private extension Character {
         }
 
         return self == "_" || self == "-" || self == "/" || self == "."
+            || self == "@"
     }
 }
 

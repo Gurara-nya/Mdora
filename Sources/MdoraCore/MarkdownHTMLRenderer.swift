@@ -399,7 +399,8 @@ public enum MarkdownHTMLRenderer {
 
             return "<span class=\"image-ref\">\(escapeHTML(alt)) [\(escapeHTML(label))]</span>"
         case let .autoLink(url):
-            return "<a href=\"\(escapeHTML(url))\">\(escapeHTML(url))</a>"
+            let href = MarkdownAutoLinkScanner.href(for: url)
+            return "<a href=\"\(escapeHTML(href))\">\(escapeHTML(url))</a>"
         case let .email(email):
             return "<a href=\"mailto:\(escapeHTML(email))\">\(escapeHTML(email))</a>"
         case let .wikiLink(value):

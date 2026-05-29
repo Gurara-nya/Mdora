@@ -369,31 +369,32 @@ func runTests() {
     assert(balancedDestinationHTML.contains(#"<img src="assets/chart_(1).png" alt="Chart" title="Chart (1)">"#))
     print("✅ Inline links and images keep balanced parentheses inside destinations and titles!")
 
-    let balancedAutoLinkMarkdown = "Visit https://example.com/a_(b) and wrapped (https://example.com/plain). Code `https://example.com/not_(linked)`."
+    let balancedAutoLinkMarkdown = "Visit https://example.com/a_(b), www.example.com/docs_(v2), and wrapped (https://example.com/plain). Email user@www.example.com. Code `https://example.com/not_(linked)`."
     let autoLinkSegments = InlineMarkdownParser.parse(balancedAutoLinkMarkdown).compactMap { segment -> String? in
         if case let .autoLink(url) = segment { return url }
         return nil
     }
-    assert(autoLinkSegments == ["https://example.com/a_(b)", "https://example.com/plain"])
+    assert(autoLinkSegments == ["https://example.com/a_(b)", "www.example.com/docs_(v2)", "https://example.com/plain"])
 
     let autoLinkDocument = MarkdownParser.parse(balancedAutoLinkMarkdown)
-    assert(autoLinkDocument.markers.autoLinks == ["https://example.com/a_(b)", "https://example.com/plain"])
+    assert(autoLinkDocument.markers.autoLinks == ["https://example.com/a_(b)", "www.example.com/docs_(v2)", "https://example.com/plain"])
 
-    let autoLinkScannerMarkdown = "Visit https://example.com/a_(b) and wrapped (https://example.com/plain)."
+    let autoLinkScannerMarkdown = "Visit https://example.com/a_(b), www.example.com/docs_(v2), and wrapped (https://example.com/plain). Ignore user@www.example.com and www."
     let autoLinkScannerMatches = MarkdownAutoLinkScanner.autoLinks(in: autoLinkScannerMarkdown).map(\.url)
-    assert(autoLinkScannerMatches == ["https://example.com/a_(b)", "https://example.com/plain"])
+    assert(autoLinkScannerMatches == ["https://example.com/a_(b)", "www.example.com/docs_(v2)", "https://example.com/plain"])
     let autoLinkScannerNSString = autoLinkScannerMarkdown as NSString
-    let autoLinkInteriorRange = autoLinkScannerNSString.range(of: "_(b)")
+    let autoLinkInteriorRange = autoLinkScannerNSString.range(of: "docs_(v2)")
     assert(MarkdownAutoLinkScanner.autoLinks(
         in: autoLinkScannerMarkdown,
         intersecting: autoLinkInteriorRange
-    ).map(\.url) == ["https://example.com/a_(b)"])
+    ).map(\.url) == ["www.example.com/docs_(v2)"])
 
     let balancedAutoLinkHTML = MarkdownHTMLRenderer.renderFragment(balancedAutoLinkMarkdown)
     assert(balancedAutoLinkHTML.contains(#"<a href="https://example.com/a_(b)">https://example.com/a_(b)</a>"#))
+    assert(balancedAutoLinkHTML.contains(#"<a href="http://www.example.com/docs_(v2)">www.example.com/docs_(v2)</a>"#))
     assert(balancedAutoLinkHTML.contains(#"(<a href="https://example.com/plain">https://example.com/plain</a>)."#))
     assert(!balancedAutoLinkHTML.contains(#"<a href="https://example.com/not_(linked)">"#))
-    print("✅ Raw URL autolinks keep balanced parentheses and trim surrounding punctuation!")
+    print("✅ Raw and www URL autolinks keep balanced parentheses and trim surrounding punctuation!")
 
     // 4d. Test nested brackets in inline link text and image alt text
     let nestedBracketMarkdown = "[A [nested] label](https://example.com) and ![Alt [v2]](image.png)"
