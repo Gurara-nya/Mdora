@@ -266,6 +266,40 @@ func runTests() {
         (editorCodeSpanMarkdown as NSString).substring(with: $0)
     }
     assert(visibleCodeSpanMatches == ["`inline`"])
+
+    let syntaxHighlightMarkdown = """
+    ```text
+    **fenced bold**
+    ```
+    `**not bold**` and **bold outside**
+    """
+    let syntaxHighlightRanges = MarkdownSyntaxHighlightScanner.ranges(in: syntaxHighlightMarkdown)
+    let syntaxHighlightCodeSpans = syntaxHighlightRanges.codeSpanRanges.map {
+        (syntaxHighlightMarkdown as NSString).substring(with: $0)
+    }
+    assert(syntaxHighlightCodeSpans == ["`**not bold**`"])
+
+    let syntaxHighlightNSString = syntaxHighlightMarkdown as NSString
+    let fencedBoldRange = syntaxHighlightNSString.range(of: "**fenced bold**")
+    let protectedBoldRange = syntaxHighlightNSString.range(of: "**not bold**")
+    let outsideBoldRange = syntaxHighlightNSString.range(of: "**bold outside**")
+    assert(syntaxHighlightRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, fencedBoldRange).length > 0
+    })
+    assert(syntaxHighlightRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, protectedBoldRange).length > 0
+    })
+    assert(!syntaxHighlightRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, outsideBoldRange).length > 0
+    })
+
+    let protectedBoldWindowRanges = MarkdownSyntaxHighlightScanner.ranges(
+        in: syntaxHighlightMarkdown,
+        intersecting: protectedBoldRange
+    )
+    assert(protectedBoldWindowRanges.codeSpanRanges.map {
+        syntaxHighlightNSString.substring(with: $0)
+    } == ["`**not bold**`"])
     print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
 
     // 4c. Test balanced parentheses in inline link and image destinations

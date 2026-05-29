@@ -425,10 +425,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             currentHighlightRange = targetRange
             textStorage.setAttributes(baseAttributes, range: resetRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
-            currentInlineHighlightExcludedRanges = MarkdownCodeFenceScanner.fencedLineRanges(
+            let syntaxHighlightRanges = MarkdownSyntaxHighlightScanner.ranges(
                 in: textView.string,
                 intersecting: targetRange
             )
+            currentInlineHighlightExcludedRanges = syntaxHighlightRanges.inlineExcludedRanges
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
             ])
@@ -440,7 +441,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
             ])
-            highlightCodeSpans(in: textView, storage: textStorage, attributes: [
+            highlightCodeSpans(syntaxHighlightRanges.codeSpanRanges, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.code
             ])
@@ -954,16 +955,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
         @MainActor
         private func highlightCodeSpans(
-            in textView: NSTextView,
+            _ ranges: [NSRange],
             storage: NSTextStorage,
             attributes: [NSAttributedString.Key: Any]
         ) {
-            let text = textView.string
-            let fullRange = NSRange(text.startIndex ..< text.endIndex, in: text)
-            let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
-
-            for codeSpanRange in MarkdownCodeSpanScanner.codeSpanRanges(in: text, intersecting: range) {
-                guard !isInlineHighlightExcluded(codeSpanRange) else { continue }
+            for codeSpanRange in ranges {
                 storage.addAttributes(attributes, range: codeSpanRange)
             }
         }
