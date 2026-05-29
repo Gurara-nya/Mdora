@@ -477,8 +477,12 @@ struct EditorWindow: View {
 
     @MainActor
     private func commitEditorDraft(_ markdown: String, reason: EditorCommitReason) {
-        pendingCommittedMarkdown = markdown
-        document.text = markdown
+        if document.text != markdown {
+            pendingCommittedMarkdown = markdown
+            document.text = markdown
+        } else {
+            pendingCommittedMarkdown = nil
+        }
 
         switch reason {
         case .save:
