@@ -16,7 +16,8 @@ struct EditorWindow: View {
     @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
-    @State private var exportMessage: String?
+    @State private var statusMessage: String?
+    @State private var pendingStatusClearTask: Task<Void, Never>?
     @State private var editorSelection = EditorSelection.start
     @State private var parsedDocument: ParsedMarkdownDocument
     @State private var parsedMarkdown: String
@@ -120,7 +121,7 @@ struct EditorWindow: View {
                 theme: theme,
                 focusMode: focusMode,
                 selection: editorSelection,
-                message: exportMessage
+                message: statusMessage
             )
         }
         .frame(minWidth: 760, minHeight: 520)
@@ -362,9 +363,9 @@ struct EditorWindow: View {
         ) { result in
             switch result {
             case .success:
-                exportMessage = "导出 HTML 成功"
+                setStatusMessage("导出 HTML 成功")
             case .failure(let error):
-                exportMessage = error.localizedDescription
+                setStatusMessage(error.localizedDescription, autoClear: false)
             }
         }
         .onChange(of: document.text) { _, newMarkdown in
@@ -376,6 +377,7 @@ struct EditorWindow: View {
         .onDisappear {
             pendingParseTask?.cancel()
             pendingEditingIdleTask?.cancel()
+            pendingStatusClearTask?.cancel()
         }
     }
 
@@ -387,6 +389,7 @@ struct EditorWindow: View {
     @MainActor
     private func noteEditorEditing() {
         isEditorEditing = true
+        setStatusMessage("编辑中，预览暂停", autoClear: false)
         pendingEditingIdleTask?.cancel()
         pendingEditingIdleTask = Task { @MainActor in
             do {
@@ -414,7 +417,7 @@ struct EditorWindow: View {
         isEditorEditing = false
         pendingPreviewMarkdown = nil
         refreshParsedDocument(for: document.text)
-        exportMessage = "预览与分析已刷新"
+        setStatusMessage("预览与分析已刷新")
     }
 
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
@@ -437,7 +440,7 @@ struct EditorWindow: View {
             column: editorSelection.column,
             selectedLength: editorSelection.selectedLength
         )
-        exportMessage = "任务状态已更新为 \(state.title)"
+        setStatusMessage("任务状态已更新为 \(state.title)")
     }
 
     @MainActor
@@ -458,15 +461,23 @@ struct EditorWindow: View {
             }
 
             guard !Task.isCancelled else { return }
+            await MainActor.run {
+                setStatusMessage("正在刷新预览...", autoClear: false)
+            }
+
             let parsed = await Task.detached(priority: .userInitiated) {
                 MarkdownParser.parse(markdown)
             }.value
 
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                guard parsedMarkdown != markdown else { return }
+                guard parsedMarkdown != markdown else {
+                    setStatusMessage(nil)
+                    return
+                }
                 parsedDocument = parsed
                 parsedMarkdown = markdown
+                setStatusMessage("预览已更新")
             }
         }
     }
@@ -481,6 +492,38 @@ struct EditorWindow: View {
     private func refreshParsedDocument(for markdown: String) {
         parsedDocument = MarkdownParser.parse(markdown)
         parsedMarkdown = markdown
+    }
+
+    @MainActor
+    private func setStatusMessage(_ message: String?, autoClear: Bool = true) {
+        pendingStatusClearTask?.cancel()
+
+        if statusMessage == message {
+            scheduleStatusClearIfNeeded(autoClear: autoClear, message: message)
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.12)) {
+            statusMessage = message
+        }
+
+        scheduleStatusClearIfNeeded(autoClear: autoClear, message: message)
+    }
+
+    @MainActor
+    private func scheduleStatusClearIfNeeded(autoClear: Bool, message: String?) {
+        guard autoClear, message != nil else { return }
+        pendingStatusClearTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 2_400_000_000)
+            } catch {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: 0.12)) {
+                statusMessage = nil
+            }
+        }
     }
 
     private func parseDebounceDelay(for markdown: String) -> UInt64 {
@@ -499,19 +542,19 @@ struct EditorWindow: View {
         savePanel.nameFieldStringValue = "\(defaultName).pdf"
 
         withAnimation {
-            exportMessage = "正在准备 PDF..."
+            setStatusMessage("正在准备 PDF...", autoClear: false)
         }
 
         savePanel.begin { response in
             guard response == .OK, let destinationURL = savePanel.url else {
                 withAnimation {
-                    exportMessage = nil
+                    setStatusMessage(nil)
                 }
                 return
             }
 
             withAnimation {
-                exportMessage = "正在导出 PDF..."
+                setStatusMessage("正在导出 PDF...", autoClear: false)
             }
 
             PDFExporter.export(
@@ -524,9 +567,9 @@ struct EditorWindow: View {
                     withAnimation {
                         switch result {
                         case .success:
-                            exportMessage = "导出 PDF 成功"
+                            setStatusMessage("导出 PDF 成功")
                         case .failure(let error):
-                            exportMessage = "PDF 导出失败: \(error.localizedDescription)"
+                            setStatusMessage("PDF 导出失败: \(error.localizedDescription)", autoClear: false)
                         }
                     }
                 }
