@@ -369,6 +369,32 @@ func runTests() {
     assert(balancedDestinationHTML.contains(#"<img src="assets/chart_(1).png" alt="Chart" title="Chart (1)">"#))
     print("✅ Inline links and images keep balanced parentheses inside destinations and titles!")
 
+    let balancedAutoLinkMarkdown = "Visit https://example.com/a_(b) and wrapped (https://example.com/plain). Code `https://example.com/not_(linked)`."
+    let autoLinkSegments = InlineMarkdownParser.parse(balancedAutoLinkMarkdown).compactMap { segment -> String? in
+        if case let .autoLink(url) = segment { return url }
+        return nil
+    }
+    assert(autoLinkSegments == ["https://example.com/a_(b)", "https://example.com/plain"])
+
+    let autoLinkDocument = MarkdownParser.parse(balancedAutoLinkMarkdown)
+    assert(autoLinkDocument.markers.autoLinks == ["https://example.com/a_(b)", "https://example.com/plain"])
+
+    let autoLinkScannerMarkdown = "Visit https://example.com/a_(b) and wrapped (https://example.com/plain)."
+    let autoLinkScannerMatches = MarkdownAutoLinkScanner.autoLinks(in: autoLinkScannerMarkdown).map(\.url)
+    assert(autoLinkScannerMatches == ["https://example.com/a_(b)", "https://example.com/plain"])
+    let autoLinkScannerNSString = autoLinkScannerMarkdown as NSString
+    let autoLinkInteriorRange = autoLinkScannerNSString.range(of: "_(b)")
+    assert(MarkdownAutoLinkScanner.autoLinks(
+        in: autoLinkScannerMarkdown,
+        intersecting: autoLinkInteriorRange
+    ).map(\.url) == ["https://example.com/a_(b)"])
+
+    let balancedAutoLinkHTML = MarkdownHTMLRenderer.renderFragment(balancedAutoLinkMarkdown)
+    assert(balancedAutoLinkHTML.contains(#"<a href="https://example.com/a_(b)">https://example.com/a_(b)</a>"#))
+    assert(balancedAutoLinkHTML.contains(#"(<a href="https://example.com/plain">https://example.com/plain</a>)."#))
+    assert(!balancedAutoLinkHTML.contains(#"<a href="https://example.com/not_(linked)">"#))
+    print("✅ Raw URL autolinks keep balanced parentheses and trim surrounding punctuation!")
+
     // 4d. Test nested brackets in inline link text and image alt text
     let nestedBracketMarkdown = "[A [nested] label](https://example.com) and ![Alt [v2]](image.png)"
     let nestedBracketSegments = InlineMarkdownParser.parse(nestedBracketMarkdown)

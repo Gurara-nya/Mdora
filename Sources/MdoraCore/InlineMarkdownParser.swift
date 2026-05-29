@@ -513,24 +513,12 @@ private struct InlineParser {
     }
 
     private mutating func consumeAutoLink() -> InlineMarkdownSegment? {
-        guard hasPrefix("http://") || hasPrefix("https://") else { return nil }
-        guard isBoundaryBeforeIndex else { return nil }
-
-        var cursor = index
-        while cursor < text.endIndex {
-            let character = text[cursor]
-            if character.isWhitespace || character == "<" || character == ")" {
-                break
-            }
-            cursor = text.index(after: cursor)
+        guard let match = MarkdownAutoLinkScanner.rawAutoLink(in: text, at: index) else {
+            return nil
         }
 
-        let rawURL = String(text[index ..< cursor])
-        let url = rawURL.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?"))
-        guard !url.isEmpty else { return nil }
-
-        index = text.index(index, offsetBy: url.count)
-        return .autoLink(url)
+        index = match.end
+        return .autoLink(match.url)
     }
 
     private mutating func consumeEmail() -> InlineMarkdownSegment? {

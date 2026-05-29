@@ -556,7 +556,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
             ])
-            highlightInline(pattern: ##"(?<![\]\)">])(https?://[^\s<\)]+)"##, in: textView, storage: textStorage, attributes: [
+            highlightAutoLinks(in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
             ])
@@ -961,6 +961,22 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         ) {
             for codeSpanRange in ranges {
                 storage.addAttributes(attributes, range: codeSpanRange)
+            }
+        }
+
+        @MainActor
+        private func highlightAutoLinks(
+            in textView: NSTextView,
+            storage: NSTextStorage,
+            attributes: [NSAttributedString.Key: Any]
+        ) {
+            let text = textView.string
+            let fullRange = NSRange(text.startIndex ..< text.endIndex, in: text)
+            let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
+
+            for match in MarkdownAutoLinkScanner.autoLinks(in: text, intersecting: range) {
+                guard !isInlineHighlightExcluded(match.range) else { continue }
+                storage.addAttributes(attributes, range: match.range)
             }
         }
 

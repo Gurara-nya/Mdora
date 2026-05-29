@@ -66,6 +66,7 @@
 - Add smart URL, image URL, local image file paste, and image drag-and-drop transforms for Markdown links and images.
 - Add CriticMarkup review marks for additions, deletions, substitutions, comments, and editorial highlights.
 - Add CommonMark angle-bracket autolinks for URLs and email addresses.
+- Keep balanced parentheses inside raw URL autolinks and share that scanner with editor highlighting.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
