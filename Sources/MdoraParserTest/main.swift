@@ -719,6 +719,48 @@ func runTests() {
     assert(collapsedReferenceHTML.contains(#"<span class="wikilink" data-target="Wiki Page" data-path="Wiki Page">Wiki Page</span>"#))
     print("✅ Collapsed and shortcut reference links/images resolve without false missing diagnostics!")
 
+    let streamingMarkerMarkdown = #"""
+    Paragraph [Site](https://example.com) ![Chart][chart] #perf @yeqi ==bright== H~2~O 10^2^ [@doe] :sparkles: <kbd>Command-R</kbd> &copy; $E=mc^2$ [[Wiki|Alias]] ![[Embed.png|Embed]] hello@example.com
+    > Quote [ref][known] [^note] {++add++} {--drop--} {~~old~>new~~} {>>note<<} {==mark==}
+
+    | Name | Value |
+    | --- | --- |
+    | Link | www.example.com |
+
+    [^note]: Footnote with <span>HTML</span>
+    [known]: https://example.com/known
+    [chart]: chart.png "Chart"
+    *[HTML]: Hyper Text
+    """#
+    let streamingMarkerDocument = MarkdownParser.parse(streamingMarkerMarkdown)
+    assert(streamingMarkerDocument.markers.links == ["https://example.com"])
+    assert(streamingMarkerDocument.markers.autoLinks == ["www.example.com"])
+    assert(streamingMarkerDocument.markers.emailLinks == ["hello@example.com"])
+    assert(streamingMarkerDocument.markers.imageReferences == ["chart"])
+    assert(streamingMarkerDocument.markers.tags == ["perf"])
+    assert(streamingMarkerDocument.markers.mentions == ["yeqi"])
+    assert(streamingMarkerDocument.markers.wikiLinks == ["Wiki|Alias"])
+    assert(streamingMarkerDocument.markers.wikiEmbeds == ["Embed.png|Embed"])
+    assert(streamingMarkerDocument.markers.footnotes == ["note"])
+    assert(streamingMarkerDocument.markers.linkReferences == ["known", "chart"])
+    assert(streamingMarkerDocument.markers.inlineHTML == ["<span>", "</span>"])
+    assert(streamingMarkerDocument.markers.htmlEntities == ["&copy;"])
+    assert(streamingMarkerDocument.markers.mathExpressions == ["E=mc^2"])
+    assert(streamingMarkerDocument.markers.highlights == ["bright"])
+    assert(streamingMarkerDocument.markers.superscripts == ["2"])
+    assert(streamingMarkerDocument.markers.subscripts == ["2"])
+    assert(streamingMarkerDocument.markers.criticAdditions == ["add"])
+    assert(streamingMarkerDocument.markers.criticDeletions == ["drop"])
+    assert(streamingMarkerDocument.markers.criticSubstitutions == [CriticSubstitution(original: "old", replacement: "new")])
+    assert(streamingMarkerDocument.markers.criticComments == ["note"])
+    assert(streamingMarkerDocument.markers.criticHighlights == ["mark"])
+    assert(streamingMarkerDocument.markers.citations == ["doe"])
+    assert(streamingMarkerDocument.markers.emojiShortcodes == ["sparkles"])
+    assert(streamingMarkerDocument.markers.keyboardShortcuts == ["Command-R"])
+    assert(!streamingMarkerDocument.diagnostics.contains { $0.id == "missing-reference-known" })
+    assert(!streamingMarkerDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
+    print("✅ Streaming marker collection preserves rich inline marker recognition without broad segment arrays!")
+
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
     [Uses bad][bad]

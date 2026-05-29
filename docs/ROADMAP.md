@@ -93,7 +93,7 @@
 - Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.
 - Suppress preview update and scroll animations automatically for large documents.
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
-- Collect inline markers in one pass to reduce analyzer work after live preview parsing.
+- Stream inline marker and missing-reference collection over inline-capable block content to reduce analyzer allocations after explicit preview refreshes.
 - Add source-map-backed task checkbox editing from preview, including extended task states.
 - Resolve internal and neighboring-file preview navigation for wiki heading/block links, footnotes, tags, and mentions.
 - Add export to HTML.

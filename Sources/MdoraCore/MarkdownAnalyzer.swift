@@ -118,120 +118,42 @@ public enum MarkdownAnalyzer {
 
     public static func markers(in markdown: String, blocks: [MarkdownBlock]) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
-        let inlineSegments = inlineSegments(from: blocks)
         let references = referenceDefinitions(from: blocks)
+        let inlineMarkers = inlineMarkers(in: blocks, references: references)
 
-        var links: [String] = []
-        var autoLinks: [String] = []
-        var emailLinks: [String] = []
-        var images: [String] = []
-        var imageReferences: [String] = []
-        var tags: [String] = []
-        var mentions: [String] = []
-        var wikiLinks: [String] = []
-        var wikiEmbeds: [String] = []
-        var inlineHTML: [String] = []
-        var htmlEntities: [String] = []
-        var highlights: [String] = []
-        var superscripts: [String] = []
-        var subscripts: [String] = []
-        var criticAdditions: [String] = []
-        var criticDeletions: [String] = []
-        var criticSubstitutions: [CriticSubstitution] = []
-        var criticComments: [String] = []
-        var criticHighlights: [String] = []
-        var citations: [String] = []
-        var emojiShortcodes: [String] = []
-        var keyboardShortcuts: [String] = []
-
-        for segment in inlineSegments {
-            switch segment {
-            case let .link(_, destination, _):
-                links.append(destination)
-            case let .autoLink(url):
-                autoLinks.append(url)
-            case let .email(email):
-                emailLinks.append(email)
-            case let .image(_, source, _):
-                images.append(source)
-            case let .imageReference(_, label):
-                imageReferences.append(label)
-            case let .shortcutImageReference(alt):
-                if references[LinkReferenceDefinition.normalizedLabel(alt)] != nil {
-                    imageReferences.append(alt)
-                }
-            case let .tag(tag):
-                tags.append(tag)
-            case let .mention(mention):
-                mentions.append(mention)
-            case let .wikiLink(value):
-                wikiLinks.append(value)
-            case let .wikiEmbed(value):
-                wikiEmbeds.append(value)
-            case let .htmlInline(value):
-                inlineHTML.append(value)
-            case let .htmlEntity(source, _):
-                htmlEntities.append(source)
-            case let .highlight(value):
-                highlights.append(value)
-            case let .superscript(value):
-                superscripts.append(value)
-            case let .subscriptText(value):
-                subscripts.append(value)
-            case let .criticAddition(value):
-                criticAdditions.append(value)
-            case let .criticDeletion(value):
-                criticDeletions.append(value)
-            case let .criticSubstitution(original, replacement):
-                criticSubstitutions.append(CriticSubstitution(original: original, replacement: replacement))
-            case let .criticComment(value):
-                criticComments.append(value)
-            case let .criticHighlight(value):
-                criticHighlights.append(value)
-            case let .citation(identifier):
-                citations.append(identifier)
-            case let .emojiShortcode(name):
-                emojiShortcodes.append(name)
-            case let .keyboard(value):
-                keyboardShortcuts.append(value)
-            case .text, .hardBreak, .strong, .emphasis, .strikethrough, .code, .referenceLink, .shortcutReferenceLink, .footnote, .inlineMath:
-                break
-            }
-        }
-
-        markers.links = unique(links)
-        markers.autoLinks = unique(autoLinks)
-        markers.emailLinks = unique(emailLinks)
-        markers.images = unique(images)
-        markers.imageReferences = unique(imageReferences)
-        markers.tags = unique(tags)
-        markers.mentions = unique(mentions)
-        markers.wikiLinks = unique(wikiLinks)
-        markers.wikiEmbeds = unique(wikiEmbeds)
+        markers.links = unique(inlineMarkers.links)
+        markers.autoLinks = unique(inlineMarkers.autoLinks)
+        markers.emailLinks = unique(inlineMarkers.emailLinks)
+        markers.images = unique(inlineMarkers.images)
+        markers.imageReferences = unique(inlineMarkers.imageReferences)
+        markers.tags = unique(inlineMarkers.tags)
+        markers.mentions = unique(inlineMarkers.mentions)
+        markers.wikiLinks = unique(inlineMarkers.wikiLinks)
+        markers.wikiEmbeds = unique(inlineMarkers.wikiEmbeds)
         markers.blockIDs = unique(blockIdentifiers(in: blocks))
         markers.customAnchors = unique(customHeadingAnchors(in: markdown))
         markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
         })
-        markers.footnotes = unique(footnoteLabels(in: blocks, segments: inlineSegments))
-        markers.linkReferences = unique(referenceLabels(in: blocks, segments: inlineSegments))
+        markers.footnotes = unique(blockFootnoteLabels(in: blocks) + inlineMarkers.footnotes)
+        markers.linkReferences = unique(blockReferenceLabels(in: blocks) + inlineMarkers.linkReferences)
         markers.htmlComments = unique(htmlComments(in: blocks))
-        markers.inlineHTML = unique(inlineHTML)
-        markers.htmlEntities = unique(htmlEntities)
+        markers.inlineHTML = unique(inlineMarkers.inlineHTML)
+        markers.htmlEntities = unique(inlineMarkers.htmlEntities)
         markers.taskTokens = taskTokens(in: markdown)
         markers.taskStates = taskStateCounts(in: blocks)
-        markers.mathExpressions = unique(mathExpressions(in: blocks, segments: inlineSegments))
-        markers.highlights = unique(highlights)
-        markers.superscripts = unique(superscripts)
-        markers.subscripts = unique(subscripts)
-        markers.criticAdditions = unique(criticAdditions)
-        markers.criticDeletions = unique(criticDeletions)
-        markers.criticSubstitutions = unique(criticSubstitutions)
-        markers.criticComments = unique(criticComments)
-        markers.criticHighlights = unique(criticHighlights)
-        markers.citations = unique(citations)
-        markers.emojiShortcodes = unique(emojiShortcodes)
-        markers.keyboardShortcuts = unique(keyboardShortcuts)
+        markers.mathExpressions = unique(blockMathExpressions(in: blocks) + inlineMarkers.mathExpressions)
+        markers.highlights = unique(inlineMarkers.highlights)
+        markers.superscripts = unique(inlineMarkers.superscripts)
+        markers.subscripts = unique(inlineMarkers.subscripts)
+        markers.criticAdditions = unique(inlineMarkers.criticAdditions)
+        markers.criticDeletions = unique(inlineMarkers.criticDeletions)
+        markers.criticSubstitutions = unique(inlineMarkers.criticSubstitutions)
+        markers.criticComments = unique(inlineMarkers.criticComments)
+        markers.criticHighlights = unique(inlineMarkers.criticHighlights)
+        markers.citations = unique(inlineMarkers.citations)
+        markers.emojiShortcodes = unique(inlineMarkers.emojiShortcodes)
+        markers.keyboardShortcuts = unique(inlineMarkers.keyboardShortcuts)
 
         markers.codeLanguages = unique(
             blocks.compactMap { block in
@@ -421,76 +343,37 @@ public enum MarkdownAnalyzer {
         return unique(tokens)
     }
 
-    private static func mathExpressions(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
-        var expressions = blocks.compactMap { block -> String? in
+    private static func blockMathExpressions(in blocks: [MarkdownBlock]) -> [String] {
+        blocks.compactMap { block -> String? in
             if case let .mathBlock(expression) = block {
-                return expression
+                let trimmed = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
             }
 
             return nil
         }
-
-        expressions.append(contentsOf: segments.compactMap { segment in
-            if case let .inlineMath(expression) = segment {
-                return expression
-            }
-
-            return nil
-        })
-
-        return expressions
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
     }
 
-    private static func referenceLabels(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
-        let references = referenceDefinitions(from: blocks)
-        var labels = blocks.compactMap { block -> String? in
+    private static func blockReferenceLabels(in blocks: [MarkdownBlock]) -> [String] {
+        blocks.compactMap { block -> String? in
             if case let .linkReferenceDefinition(definition) = block {
-                return definition.label
+                let trimmed = definition.label.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
             }
 
             return nil
         }
-
-        labels.append(contentsOf: segments.compactMap { segment in
-            if case let .referenceLink(_, label) = segment {
-                return label
-            }
-
-            if case let .shortcutReferenceLink(label) = segment,
-               references[LinkReferenceDefinition.normalizedLabel(label)] != nil {
-                return label
-            }
-
-            return nil
-        })
-
-        return labels
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
     }
 
-    private static func footnoteLabels(in blocks: [MarkdownBlock], segments: [InlineMarkdownSegment]) -> [String] {
-        var labels = blocks.compactMap { block -> String? in
+    private static func blockFootnoteLabels(in blocks: [MarkdownBlock]) -> [String] {
+        blocks.compactMap { block -> String? in
             if case let .footnoteDefinition(identifier, _) = block {
-                return identifier
+                let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
             }
 
             return nil
         }
-
-        labels.append(contentsOf: segments.compactMap { segment in
-            if case let .footnote(identifier) = segment {
-                return identifier
-            }
-
-            return nil
-        })
-
-        return labels
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
     }
 
     private static func blockIdentifiers(in blocks: [MarkdownBlock]) -> [String] {
@@ -532,37 +415,152 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func inlineSegments(from blocks: [MarkdownBlock]) -> [InlineMarkdownSegment] {
-        blocks.flatMap(inlineTexts(from:)).flatMap(InlineMarkdownParser.parse)
+    private static func inlineMarkers(
+        in blocks: [MarkdownBlock],
+        references: [String: LinkReferenceDefinition]
+    ) -> InlineMarkerCollections {
+        var markers = InlineMarkerCollections()
+
+        forEachInlineText(in: blocks) { text in
+            collectInlineMarkers(from: text, references: references, into: &markers)
+        }
+
+        return markers
     }
 
-    private static func inlineTexts(from block: MarkdownBlock) -> [String] {
+    private static func forEachInlineText(in blocks: [MarkdownBlock], _ visit: (String) -> Void) {
+        for block in blocks {
+            forEachInlineText(in: block, visit)
+        }
+    }
+
+    private static func forEachInlineText(in block: MarkdownBlock, _ visit: (String) -> Void) {
         switch block {
         case let .heading(_, text, _):
-            return [text]
+            visit(text)
         case let .paragraph(text):
-            return [text]
+            visit(text)
         case let .blockquote(blocks, _):
-            return blocks.flatMap(inlineTexts(from:))
+            for block in blocks {
+                forEachInlineText(in: block, visit)
+            }
         case let .unorderedList(items), let .orderedList(items):
-            return items.map(\.text)
+            for item in items {
+                visit(item.text)
+            }
         case let .taskList(items):
-            return items.map(\.text)
+            for item in items {
+                visit(item.text)
+            }
         case let .table(table):
-            return table.headers + table.rows.flatMap { $0 }
+            for header in table.headers {
+                visit(header)
+            }
+            for row in table.rows {
+                for cell in row {
+                    visit(cell)
+                }
+            }
         case let .definitionList(items):
-            return items.flatMap { [$0.term] + $0.definitions }
+            for item in items {
+                visit(item.term)
+                for definition in item.definitions {
+                    visit(definition)
+                }
+            }
         case let .footnoteDefinition(identifier, text):
-            return ["[^\(identifier)]", text]
+            visit("[^\(identifier)]")
+            visit(text)
         case let .linkReferenceDefinition(definition):
-            return [definition.title].compactMap { $0 }
+            if let title = definition.title {
+                visit(title)
+            }
         case .abbreviationDefinition:
-            return []
+            break
         case let .image(alt, source, title):
-            return ["![\(alt)](\(source)\(title.map { " \"\($0)\"" } ?? ""))"]
+            visit("![\(alt)](\(source)\(title.map { " \"\($0)\"" } ?? ""))")
         case .frontMatter, .codeBlock, .diagram, .mathBlock, .thematicBreak, .htmlComment, .html:
-            return []
+            break
         }
+    }
+
+    private static func collectInlineMarkers(
+        from text: String,
+        references: [String: LinkReferenceDefinition],
+        into markers: inout InlineMarkerCollections
+    ) {
+        guard !text.isEmpty else { return }
+
+        for segment in InlineMarkdownParser.parse(text) {
+            switch segment {
+            case let .link(_, destination, _):
+                markers.links.append(destination)
+            case let .autoLink(url):
+                markers.autoLinks.append(url)
+            case let .email(email):
+                markers.emailLinks.append(email)
+            case let .image(_, source, _):
+                markers.images.append(source)
+            case let .imageReference(_, label):
+                markers.imageReferences.append(label)
+            case let .shortcutImageReference(alt):
+                if references[LinkReferenceDefinition.normalizedLabel(alt)] != nil {
+                    markers.imageReferences.append(alt)
+                }
+            case let .tag(tag):
+                markers.tags.append(tag)
+            case let .mention(mention):
+                markers.mentions.append(mention)
+            case let .wikiLink(value):
+                markers.wikiLinks.append(value)
+            case let .wikiEmbed(value):
+                markers.wikiEmbeds.append(value)
+            case let .htmlInline(value):
+                markers.inlineHTML.append(value)
+            case let .htmlEntity(source, _):
+                markers.htmlEntities.append(source)
+            case let .highlight(value):
+                markers.highlights.append(value)
+            case let .superscript(value):
+                markers.superscripts.append(value)
+            case let .subscriptText(value):
+                markers.subscripts.append(value)
+            case let .criticAddition(value):
+                markers.criticAdditions.append(value)
+            case let .criticDeletion(value):
+                markers.criticDeletions.append(value)
+            case let .criticSubstitution(original, replacement):
+                markers.criticSubstitutions.append(CriticSubstitution(original: original, replacement: replacement))
+            case let .criticComment(value):
+                markers.criticComments.append(value)
+            case let .criticHighlight(value):
+                markers.criticHighlights.append(value)
+            case let .citation(identifier):
+                markers.citations.append(identifier)
+            case let .emojiShortcode(name):
+                markers.emojiShortcodes.append(name)
+            case let .keyboard(value):
+                markers.keyboardShortcuts.append(value)
+            case let .referenceLink(_, label):
+                appendTrimmed(label, to: &markers.linkReferences)
+            case let .shortcutReferenceLink(label):
+                if references[LinkReferenceDefinition.normalizedLabel(label)] != nil {
+                    appendTrimmed(label, to: &markers.linkReferences)
+                }
+            case let .footnote(identifier):
+                appendTrimmed(identifier, to: &markers.footnotes)
+            case let .inlineMath(expression):
+                appendTrimmed(expression, to: &markers.mathExpressions)
+            case .text, .hardBreak, .strong, .emphasis, .strikethrough, .code:
+                break
+            }
+        }
+    }
+
+    private static func appendTrimmed(_ value: String, to values: inout [String]) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        values.append(trimmed)
     }
 
     private static func htmlComments(in blocks: [MarkdownBlock]) -> [String] {
@@ -705,17 +703,7 @@ public enum MarkdownAnalyzer {
 
     private static func referenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
         let definitions = Set(referenceDefinitions(from: blocks).keys)
-        let inlineSegments = inlineSegments(from: blocks)
-
-        let referencedLabels = Set(inlineSegments.compactMap { segment -> String? in
-            switch segment {
-            case let .referenceLink(_, label), let .imageReference(_, label):
-                let normalized = LinkReferenceDefinition.normalizedLabel(label)
-                return normalized.isEmpty ? nil : normalized
-            default:
-                return nil
-            }
-        })
+        let referencedLabels = referencedDefinitionLabels(in: blocks)
 
         let missing = referencedLabels.subtracting(definitions).sorted()
 
@@ -726,6 +714,35 @@ public enum MarkdownAnalyzer {
                 title: "Missing reference",
                 message: "No reference definition found for [\(label)]."
             )
+        }
+    }
+
+    private static func referencedDefinitionLabels(in blocks: [MarkdownBlock]) -> Set<String> {
+        var labels: Set<String> = []
+
+        forEachInlineText(in: blocks) { text in
+            collectReferencedDefinitionLabels(from: text, into: &labels)
+        }
+
+        return labels
+    }
+
+    private static func collectReferencedDefinitionLabels(
+        from text: String,
+        into labels: inout Set<String>
+    ) {
+        guard !text.isEmpty else { return }
+
+        for segment in InlineMarkdownParser.parse(text) {
+            switch segment {
+            case let .referenceLink(_, label), let .imageReference(_, label):
+                let normalized = LinkReferenceDefinition.normalizedLabel(label)
+                if !normalized.isEmpty {
+                    labels.insert(normalized)
+                }
+            default:
+                break
+            }
         }
     }
 
@@ -805,4 +822,32 @@ public enum MarkdownAnalyzer {
         }
         .sorted { $0.id < $1.id }
     }
+}
+
+private struct InlineMarkerCollections {
+    var links: [String] = []
+    var autoLinks: [String] = []
+    var emailLinks: [String] = []
+    var images: [String] = []
+    var imageReferences: [String] = []
+    var tags: [String] = []
+    var mentions: [String] = []
+    var wikiLinks: [String] = []
+    var wikiEmbeds: [String] = []
+    var footnotes: [String] = []
+    var linkReferences: [String] = []
+    var inlineHTML: [String] = []
+    var htmlEntities: [String] = []
+    var mathExpressions: [String] = []
+    var highlights: [String] = []
+    var superscripts: [String] = []
+    var subscripts: [String] = []
+    var criticAdditions: [String] = []
+    var criticDeletions: [String] = []
+    var criticSubstitutions: [CriticSubstitution] = []
+    var criticComments: [String] = []
+    var criticHighlights: [String] = []
+    var citations: [String] = []
+    var emojiShortcodes: [String] = []
+    var keyboardShortcuts: [String] = []
 }
