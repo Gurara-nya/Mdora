@@ -75,12 +75,26 @@ func runTests() {
     assert(fencedRanges.count == 1)
     assert((fencedHighlightMarkdown as NSString).substring(with: fencedRanges[0]) == "```text\n`not inline`\n```\n")
 
+    let fencedSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(in: fencedHighlightMarkdown)
+    let fencedSyntaxCodeSpans = fencedSyntaxRanges.codeSpanRanges.map {
+        (fencedHighlightMarkdown as NSString).substring(with: $0)
+    }
+    assert(fencedSyntaxCodeSpans == ["`inline`", "`inline`"])
+
     let innerFenceRange = (fencedHighlightMarkdown as NSString).range(of: "`not inline`")
     let visibleFenceRanges = MarkdownCodeFenceScanner.fencedLineRanges(
         in: fencedHighlightMarkdown,
         intersecting: innerFenceRange
     )
     assert(visibleFenceRanges == fencedRanges)
+    assert(fencedSyntaxRanges.inlineExcludedRanges.contains {
+        NSIntersectionRange($0, innerFenceRange).length > 0
+    })
+
+    let bareFenceLineMarkdown = "```\n"
+    let bareFenceSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(in: bareFenceLineMarkdown)
+    assert(bareFenceSyntaxRanges.fencedLineRanges.count == 1)
+    assert(bareFenceSyntaxRanges.codeSpanRanges.isEmpty)
 
     let afterFenceRange = (fencedHighlightMarkdown as NSString).range(of: "After `inline`")
     assert(MarkdownCodeFenceScanner.fencedLineRanges(
@@ -482,6 +496,18 @@ func runTests() {
     assert(balancedReferenceDestinationHTML.contains(#"<a href="https://example.com/a_(b)" title="Balanced">Balanced</a>"#))
     assert(balancedReferenceDestinationHTML.contains(##"<a href="#ref-broken-ref">Broken</a>"##))
     print("✅ Reference definition destinations require balanced unescaped parentheses!")
+
+    let incompleteSplitReferenceMarkdown = """
+    [dangling]:
+    invalid title tail
+    """
+    let incompleteSplitReferenceDocument = MarkdownParser.parse(incompleteSplitReferenceMarkdown)
+    assert(incompleteSplitReferenceDocument.referenceDefinitions["dangling"] == nil)
+    assert(incompleteSplitReferenceDocument.blocks.count == 1)
+    guard case .paragraph("[dangling]: invalid title tail") = incompleteSplitReferenceDocument.blocks[0] else {
+        fatalError("❌ Expected incomplete split reference definitions to remain one paragraph")
+    }
+    print("✅ Incomplete split reference definitions do not split paragraphs!")
 
     let collapsedReferenceMarkdown = """
     [Known][] and ![Known][]

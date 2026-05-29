@@ -1015,6 +1015,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 }
 
 private final class MarkdownNSTextView: NSTextView {
+    private static let backtickCodeUnit: unichar = 96
+
     var onSmartNewline: (() -> Void)?
     var markdownDocumentURL: URL?
 
@@ -1025,6 +1027,22 @@ private final class MarkdownNSTextView: NSTextView {
         }
 
         let char = typedString.first!
+
+        if char == "`" {
+            let selectedRange = self.selectedRange()
+
+            if shouldInsertLiteralBacktick(at: selectedRange) {
+                super.insertText("`", replacementRange: replacementRange)
+                onSmartNewline?()
+                return
+            }
+
+            if shouldSkipBacktickPairClosing(at: selectedRange) {
+                self.setSelectedRange(NSRange(location: selectedRange.location + 1, length: 0))
+                return
+            }
+        }
+
         let pairs: [Character: Character] = [
             "(": ")",
             "[": "]",
@@ -1067,6 +1085,45 @@ private final class MarkdownNSTextView: NSTextView {
         }
 
         super.insertText(string, replacementRange: replacementRange)
+    }
+
+    private func shouldInsertLiteralBacktick(at selectedRange: NSRange) -> Bool {
+        guard selectedRange.length == 0 else { return false }
+
+        let source = string as NSString
+        let location = min(max(0, selectedRange.location), source.length)
+
+        if location > 0,
+           source.character(at: location - 1) == Self.backtickCodeUnit {
+            return true
+        }
+
+        let lineRange = source.lineRange(for: NSRange(location: location, length: 0))
+        let prefixLength = max(0, location - lineRange.location)
+        guard prefixLength <= 3 else { return false }
+
+        let prefix = source.substring(
+            with: NSRange(location: lineRange.location, length: prefixLength)
+        )
+        return prefix.allSatisfy { $0 == " " }
+    }
+
+    private func shouldSkipBacktickPairClosing(at selectedRange: NSRange) -> Bool {
+        guard selectedRange.length == 0 else { return false }
+
+        let source = string as NSString
+        let location = min(max(0, selectedRange.location), source.length)
+        guard location < source.length,
+              source.character(at: location) == Self.backtickCodeUnit else {
+            return false
+        }
+
+        if location > 0,
+           source.character(at: location - 1) == Self.backtickCodeUnit {
+            return false
+        }
+
+        return true
     }
 
     override func deleteBackward(_ sender: Any?) {

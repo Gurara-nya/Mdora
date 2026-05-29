@@ -531,7 +531,10 @@ private struct BlockParser {
         if parseListLine(line) != nil { return true }
         if isFootnoteDefinition(line) { return true }
         if isDefinitionLine(trimmed) { return true }
-        if parseLinkReferenceDefinitionLine(trimmed) != nil { return true }
+        if let referenceDefinition = parseLinkReferenceDefinitionLine(trimmed),
+           referenceDefinition.destination != nil {
+            return true
+        }
         if parseAbbreviationDefinitionLine(trimmed) != nil { return true }
         if trimmed.hasPrefix("<!--") { return true }
         if trimmed.hasPrefix(">") { return true }
@@ -776,7 +779,7 @@ private struct BlockParser {
             if Self.parseListLine(line) != nil { break }
             if Self.isFootnoteDefinition(line) { break }
             if Self.isDefinitionLine(self.line(at: 1)) { break }
-            if Self.parseLinkReferenceDefinitionLine(line.trimmed) != nil { break }
+            if isLinkReferenceDefinitionStart(at: index) { break }
             if Self.parseAbbreviationDefinitionLine(line.trimmed) != nil { break }
             if line.trimmed.hasPrefix("<!--") { break }
             if line.trimmed.hasPrefix(">") { break }
@@ -792,6 +795,21 @@ private struct BlockParser {
         }
 
         return .paragraph(Self.joinedParagraphLines(paragraphLines))
+    }
+
+    private func isLinkReferenceDefinitionStart(at lineIndex: Int) -> Bool {
+        guard lines.indices.contains(lineIndex),
+              let parsed = Self.parseLinkReferenceDefinitionLine(lines[lineIndex].trimmed) else {
+            return false
+        }
+
+        if parsed.destination != nil {
+            return true
+        }
+
+        let continuationIndex = lineIndex + 1
+        guard lines.indices.contains(continuationIndex) else { return false }
+        return Self.parseReferenceDestinationAndTitle(lines[continuationIndex].trimmed) != nil
     }
 
     private static func isThematicBreakLine(_ line: String) -> Bool {
