@@ -374,6 +374,26 @@ func runTests() {
     assert(nestedBracketHTML.contains(#"<img src="image.png" alt="Alt [v2]">"#))
     print("✅ Inline links and images keep nested brackets inside labels and alt text!")
 
+    let duplicateReferenceMarkdown = """
+    [Use][Ref Label]
+    ![Diagram][Ref Label]
+
+    [ref   label]: https://example.com/first "First"
+    [REF LABEL]: https://example.com/second "Second"
+    """
+    let duplicateReferenceDocument = MarkdownParser.parse(duplicateReferenceMarkdown)
+    let duplicateReferenceDefinition = duplicateReferenceDocument.referenceDefinitions["ref label"]
+    assert(duplicateReferenceDefinition?.destination == "https://example.com/first")
+    assert(duplicateReferenceDefinition?.title == "First")
+    assert(duplicateReferenceDocument.diagnostics.contains { $0.id == "duplicate-reference-ref label" })
+    assert(!duplicateReferenceDocument.diagnostics.contains { $0.id == "missing-reference-ref label" })
+
+    let duplicateReferenceHTML = MarkdownHTMLRenderer.renderFragment(duplicateReferenceMarkdown)
+    assert(duplicateReferenceHTML.contains(#"<a href="https://example.com/first" title="First">Use</a>"#))
+    assert(duplicateReferenceHTML.contains(#"<img src="https://example.com/first" alt="Diagram" title="First">"#))
+    assert(!duplicateReferenceHTML.contains(#"https://example.com/second" title="Second">Use"#))
+    print("✅ Reference definitions follow CommonMark first-wins behavior and flag duplicates!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat

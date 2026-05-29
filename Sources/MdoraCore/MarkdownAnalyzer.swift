@@ -37,7 +37,9 @@ public enum MarkdownAnalyzer {
 
         for block in blocks {
             guard case let .linkReferenceDefinition(definition) = block else { continue }
-            definitions[definition.normalizedLabel] = definition
+            if definitions[definition.normalizedLabel] == nil {
+                definitions[definition.normalizedLabel] = definition
+            }
         }
 
         return definitions
@@ -283,6 +285,7 @@ public enum MarkdownAnalyzer {
         diagnostics.append(contentsOf: footnoteDiagnostics(in: markdown, blocks: blocks))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
+        diagnostics.append(contentsOf: duplicateReferenceDiagnostics(in: blocks))
 
         if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             diagnostics.append(
@@ -767,6 +770,25 @@ public enum MarkdownAnalyzer {
                 severity: .warning,
                 title: "Duplicate block id",
                 message: "\(identifiers.count) blocks use the same ^\(identifier) id."
+            )
+        }
+        .sorted { $0.id < $1.id }
+    }
+
+    private static func duplicateReferenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+        let definitions = blocks.compactMap { block -> LinkReferenceDefinition? in
+            guard case let .linkReferenceDefinition(definition) = block else { return nil }
+            return definition
+        }
+        let grouped = Dictionary(grouping: definitions, by: \.normalizedLabel)
+
+        return grouped.compactMap { normalizedLabel, definitions in
+            guard definitions.count > 1 else { return nil }
+            return MarkdownDiagnostic(
+                id: "duplicate-reference-\(normalizedLabel)",
+                severity: .info,
+                title: "Duplicate reference definition",
+                message: "\(definitions.count) reference definitions use [\(definitions[0].label)]; the first definition is used."
             )
         }
         .sorted { $0.id < $1.id }
