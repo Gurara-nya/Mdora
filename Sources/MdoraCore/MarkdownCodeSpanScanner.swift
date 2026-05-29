@@ -15,12 +15,7 @@ public enum MarkdownCodeSpanScanner {
 
         let fullRange = NSRange(location: 0, length: source.length)
         let targetRange = targetRange?.clamped(toLength: source.length)
-        let searchRange: NSRange
-        if let targetRange {
-            searchRange = source.lineRange(for: targetRange).clamped(toLength: source.length)
-        } else {
-            searchRange = fullRange
-        }
+        let searchRange = codeSpanSearchRange(in: source, targetRange: targetRange, fullRange: fullRange)
 
         guard let stringRange = Range(searchRange, in: markdown) else { return [] }
 
@@ -33,18 +28,23 @@ public enum MarkdownCodeSpanScanner {
                 continue
             }
 
+            if isCodeFenceDelimiterRun(at: cursor, in: markdown, source: source) {
+                cursor = backtickRun(in: markdown, at: cursor, upperBound: stringRange.upperBound).end
+                continue
+            }
+
             let openingRun = backtickRun(in: markdown, at: cursor, upperBound: stringRange.upperBound)
             var closingCursor = openingRun.end
             var matchedRange: NSRange?
 
             while closingCursor < stringRange.upperBound {
-                let character = markdown[closingCursor]
-                if isLineBreak(character) {
-                    break
+                guard markdown[closingCursor] == "`" else {
+                    closingCursor = markdown.index(after: closingCursor)
+                    continue
                 }
 
-                guard character == "`" else {
-                    closingCursor = markdown.index(after: closingCursor)
+                if isCodeFenceDelimiterRun(at: closingCursor, in: markdown, source: source) {
+                    closingCursor = backtickRun(in: markdown, at: closingCursor, upperBound: stringRange.upperBound).end
                     continue
                 }
 
@@ -68,6 +68,37 @@ public enum MarkdownCodeSpanScanner {
         return ranges
     }
 
+    private static func codeSpanSearchRange(
+        in source: NSString,
+        targetRange: NSRange?,
+        fullRange: NSRange
+    ) -> NSRange {
+        guard let targetRange else { return fullRange }
+
+        let clampedTarget = targetRange.clamped(toLength: source.length)
+        var searchRange = source.lineRange(for: clampedTarget).clamped(toLength: source.length)
+
+        while searchRange.location > 0 {
+            let previousLineRange = source.lineRange(
+                for: NSRange(location: max(0, searchRange.location - 1), length: 0)
+            )
+            let previousLine = source.substring(with: previousLineRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !previousLine.isEmpty else { break }
+            searchRange = NSUnionRange(searchRange, previousLineRange)
+        }
+
+        while searchRange.upperBound < source.length {
+            let nextLineRange = source.lineRange(for: NSRange(location: searchRange.upperBound, length: 0))
+            let nextLine = source.substring(with: nextLineRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !nextLine.isEmpty else { break }
+            searchRange = NSUnionRange(searchRange, nextLineRange)
+        }
+
+        return searchRange.clamped(toLength: source.length)
+    }
+
     private static func backtickRun(
         in markdown: String,
         at start: String.Index,
@@ -84,6 +115,26 @@ public enum MarkdownCodeSpanScanner {
         return (count, cursor)
     }
 
+    private static func isCodeFenceDelimiterRun(
+        at index: String.Index,
+        in markdown: String,
+        source: NSString
+    ) -> Bool {
+        let location = NSRange(index ..< index, in: markdown).location
+        let lineRange = source.lineRange(for: NSRange(location: location, length: 0))
+        let line = source.substring(with: lineRange)
+        guard MarkdownCodeFenceScanner.delimiter(in: line) != nil else { return false }
+
+        var markerOffset = 0
+        while markerOffset < lineRange.length,
+              markerOffset < 4,
+              source.character(at: lineRange.location + markerOffset) == 32 {
+            markerOffset += 1
+        }
+
+        return lineRange.location + markerOffset == location
+    }
+
     private static func appendCodeSpanRange(
         _ range: NSRange,
         intersecting targetRange: NSRange?,
@@ -97,10 +148,6 @@ public enum MarkdownCodeSpanScanner {
         if NSIntersectionRange(range, targetRange).length > 0 {
             ranges.append(range)
         }
-    }
-
-    private static func isLineBreak(_ character: Character) -> Bool {
-        character == "\n" || character == "\r"
     }
 }
 

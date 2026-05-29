@@ -39,6 +39,7 @@
 - Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
 - Replace loose editor inline-code regex matching with exact backtick-run scanning so code fences are not partially recolored.
 - Protect editor inline-code contents from later emphasis, link, tag, and TODO highlighters.
+- Support multiline CommonMark code span highlighting in the editor without mistaking code fences for spans.
 - Add parser diagnostics for missing references, missing footnotes, duplicate anchors, duplicate block ids, and unclosed Markdown structures.
 - Add smart return continuation for lists, task lists, ordered lists, quotes, and indentation.
 - Continue list, task-list, and ordered-list markers inside blockquotes and nested blockquotes.
