@@ -21,6 +21,9 @@ struct EditorWindow: View {
     @State private var parsedDocument: ParsedMarkdownDocument
     @State private var parsedMarkdown: String
     @State private var pendingParseTask: Task<Void, Never>?
+    @State private var pendingEditingIdleTask: Task<Void, Never>?
+    @State private var isEditorEditing = false
+    @State private var pendingPreviewMarkdown: String?
 
     init(document: Binding<MarkdownDocument>, documentURL: URL?) {
         self._document = document
@@ -76,7 +79,8 @@ struct EditorWindow: View {
                             fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
                             focusMode: focusMode,
                             documentURL: documentURL,
-                            onSelectionChange: updateEditorSelection
+                            onSelectionChange: updateEditorSelection,
+                            onEditingActivity: noteEditorEditing
                         )
                             .frame(minWidth: 360, idealWidth: 560)
                     }
@@ -362,12 +366,36 @@ struct EditorWindow: View {
         }
         .onDisappear {
             pendingParseTask?.cancel()
+            pendingEditingIdleTask?.cancel()
         }
     }
 
     private func updateEditorSelection(_ selection: EditorSelection) {
         guard editorSelection != selection else { return }
         editorSelection = selection
+    }
+
+    @MainActor
+    private func noteEditorEditing() {
+        isEditorEditing = true
+        pendingEditingIdleTask?.cancel()
+        pendingEditingIdleTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: editingPreviewPauseDelay)
+            } catch {
+                return
+            }
+
+            finishEditorEditingPause()
+        }
+    }
+
+    @MainActor
+    private func finishEditorEditingPause() {
+        isEditorEditing = false
+        let markdown = pendingPreviewMarkdown ?? document.text
+        pendingPreviewMarkdown = nil
+        scheduleParsedDocumentUpdate(for: markdown, force: true)
     }
 
     private func updateTaskState(blockIndex: Int, itemIndex: Int, state: TaskState) {
@@ -394,8 +422,13 @@ struct EditorWindow: View {
     }
 
     @MainActor
-    private func scheduleParsedDocumentUpdate(for markdown: String) {
+    private func scheduleParsedDocumentUpdate(for markdown: String, force: Bool = false) {
         pendingParseTask?.cancel()
+
+        if isEditorEditing && !force {
+            pendingPreviewMarkdown = markdown
+            return
+        }
 
         let delay = parseDebounceDelay(for: markdown)
         pendingParseTask = Task {
@@ -428,6 +461,10 @@ struct EditorWindow: View {
 
     private func parseDebounceDelay(for markdown: String) -> UInt64 {
         markdown.count > 60_000 ? 450_000_000 : 180_000_000
+    }
+
+    private var editingPreviewPauseDelay: UInt64 {
+        document.text.count > 60_000 ? 1_000_000_000 : 650_000_000
     }
 
     private func exportToPDF() {

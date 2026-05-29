@@ -18,6 +18,7 @@ struct MarkdownEditor: View {
     let focusMode: Bool
     let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
+    let onEditingActivity: () -> Void
 
     var body: some View {
         NativeMarkdownTextView(
@@ -27,7 +28,8 @@ struct MarkdownEditor: View {
             fontSize: fontSize,
             focusMode: focusMode,
             documentURL: documentURL,
-            onSelectionChange: onSelectionChange
+            onSelectionChange: onSelectionChange,
+            onEditingActivity: onEditingActivity
         )
         .background(theme.palette.editorColor)
     }
@@ -41,6 +43,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     let focusMode: Bool
     let documentURL: URL?
     let onSelectionChange: (EditorSelection) -> Void
+    let onEditingActivity: () -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -71,6 +74,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         textView.registerForDraggedTypes([.fileURL])
         textView.onSmartNewline = { [weak textView] in
             guard let textView else { return }
+            context.coordinator.parent.onEditingActivity()
             context.coordinator.parent.text = textView.string
             context.coordinator.highlight(textView)
         }
@@ -113,12 +117,22 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         if externalTextChanged {
-            let selectedRange = textView.selectedRange()
-            textView.string = text
-            textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
-            context.coordinator.lastHighlightedText = text
-            context.coordinator.invalidateSelectionCache()
-            context.coordinator.scheduleHighlight(in: textView)
+            if context.coordinator.shouldPreserveLocalEditorText(in: textView) {
+                let localText = textView.string
+                let binding = $text
+                DispatchQueue.main.async {
+                    if binding.wrappedValue != localText {
+                        binding.wrappedValue = localText
+                    }
+                }
+            } else {
+                let selectedRange = textView.selectedRange()
+                textView.string = text
+                textView.setSelectedRange(selectedRange.clamped(toLength: (textView.string as NSString).length))
+                context.coordinator.lastHighlightedText = text
+                context.coordinator.invalidateSelectionCache()
+                context.coordinator.scheduleHighlight(in: textView)
+            }
         }
 
         if let command = commandCenter.command, command.id != context.coordinator.lastCommandID {
@@ -177,11 +191,16 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
+        func shouldPreserveLocalEditorText(in textView: NSTextView) -> Bool {
+            textView.window?.firstResponder === textView || textView.hasMarkedText()
+        }
+
+        @MainActor
         func scheduleHighlight(in textView: NSTextView) {
             pendingHighlightTask?.cancel()
             pendingHighlightTask = Task { @MainActor [weak self, weak textView] in
                 do {
-                    try await Task.sleep(nanoseconds: 120_000_000) // 0.12s
+                    try await Task.sleep(nanoseconds: 240_000_000)
                 } catch {
                     return // cancelled
                 }
@@ -193,6 +212,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         @MainActor
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            parent.onEditingActivity()
             parent.text = textView.string
             scheduleHighlight(in: textView)
             _ = reportSelection(in: textView)
@@ -212,6 +232,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         @MainActor
         func apply(_ action: EditorAction) {
             guard let textView else { return }
+            parent.onEditingActivity()
             textView.window?.makeFirstResponder(textView)
 
             switch action {
@@ -405,6 +426,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         func highlight(_ textView: NSTextView) {
             guard !isHighlighting else { return }
             guard let textStorage = textView.textStorage else { return }
+            guard !textView.hasMarkedText() else {
+                scheduleHighlight(in: textView)
+                return
+            }
 
             isHighlighting = true
             defer { isHighlighting = false }
@@ -586,7 +611,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             currentInlineHighlightExcludedRanges = []
             lastHighlightedRange = targetRange
             textView.typingAttributes = baseAttributes
-            textView.setSelectedRange(selectedRange.clamped(toLength: fullRange.length))
+            let restoredSelection = selectedRange.clamped(toLength: fullRange.length)
+            if textView.selectedRange() != restoredSelection {
+                textView.setSelectedRange(restoredSelection)
+            }
         }
 
         @MainActor

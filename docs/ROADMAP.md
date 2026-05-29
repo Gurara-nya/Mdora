@@ -73,6 +73,7 @@
 - Recognize GFM-style `www.` autolinks across preview, export, inspector markers, and editor highlighting.
 - Add writing view preferences for typography, preview width, focus mode, inspector visibility, and preview animation.
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
+- Pause preview parsing during active editor input and resume after idle so split-view updates cannot steal focus or selection.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Follow CommonMark first-wins reference definition semantics and warn on duplicate normalized reference labels.
 - Support escaped brackets in reference definition labels and reject unescaped brackets or overlong labels.

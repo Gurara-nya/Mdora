@@ -56,6 +56,8 @@ Inline parsing is backed by a bounded, thread-safe cache. Preview redraws, marke
 
 Preview rendering avoids allocating temporary enumerated arrays for block, list, table, and definition-list loops. Source-map line lookups use binary search when mapping the editor caret or line-navigation requests back to a rendered block. Editor-driven preview sync also coalesces rapid caret changes with a short cancellable delay, while explicit link navigation remains immediate.
 
+The editor keeps `NSTextView` text authoritative while it is first responder, so SwiftUI state updates cannot overwrite in-progress typing or marked IME text. Document text still updates for saving, but preview parsing pauses during active input and resumes after a short idle window; this keeps split-view preview, inspector, and status updates from stealing selection or scroll position.
+
 Local preview images follow the same bounded-resource rule: the UI shows a stable placeholder, decodes a preview-sized thumbnail on a utility task, then reuses that cached `CGImage` for subsequent SwiftUI redraws. This keeps image-heavy notes from stalling the main thread while preserving the original file for open-in-Finder behavior.
 
 Writing preferences are intentionally stored outside the Markdown file. They affect the editing and reading surface without mutating source text, which keeps Markdown round-tripping predictable.
