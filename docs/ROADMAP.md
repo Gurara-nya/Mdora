@@ -56,6 +56,7 @@
 - Add extended inline markers for highlights, citations, emoji shortcodes, and keyboard tags.
 - Add inline HTML tag recognition across preview, export, inspector, and editor highlighting.
 - Preserve source lines for single-line and multi-line HTML blocks while leaving angle autolinks inline.
+- Preserve blank lines inside CommonMark raw-text HTML blocks and let block HTML interrupt paragraphs without breaking inline HTML spans.
 - Render common emoji shortcodes as emoji in preview and HTML export.
 - Render Obsidian-style wiki link aliases and expose heading/block targets in HTML export metadata.
 - Recognize Obsidian-style `![[...]]` embeds as separate preview, export, inspector, and status markers.

@@ -85,7 +85,7 @@ The parser currently recognizes:
 - Abbreviation definitions, resolved into inline abbreviation rendering for preview and HTML export.
 - Reference link definitions and references, including normalized lookup across preview, diagnostics, and export.
 - Image reference syntax with resolved reference definitions, plus email autolinks.
-- HTML comments and single-line or multi-line HTML blocks, without stealing CommonMark angle autolinks.
+- HTML comments plus single-line, multi-line, and raw-text HTML blocks, including blank lines inside `script`, `pre`, and `style` blocks without stealing CommonMark angle autolinks or inline HTML spans.
 - Images, links, automatic links, wiki links, wiki embeds, block ids, tags, mentions, and TODO-style tokens in plain, commented, unordered-list, ordered-list, and task-list lines.
 - Diagnostics for missing references, missing footnotes, duplicate explicit heading anchors, duplicate block ids, and unclosed front matter, variable-length code fences, or math blocks.
 

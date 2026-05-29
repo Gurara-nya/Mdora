@@ -935,9 +935,51 @@ func runTests() {
     }
     assert(angleAutolinkParagraph == "<https://example.com>")
 
+    let rawHTMLBlockMarkdown = """
+    Intro before raw HTML
+    <script type="application/json">
+    {
+      "ok": true,
+
+      "items": [1, 2]
+    }
+    </script>
+    After script.
+    """
+    let rawHTMLBlockDocument = MarkdownParser.parse(rawHTMLBlockMarkdown)
+    guard case .paragraph("Intro before raw HTML") = rawHTMLBlockDocument.blocks[0],
+          case .html(let rawHTMLBlockSource) = rawHTMLBlockDocument.blocks[1],
+          case .paragraph("After script.") = rawHTMLBlockDocument.blocks[2] else {
+        fatalError("❌ Expected raw HTML block to interrupt the paragraph and keep following text separate")
+    }
+    assert(rawHTMLBlockSource == """
+    <script type="application/json">
+    {
+      "ok": true,
+
+      "items": [1, 2]
+    }
+    </script>
+    """)
+    assert(rawHTMLBlockDocument.sourceRange(forBlockIndex: 1)?.startLine == 2)
+    assert(rawHTMLBlockDocument.sourceRange(forBlockIndex: 1)?.endLine == 8)
+
+    let nonInterruptingInlineHTMLMarkdown = """
+    Intro
+    <span>inline-ish</span>
+    continues
+    """
+    let nonInterruptingInlineHTMLDocument = MarkdownParser.parse(nonInterruptingInlineHTMLMarkdown)
+    guard case .paragraph(let nonInterruptingInlineHTMLParagraph) = nonInterruptingInlineHTMLDocument.blocks[0] else {
+        fatalError("❌ Expected non-block inline HTML tag to stay in the paragraph")
+    }
+    assert(nonInterruptingInlineHTMLParagraph == "Intro <span>inline-ish</span> continues")
+
     let htmlBlockFragment = MarkdownHTMLRenderer.renderFragment(htmlBlockMarkdown)
     assert(htmlBlockFragment.contains("&lt;aside class=&quot;note&quot;&gt;\n&lt;strong&gt;Raw HTML&lt;/strong&gt;\n&lt;/aside&gt;"))
-    print("✅ HTML blocks preserve their own source lines and angle autolinks stay inline!")
+    let rawHTMLBlockFragment = MarkdownHTMLRenderer.renderFragment(rawHTMLBlockMarkdown)
+    assert(rawHTMLBlockFragment.contains("&lt;script type=&quot;application/json&quot;&gt;\n{\n  &quot;ok&quot;: true,\n\n  &quot;items&quot;: [1, 2]\n}\n&lt;/script&gt;"))
+    print("✅ HTML blocks preserve source lines, raw-text blanks, and angle autolinks stay inline!")
 
     // 15. Test TODO-style marker recognition across Markdown prefixes
     let taskTokenMarkdown = """

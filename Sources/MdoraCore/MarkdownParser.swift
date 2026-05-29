@@ -537,6 +537,7 @@ private struct BlockParser {
         }
         if parseAbbreviationDefinitionLine(trimmed) != nil { return true }
         if trimmed.hasPrefix("<!--") { return true }
+        if isInterruptingHTMLBlockStart(trimmed) { return true }
         if trimmed.hasPrefix(">") { return true }
         if headingLevel(line) != nil { return true }
 
@@ -725,8 +726,19 @@ private struct BlockParser {
         var htmlLines = [line]
         index += 1
 
-        if let tagName = Self.htmlBlockTagName(from: trimmed),
-           Self.shouldContinueHTMLBlock(startingWith: trimmed, tagName: tagName) {
+        if let rawTextTagName = Self.rawTextHTMLBlockTagName(from: trimmed),
+           !Self.containsHTMLClosingTag(trimmed, tagName: rawTextTagName) {
+            while index < lines.count {
+                let candidate = currentLine
+                htmlLines.append(candidate)
+                index += 1
+
+                if Self.containsHTMLClosingTag(candidate, tagName: rawTextTagName) {
+                    break
+                }
+            }
+        } else if let tagName = Self.htmlBlockTagName(from: trimmed),
+                  Self.shouldContinueHTMLBlock(startingWith: trimmed, tagName: tagName) {
             while index < lines.count {
                 let candidate = currentLine
                 guard !candidate.trimmed.isEmpty else { break }
@@ -782,6 +794,7 @@ private struct BlockParser {
             if isLinkReferenceDefinitionStart(at: index) { break }
             if Self.parseAbbreviationDefinitionLine(line.trimmed) != nil { break }
             if line.trimmed.hasPrefix("<!--") { break }
+            if Self.isInterruptingHTMLBlockStart(line.trimmed) { break }
             if line.trimmed.hasPrefix(">") { break }
             if Self.headingLevel(line) != nil { break }
 
@@ -954,7 +967,8 @@ private struct BlockParser {
         guard trimmed.hasPrefix("<"), trimmed.hasSuffix(">") else { return false }
         if trimmed.hasPrefix("<!--") { return false }
         if trimmed.hasPrefix("<!") || trimmed.hasPrefix("<?") { return true }
-        return htmlBlockTagName(from: trimmed) != nil
+        return htmlBlockTagName(from: trimmed) != nil ||
+            htmlClosingBlockTagName(from: trimmed) != nil
     }
 
     private static func htmlBlockTagName(from trimmed: String) -> String? {
@@ -977,6 +991,49 @@ private struct BlockParser {
         }
 
         return String(trimmed[nameStart ..< cursor]).lowercased()
+    }
+
+    private static func htmlClosingBlockTagName(from trimmed: String) -> String? {
+        guard trimmed.hasPrefix("</") else { return nil }
+
+        var cursor = trimmed.index(trimmed.startIndex, offsetBy: 2)
+        guard cursor < trimmed.endIndex else { return nil }
+
+        let nameStart = cursor
+        while cursor < trimmed.endIndex {
+            let character = trimmed[cursor]
+            guard character.isLetter || character.isNumber || character == "-" else { break }
+            cursor = trimmed.index(after: cursor)
+        }
+
+        guard cursor > nameStart else { return nil }
+
+        while cursor < trimmed.endIndex, trimmed[cursor].isWhitespace {
+            cursor = trimmed.index(after: cursor)
+        }
+
+        guard cursor < trimmed.endIndex, trimmed[cursor] == ">" else { return nil }
+        return String(trimmed[nameStart ..< cursor]).lowercased()
+    }
+
+    private static func rawTextHTMLBlockTagName(from trimmed: String) -> String? {
+        let tagName = htmlBlockTagName(from: trimmed) ?? htmlClosingBlockTagName(from: trimmed)
+        guard let tagName, htmlRawTextTagNames.contains(tagName) else { return nil }
+        return tagName
+    }
+
+    private static func isInterruptingHTMLBlockStart(_ trimmed: String) -> Bool {
+        guard isHTMLBlockStart(trimmed) else { return false }
+
+        if trimmed.hasPrefix("<!") || trimmed.hasPrefix("<?") {
+            return true
+        }
+
+        guard let tagName = htmlBlockTagName(from: trimmed) ?? htmlClosingBlockTagName(from: trimmed) else {
+            return false
+        }
+
+        return htmlRawTextTagNames.contains(tagName) || htmlBlockTagNames.contains(tagName)
     }
 
     private static func shouldContinueHTMLBlock(startingWith trimmed: String, tagName: String) -> Bool {
@@ -1062,6 +1119,21 @@ private struct BlockParser {
     private static let htmlVoidTagNames: Set<String> = [
         "area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr"
+    ]
+
+    private static let htmlRawTextTagNames: Set<String> = [
+        "pre", "script", "style"
+    ]
+
+    private static let htmlBlockTagNames: Set<String> = [
+        "address", "article", "aside", "base", "basefont", "blockquote", "body",
+        "caption", "center", "col", "colgroup", "dd", "details", "dialog", "dir",
+        "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
+        "frame", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header",
+        "hr", "html", "iframe", "legend", "li", "link", "main", "menu", "menuitem",
+        "nav", "noframes", "ol", "optgroup", "option", "p", "param", "search",
+        "section", "summary", "table", "tbody", "td", "tfoot", "th", "thead",
+        "title", "tr", "track", "ul"
     ]
 
     private static func hasUnescapedTrailingPipe(_ text: String) -> Bool {
