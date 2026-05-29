@@ -394,6 +394,30 @@ func runTests() {
     assert(!duplicateReferenceHTML.contains(#"https://example.com/second" title="Second">Use"#))
     print("✅ Reference definitions follow CommonMark first-wins behavior and flag duplicates!")
 
+    let multilineReferenceTitleMarkdown = """
+    [Use][multiline]
+
+    [multiline]: https://example.com/resource
+      "Title on next line"
+
+    After the reference.
+    """
+    let multilineReferenceTitleDocument = MarkdownParser.parse(multilineReferenceTitleMarkdown)
+    let multilineReferenceDefinition = multilineReferenceTitleDocument.referenceDefinitions["multiline"]
+    assert(multilineReferenceDefinition?.destination == "https://example.com/resource")
+    assert(multilineReferenceDefinition?.title == "Title on next line")
+    assert(multilineReferenceTitleDocument.blocks.count == 3)
+    guard case .linkReferenceDefinition(let multilineReferenceBlock) = multilineReferenceTitleDocument.blocks[1] else {
+        fatalError("❌ Expected multiline reference title to stay attached to the reference definition")
+    }
+    assert(multilineReferenceBlock.title == "Title on next line")
+    assert(multilineReferenceTitleDocument.sourceRange(forBlockIndex: 1)?.endLine == 4)
+
+    let multilineReferenceTitleHTML = MarkdownHTMLRenderer.renderFragment(multilineReferenceTitleMarkdown)
+    assert(multilineReferenceTitleHTML.contains(#"<a href="https://example.com/resource" title="Title on next line">Use</a>"#))
+    assert(multilineReferenceTitleHTML.contains("<p>After the reference.</p>"))
+    print("✅ Reference definitions accept CommonMark titles on the following line!")
+
     // 5. Test generated heading anchor de-duplication
     let duplicateHeadingMarkdown = """
     # Repeat

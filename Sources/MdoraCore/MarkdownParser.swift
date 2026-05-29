@@ -42,6 +42,11 @@ private struct BlockParser {
         var endsWithHardBreak: Bool
     }
 
+    private struct ParsedLinkReferenceDefinitionLine {
+        var definition: LinkReferenceDefinition
+        var allowsContinuationTitle: Bool
+    }
+
     private let lines: [String]
     private var index = 0
     private var assignedHeadingAnchors: Set<String> = []
@@ -591,12 +596,20 @@ private struct BlockParser {
     }
 
     private mutating func parseLinkReferenceDefinition() -> MarkdownBlock? {
-        guard let definition = Self.parseLinkReferenceDefinitionLine(currentLine.trimmed) else {
+        guard var parsed = Self.parseLinkReferenceDefinitionLine(currentLine.trimmed) else {
             return nil
         }
 
         index += 1
-        return .linkReferenceDefinition(definition)
+
+        if parsed.allowsContinuationTitle,
+           let nextLine = line(at: 0),
+           let title = Self.parseReferenceTitle(nextLine.trimmed) {
+            parsed.definition.title = title
+            index += 1
+        }
+
+        return .linkReferenceDefinition(parsed.definition)
     }
 
     private mutating func parseAbbreviationDefinition() -> MarkdownBlock? {
@@ -1078,7 +1091,7 @@ private struct BlockParser {
         return (alt, content, nil)
     }
 
-    private static func parseLinkReferenceDefinitionLine(_ line: String) -> LinkReferenceDefinition? {
+    private static func parseLinkReferenceDefinitionLine(_ line: String) -> ParsedLinkReferenceDefinitionLine? {
         guard line.hasPrefix("[") else { return nil }
         guard let closeLabel = line.firstIndex(of: "]") else { return nil }
 
@@ -1107,7 +1120,10 @@ private struct BlockParser {
         }
 
         let title = parseReferenceTitle(remainder)
-        return LinkReferenceDefinition(label: label, destination: destination, title: title)
+        return ParsedLinkReferenceDefinitionLine(
+            definition: LinkReferenceDefinition(label: label, destination: destination, title: title),
+            allowsContinuationTitle: title == nil && remainder.isEmpty
+        )
     }
 
     private static func parseAbbreviationDefinitionLine(_ line: String) -> AbbreviationDefinition? {

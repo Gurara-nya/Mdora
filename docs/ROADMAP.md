@@ -68,6 +68,7 @@
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Follow CommonMark first-wins reference definition semantics and warn on duplicate normalized reference labels.
+- Support CommonMark reference definition titles on the following line with correct source maps.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.
