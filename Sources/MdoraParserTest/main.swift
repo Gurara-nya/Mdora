@@ -244,6 +244,28 @@ func runTests() {
 
     let codeSpanHTML = MarkdownHTMLRenderer.renderFragment("Use `` `<tag>` & value ``.")
     assert(codeSpanHTML.contains("<code>`&lt;tag&gt;` &amp; value</code>"))
+
+    let editorCodeSpanMarkdown = """
+    ```text
+    fence content
+    ```
+    Use `` `literal` `` and `inline`, but leave ```open alone.
+    ```
+    """
+    let editorCodeSpanRanges = MarkdownCodeSpanScanner.codeSpanRanges(in: editorCodeSpanMarkdown)
+    let editorCodeSpanMatches = editorCodeSpanRanges.map {
+        (editorCodeSpanMarkdown as NSString).substring(with: $0)
+    }
+    assert(editorCodeSpanMatches == ["`` `literal` ``", "`inline`"])
+
+    let inlineContentRange = (editorCodeSpanMarkdown as NSString).range(of: "inline")
+    let visibleCodeSpanMatches = MarkdownCodeSpanScanner.codeSpanRanges(
+        in: editorCodeSpanMarkdown,
+        intersecting: inlineContentRange
+    ).map {
+        (editorCodeSpanMarkdown as NSString).substring(with: $0)
+    }
+    assert(visibleCodeSpanMatches == ["`inline`"])
     print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
 
     // 4c. Test balanced parentheses in inline link and image destinations

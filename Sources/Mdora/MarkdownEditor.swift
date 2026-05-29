@@ -440,7 +440,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
             ])
-            highlightInline(pattern: #"`+[^`\n]*(?:`(?!`)[^`\n]*)*`+"#, in: textView, storage: textStorage, attributes: [
+            highlightCodeSpans(in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.code
             ])
@@ -949,6 +949,22 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             for match in expression.matches(in: text, range: range) {
                 guard !isInlineHighlightExcluded(match.range) else { continue }
                 storage.addAttributes(attributes, range: match.range)
+            }
+        }
+
+        @MainActor
+        private func highlightCodeSpans(
+            in textView: NSTextView,
+            storage: NSTextStorage,
+            attributes: [NSAttributedString.Key: Any]
+        ) {
+            let text = textView.string
+            let fullRange = NSRange(text.startIndex ..< text.endIndex, in: text)
+            let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
+
+            for codeSpanRange in MarkdownCodeSpanScanner.codeSpanRanges(in: text, intersecting: range) {
+                guard !isInlineHighlightExcluded(codeSpanRange) else { continue }
+                storage.addAttributes(attributes, range: codeSpanRange)
             }
         }
 
