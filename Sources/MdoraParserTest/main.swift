@@ -394,6 +394,33 @@ func runTests() {
     assert(!duplicateReferenceHTML.contains(#"https://example.com/second" title="Second">Use"#))
     print("✅ Reference definitions follow CommonMark first-wins behavior and flag duplicates!")
 
+    let escapedReferenceLabelMarkdown = """
+    [Escaped][a \\] label]
+
+    [a \\] label]: https://example.com/escaped "Escaped"
+    """
+    let escapedReferenceLabelDocument = MarkdownParser.parse(escapedReferenceLabelMarkdown)
+    let escapedReferenceLabelKey = LinkReferenceDefinition.normalizedLabel(#"a \] label"#)
+    assert(escapedReferenceLabelDocument.referenceDefinitions[escapedReferenceLabelKey]?.destination == "https://example.com/escaped")
+    assert(!escapedReferenceLabelDocument.diagnostics.contains { $0.id == "missing-reference-\(escapedReferenceLabelKey)" })
+
+    let escapedReferenceLabelHTML = MarkdownHTMLRenderer.renderFragment(escapedReferenceLabelMarkdown)
+    assert(escapedReferenceLabelHTML.contains(#"<a href="https://example.com/escaped" title="Escaped">Escaped</a>"#))
+
+    let invalidReferenceLabelMarkdown = """
+    [bad [label]: https://example.com/bad
+    """
+    let invalidReferenceLabelDocument = MarkdownParser.parse(invalidReferenceLabelMarkdown)
+    assert(invalidReferenceLabelDocument.referenceDefinitions["bad [label"] == nil)
+    guard case .paragraph("[bad [label]: https://example.com/bad") = invalidReferenceLabelDocument.blocks[0] else {
+        fatalError("❌ Expected reference definitions with unescaped [ inside labels to stay paragraphs")
+    }
+
+    let overlongReferenceLabel = String(repeating: "a", count: 1_000)
+    let overlongReferenceLabelDocument = MarkdownParser.parse("[\(overlongReferenceLabel)]: https://example.com/too-long")
+    assert(overlongReferenceLabelDocument.referenceDefinitions[overlongReferenceLabel] == nil)
+    print("✅ Reference definition labels honor escaped brackets and reject invalid labels!")
+
     let multilineReferenceTitleMarkdown = """
     [Use][multiline]
 

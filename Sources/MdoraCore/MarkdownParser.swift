@@ -1093,14 +1093,14 @@ private struct BlockParser {
 
     private static func parseLinkReferenceDefinitionLine(_ line: String) -> ParsedLinkReferenceDefinitionLine? {
         guard line.hasPrefix("[") else { return nil }
-        guard let closeLabel = line.firstIndex(of: "]") else { return nil }
+        let labelStart = line.index(after: line.startIndex)
+        guard let closeLabel = closingReferenceLabelIndex(in: line, after: labelStart) else { return nil }
 
         let colonIndex = line.index(after: closeLabel)
         guard colonIndex < line.endIndex, line[colonIndex] == ":" else { return nil }
 
-        let labelStart = line.index(after: line.startIndex)
         let label = String(line[labelStart ..< closeLabel]).trimmed
-        guard !label.isEmpty else { return nil }
+        guard !label.isEmpty, label.count <= 999 else { return nil }
 
         let remainderStart = line.index(after: colonIndex)
         var remainder = String(line[remainderStart...]).trimmed
@@ -1126,6 +1126,46 @@ private struct BlockParser {
             definition: LinkReferenceDefinition(label: label, destination: destination, title: title),
             allowsContinuationTitle: title == nil && remainder.isEmpty
         )
+    }
+
+    private static func closingReferenceLabelIndex(
+        in line: String,
+        after start: String.Index
+    ) -> String.Index? {
+        var cursor = start
+
+        while cursor < line.endIndex {
+            if isEscaped(cursor, in: line) {
+                cursor = line.index(after: cursor)
+                continue
+            }
+
+            if line[cursor] == "[" {
+                return nil
+            }
+
+            if line[cursor] == "]" {
+                return cursor
+            }
+
+            cursor = line.index(after: cursor)
+        }
+
+        return nil
+    }
+
+    private static func isEscaped(_ index: String.Index, in text: String) -> Bool {
+        var cursor = index
+        var slashCount = 0
+
+        while cursor > text.startIndex {
+            let previous = text.index(before: cursor)
+            guard text[previous] == "\\" else { break }
+            slashCount += 1
+            cursor = previous
+        }
+
+        return slashCount % 2 == 1
     }
 
     private static func parseAbbreviationDefinitionLine(_ line: String) -> AbbreviationDefinition? {

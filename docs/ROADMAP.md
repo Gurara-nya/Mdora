@@ -68,6 +68,7 @@
 - Add block source maps, caret position reporting, active preview block highlighting, and synchronized preview scrolling.
 - Resolve reference links and reference images through a shared normalized definition table in preview, diagnostics, and HTML export.
 - Follow CommonMark first-wins reference definition semantics and warn on duplicate normalized reference labels.
+- Support escaped brackets in reference definition labels and reject unescaped brackets or overlong labels.
 - Support CommonMark reference definition titles on the following line with correct source maps.
 - Reject malformed reference definitions that contain invalid trailing title text instead of dropping the extra text.
 - Drive missing-reference diagnostics from parsed inline segments so collapsed links and images are covered without scanning code spans.
