@@ -67,6 +67,7 @@ struct EditorWindow: View {
 
     var body: some View {
         let parsed = parsedDocument
+        let previewIsFrozen = selectedLayout.wrappedValue.showsPreview && isPreviewStale
 
         VStack(spacing: 0) {
             ZStack(alignment: .topTrailing) {
@@ -88,16 +89,26 @@ struct EditorWindow: View {
                     }
 
                     if selectedLayout.wrappedValue.showsPreview {
-                        MarkdownPreview(
-                            markdown: parsedMarkdown,
-                            document: parsed,
-                            theme: theme,
-                            style: previewStyle,
-                            activeLine: selectedLayout.wrappedValue.showsEditor && !isEditorEditing ? editorSelection.line : nil,
-                            documentURL: documentURL,
-                            onTaskStateChange: updateTaskState
-                        )
-                            .frame(minWidth: 360, idealWidth: 560)
+                        ZStack(alignment: .topTrailing) {
+                            MarkdownPreview(
+                                markdown: parsedMarkdown,
+                                document: parsed,
+                                theme: theme,
+                                style: previewStyle,
+                                activeLine: selectedLayout.wrappedValue.showsEditor && !isEditorEditing ? editorSelection.line : nil,
+                                documentURL: documentURL,
+                                onTaskStateChange: updateTaskState
+                            )
+                            .allowsHitTesting(!previewIsFrozen)
+
+                            if previewIsFrozen {
+                                PreviewFrozenBadge(theme: theme, onRefresh: refreshPreviewNow)
+                                    .padding(.top, 44)
+                                    .padding(.trailing, 14)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                            }
+                        }
+                        .frame(minWidth: 360, idealWidth: 560)
                     }
 
                     if showInspector && !focusMode {
@@ -685,5 +696,43 @@ struct FloatingLayoutPicker: View {
                 isHovered = hovering
             }
         }
+    }
+}
+
+struct PreviewFrozenBadge: View {
+    let theme: MdoraTheme
+    let onRefresh: () -> Void
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(theme.palette.accentColor)
+
+            Text("预览暂停")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.palette.textColor)
+
+            Button(action: onRefresh) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(theme.palette.accentColor)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("刷新预览")
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 5)
+        .padding(.vertical, 6)
+        .background(theme.palette.surfaceColor.opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(theme.palette.borderColor.opacity(0.36), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.09), radius: 5, x: 0, y: 2)
+        .accessibilityLabel("预览暂停")
     }
 }
