@@ -54,13 +54,25 @@ public enum MarkdownSyntaxHighlightScanner {
                 NSIntersectionRange(codeSpanRange, protectedRange).length > 0
             }
         }
+        let returnedFencedRanges = rangesForHighlighting(fencedRanges, clippedTo: targetRange)
+        let returnedMathBlockRanges = rangesForHighlighting(mathBlockRanges, clippedTo: targetRange)
+        let returnedCodeSpanRanges = rangesForHighlighting(codeSpanRanges, clippedTo: targetRange)
 
         return MarkdownSyntaxHighlightRanges(
-            fencedLineRanges: fencedRanges,
-            mathBlockRanges: mathBlockRanges,
-            codeSpanRanges: codeSpanRanges,
-            inlineExcludedRanges: mergedRanges(fencedRanges + mathBlockRanges + codeSpanRanges)
+            fencedLineRanges: returnedFencedRanges,
+            mathBlockRanges: returnedMathBlockRanges,
+            codeSpanRanges: returnedCodeSpanRanges,
+            inlineExcludedRanges: mergedRanges(returnedFencedRanges + returnedMathBlockRanges + returnedCodeSpanRanges)
         )
+    }
+
+    private static func rangesForHighlighting(_ ranges: [NSRange], clippedTo targetRange: NSRange?) -> [NSRange] {
+        guard let targetRange else { return ranges }
+
+        return ranges.compactMap { range in
+            let clippedRange = NSIntersectionRange(range, targetRange)
+            return clippedRange.length > 0 ? clippedRange : nil
+        }
     }
 
     private static func nonOverlappingBlockRanges(

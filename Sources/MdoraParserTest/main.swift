@@ -364,7 +364,10 @@ func runTests() {
     )
     assert(protectedBoldWindowRanges.codeSpanRanges.map {
         syntaxHighlightNSString.substring(with: $0)
-    } == ["`**not bold**`"])
+    } == ["**not bold**"])
+    assert(protectedBoldWindowRanges.inlineExcludedRanges.allSatisfy {
+        NSIntersectionRange($0, protectedBoldRange) == $0
+    })
 
     let multilineProtectedWindowRanges = MarkdownSyntaxHighlightScanner.ranges(
         in: syntaxHighlightMarkdown,
@@ -372,7 +375,7 @@ func runTests() {
     )
     assert(multilineProtectedWindowRanges.codeSpanRanges.map {
         syntaxHighlightNSString.substring(with: $0)
-    } == ["`**not\nbold either**`"])
+    } == ["bold either**"])
     print("✅ CommonMark code spans support multi-backtick delimiters, spacing, and HTML escaping!")
 
     let mathHighlightMarkdown = #"""
@@ -416,6 +419,16 @@ func runTests() {
         in: mathHighlightMarkdown,
         intersecting: mathWindowRange
     ).map { mathHighlightNSString.substring(with: $0) } == ["\\[\n[not a link](https://example.com) and `not code either`\n\\]\n"])
+    let mathWindowSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(
+        in: mathHighlightMarkdown,
+        intersecting: mathWindowRange
+    )
+    assert(mathWindowSyntaxRanges.mathBlockRanges.map {
+        mathHighlightNSString.substring(with: $0)
+    } == ["`not code either`"])
+    assert(mathWindowSyntaxRanges.inlineExcludedRanges.allSatisfy {
+        NSIntersectionRange($0, mathWindowRange) == $0
+    })
 
     let mathContainingFenceMarkdown = #"""
     $$
@@ -446,6 +459,18 @@ func runTests() {
     assert(fenceContainingMathRanges.codeSpanRanges.map {
         (fenceContainingMathMarkdown as NSString).substring(with: $0)
     } == ["`code`"])
+    let fenceContainingMathNSString = fenceContainingMathMarkdown as NSString
+    let fenceWindowRange = fenceContainingMathNSString.range(of: "**still code**")
+    let fenceWindowSyntaxRanges = MarkdownSyntaxHighlightScanner.ranges(
+        in: fenceContainingMathMarkdown,
+        intersecting: fenceWindowRange
+    )
+    assert(fenceWindowSyntaxRanges.fencedLineRanges.map {
+        fenceContainingMathNSString.substring(with: $0)
+    } == ["**still code**"])
+    assert(fenceWindowSyntaxRanges.inlineExcludedRanges.allSatisfy {
+        NSIntersectionRange($0, fenceWindowRange) == $0
+    })
     print("✅ Editor syntax highlighting protects display math blocks from inline recoloring!")
 
     // 4c. Test balanced parentheses in inline link and image destinations

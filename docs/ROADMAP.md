@@ -37,6 +37,7 @@
 - Use the first fence info-string word for code language classes, inspector language stats, and diagram detection.
 - Use shared code fence delimiter logic for editor highlighting, parsing, and unclosed fence diagnostics.
 - Limit editor fenced-code exclusion scans to the active highlight window for smoother large-document typing.
+- Clip editor syntax protected ranges to the active highlight window so huge fenced code, math, or code-span regions do not repaint off-screen text.
 - Replace loose editor inline-code regex matching with exact backtick-run scanning so code fences are not partially recolored.
 - Make editor backtick auto-pairing fence-aware so typing triple backticks creates real code fences.
 - Recover smart-punctuation fence markers such as `‘’‘text` and `’‘’` as backtick-compatible code fences before inline coloring runs.
