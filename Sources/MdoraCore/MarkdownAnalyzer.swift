@@ -281,7 +281,7 @@ public enum MarkdownAnalyzer {
     ) -> [MarkdownDiagnostic] {
         var diagnostics: [MarkdownDiagnostic] = []
         diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
-        diagnostics.append(contentsOf: referenceDiagnostics(in: markdown, blocks: blocks))
+        diagnostics.append(contentsOf: referenceDiagnostics(in: blocks))
         diagnostics.append(contentsOf: footnoteDiagnostics(in: markdown, blocks: blocks))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
@@ -692,20 +692,21 @@ public enum MarkdownAnalyzer {
         return diagnostics
     }
 
-    private static func referenceDiagnostics(in markdown: String, blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+    private static func referenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
         let definitions = Set(referenceDefinitions(from: blocks).keys)
+        let inlineSegments = inlineSegments(from: blocks)
 
-        let referencedLabels = Set(
-            matches(in: markdown, pattern: #"(?<!\!)\[[^\]]+\]\[([^\]]+)\]"#, group: 1)
-                .map(LinkReferenceDefinition.normalizedLabel)
-        )
+        let referencedLabels = Set(inlineSegments.compactMap { segment -> String? in
+            switch segment {
+            case let .referenceLink(_, label), let .imageReference(_, label):
+                let normalized = LinkReferenceDefinition.normalizedLabel(label)
+                return normalized.isEmpty ? nil : normalized
+            default:
+                return nil
+            }
+        })
 
-        let imageLabels = Set(
-            matches(in: markdown, pattern: #"\!\[[^\]]*\]\[([^\]]+)\]"#, group: 1)
-                .map(LinkReferenceDefinition.normalizedLabel)
-        )
-
-        let missing = referencedLabels.union(imageLabels).subtracting(definitions).sorted()
+        let missing = referencedLabels.subtracting(definitions).sorted()
 
         return missing.map { label in
             MarkdownDiagnostic(

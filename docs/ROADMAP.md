@@ -70,6 +70,7 @@
 - Follow CommonMark first-wins reference definition semantics and warn on duplicate normalized reference labels.
 - Support CommonMark reference definition titles on the following line with correct source maps.
 - Reject malformed reference definitions that contain invalid trailing title text instead of dropping the extra text.
+- Drive missing-reference diagnostics from parsed inline segments so collapsed links and images are covered without scanning code spans.
 - Render local image paths and standalone wiki image embeds in preview relative to the current Markdown file.
 - Add bounded inline parser caching to reduce repeated preview, analysis, and export tokenization work.
 - Reduce preview loop allocations, use binary source-map lookups, and coalesce editor-driven sync scrolls for smoother large-document navigation.

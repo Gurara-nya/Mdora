@@ -418,6 +418,25 @@ func runTests() {
     assert(multilineReferenceTitleHTML.contains("<p>After the reference.</p>"))
     print("✅ Reference definitions accept CommonMark titles on the following line!")
 
+    let collapsedReferenceMarkdown = """
+    [Known][] and ![Known][]
+    [Missing][] and ![Chart][] plus `[Code][]`
+
+    [known]: https://example.com/known
+    """
+    let collapsedReferenceDocument = MarkdownParser.parse(collapsedReferenceMarkdown)
+    assert(collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-missing" })
+    assert(collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
+    assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-known" })
+    assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-code" })
+
+    let collapsedReferenceHTML = MarkdownHTMLRenderer.renderFragment(collapsedReferenceMarkdown)
+    assert(collapsedReferenceHTML.contains(#"<a href="https://example.com/known">Known</a>"#))
+    assert(collapsedReferenceHTML.contains(#"<img src="https://example.com/known" alt="Known">"#))
+    assert(collapsedReferenceHTML.contains(##"<a href="#ref-Missing">Missing</a>"##))
+    assert(collapsedReferenceHTML.contains(#"<span class="image-ref">Chart [Chart]</span>"#))
+    print("✅ Collapsed reference links and images participate in missing-reference diagnostics!")
+
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
     [Uses bad][bad]
