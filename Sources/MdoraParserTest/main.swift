@@ -818,6 +818,7 @@ func runTests() {
     """
     let duplicateHeadingDocument = MarkdownParser.parse(duplicateHeadingMarkdown)
     assert(duplicateHeadingDocument.outline.map(\.anchor) == ["repeat", "repeat-1", "repeat", "repeat-2"])
+    assert(duplicateHeadingDocument.markers.customAnchors == ["repeat"])
     assert(duplicateHeadingDocument.diagnostics.contains { $0.id == "duplicate-heading-repeat" })
 
     let duplicateHeadingHTML = MarkdownHTMLRenderer.renderFragment(duplicateHeadingMarkdown)
@@ -854,6 +855,7 @@ func runTests() {
     guard headingCompatibilityOutline == expectedHeadingCompatibilityOutline else {
         fatalError("❌ Heading compatibility mismatch: \(headingCompatibilityOutline)")
     }
+    assert(headingCompatibilityDocument.markers.customAnchors == ["setext-two", "closed-id"])
     guard case .paragraph("#not a heading") = headingCompatibilityDocument.blocks.last else {
         fatalError("❌ Expected #not a heading without a space to stay a paragraph")
     }

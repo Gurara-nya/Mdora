@@ -3,7 +3,7 @@ import Foundation
 public enum MarkdownAnalyzer {
     public static func outline(from blocks: [MarkdownBlock]) -> [DocumentSymbol] {
         blocks.compactMap { block in
-            if case let .heading(level, text, anchor) = block {
+            if case let .heading(level, text, anchor, _) = block {
                 return DocumentSymbol(level: level, title: text, anchor: anchor)
             }
 
@@ -131,7 +131,7 @@ public enum MarkdownAnalyzer {
         markers.wikiLinks = unique(inlineMarkers.wikiLinks)
         markers.wikiEmbeds = unique(inlineMarkers.wikiEmbeds)
         markers.blockIDs = unique(blockIdentifiers(in: blocks))
-        markers.customAnchors = unique(customHeadingAnchors(in: markdown))
+        markers.customAnchors = unique(customHeadingAnchors(in: blocks))
         markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
         })
@@ -423,7 +423,7 @@ public enum MarkdownAnalyzer {
 
     private static func blockIdentifierTexts(from block: MarkdownBlock) -> [String] {
         switch block {
-        case let .heading(_, text, _), let .paragraph(text):
+        case let .heading(_, text, _, _), let .paragraph(text):
             return [text]
         case let .blockquote(blocks, _):
             return blocks.flatMap(blockIdentifierTexts(from:))
@@ -461,7 +461,7 @@ public enum MarkdownAnalyzer {
 
     private static func forEachInlineText(in block: MarkdownBlock, _ visit: (String) -> Void) {
         switch block {
-        case let .heading(_, text, _):
+        case let .heading(_, text, _, _):
             visit(text)
         case let .paragraph(text):
             visit(text)
@@ -598,33 +598,28 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func customHeadingAnchors(in markdown: String) -> [String] {
-        let lines = markdown.components(separatedBy: .newlines)
+    private static func customHeadingAnchors(in blocks: [MarkdownBlock]) -> [String] {
+        var anchors: [String] = []
 
-        return lines.enumerated().compactMap { index, line in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        for block in blocks {
+            collectCustomHeadingAnchors(from: block, into: &anchors)
+        }
 
-            if trimmed.hasPrefix("#") {
-                let hashes = trimmed.prefix { $0 == "#" }.count
-                guard (1 ... 6).contains(hashes) else { return nil }
+        return anchors
+    }
 
-                let markerEnd = trimmed.index(trimmed.startIndex, offsetBy: hashes)
-                guard markerEnd < trimmed.endIndex else { return nil }
-                guard trimmed[markerEnd].isWhitespace else { return nil }
-
-                let contentStart = trimmed.index(after: markerEnd)
-                let content = MarkdownHeadingAttributes.strippedClosingHashes(from: String(trimmed[contentStart...]))
-                return MarkdownHeadingAttributes.customAnchor(in: content)
+    private static func collectCustomHeadingAnchors(from block: MarkdownBlock, into anchors: inout [String]) {
+        switch block {
+        case let .heading(_, _, _, customAnchor):
+            if let customAnchor {
+                anchors.append(customAnchor)
             }
-
-            guard lines.indices.contains(index + 1) else { return nil }
-            let underline = lines[index + 1].trimmingCharacters(in: .whitespaces)
-            guard !underline.isEmpty,
-                  underline.allSatisfy({ $0 == "=" }) || underline.allSatisfy({ $0 == "-" }) else {
-                return nil
+        case let .blockquote(blocks, _):
+            for block in blocks {
+                collectCustomHeadingAnchors(from: block, into: &anchors)
             }
-
-            return MarkdownHeadingAttributes.customAnchor(in: trimmed)
+        default:
+            break
         }
     }
 

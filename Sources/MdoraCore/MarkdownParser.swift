@@ -432,7 +432,8 @@ private struct BlockParser {
                 return .heading(
                     level: hashes,
                     text: parsed.text,
-                    anchor: anchor(for: parsed)
+                    anchor: anchor(for: parsed),
+                    customAnchor: parsed.anchor
                 )
             }
         }
@@ -456,7 +457,8 @@ private struct BlockParser {
         return .heading(
             level: level,
             text: parsed.text,
-            anchor: anchor(for: parsed)
+            anchor: anchor(for: parsed),
+            customAnchor: parsed.anchor
         )
     }
 

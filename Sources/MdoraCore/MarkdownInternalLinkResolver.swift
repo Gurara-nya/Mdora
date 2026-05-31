@@ -102,7 +102,7 @@ public enum MarkdownInternalLinkResolver {
         let anchor = headingAnchor(for: heading)
 
         return blocks.firstIndex { block in
-            if case let .heading(_, text, blockAnchor) = block {
+            if case let .heading(_, text, blockAnchor, _) = block {
                 return text.lowercased() == normalizedHeading || blockAnchor.lowercased() == anchor
             }
 
@@ -112,7 +112,7 @@ public enum MarkdownInternalLinkResolver {
 
     private static func blockContainsAnchor(_ block: MarkdownBlock, anchor: String) -> Bool {
         switch block {
-        case let .heading(_, _, blockAnchor):
+        case let .heading(_, _, blockAnchor, _):
             return blockAnchor.lowercased() == anchor
         case let .paragraph(text):
             return MarkdownBlockIDParser.trailingIdentifier(in: text)?.lowercased() == anchor
@@ -138,7 +138,7 @@ public enum MarkdownInternalLinkResolver {
         switch block {
         case .frontMatter(let fm):
             return fm.lines.contains { $0.lowercased().contains(lowerTerm) }
-        case .heading(_, let text, let anchor):
+        case .heading(_, let text, let anchor, _):
             return text.lowercased().contains(lowerTerm) || anchor.lowercased().contains(lowerTerm)
         case .paragraph(let text):
             return text.lowercased().contains(lowerTerm)

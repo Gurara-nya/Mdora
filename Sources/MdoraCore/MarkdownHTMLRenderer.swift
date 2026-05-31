@@ -71,7 +71,7 @@ public enum MarkdownHTMLRenderer {
         switch block {
         case let .frontMatter(frontMatter):
             return "<pre class=\"front-matter front-matter-\(frontMatter.kind.rawValue)\"><code>\(escapeHTML(frontMatter.lines.joined(separator: "\n")))</code></pre>"
-        case let .heading(level, text, anchor):
+        case let .heading(level, text, anchor, _):
             let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: text)
             let content = blockID?.content ?? text
             return "<h\(level) id=\"\(escapeHTML(anchor))\"\(blockIDDataAttribute(blockID?.identifier))>\(renderInline(content, context: context))</h\(level)>"

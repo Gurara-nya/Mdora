@@ -269,7 +269,7 @@ private struct MarkdownBlockView: View {
         switch block {
         case let .frontMatter(frontMatter):
             FrontMatterView(frontMatter: frontMatter, theme: theme)
-        case let .heading(level, text, _):
+        case let .heading(level, text, _, _):
             HeadingView(level: level, text: text, theme: theme)
         case let .paragraph(text):
             let visibleText = MarkdownBlockIDParser.contentWithoutTrailingIdentifier(text)

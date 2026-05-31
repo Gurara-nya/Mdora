@@ -90,7 +90,7 @@ public struct MarkdownBlockSourceRange: Equatable, Hashable, Identifiable {
 
 public enum MarkdownBlock: Equatable {
     case frontMatter(FrontMatterBlock)
-    case heading(level: Int, text: String, anchor: String)
+    case heading(level: Int, text: String, anchor: String, customAnchor: String?)
     case paragraph(String)
     case blockquote(blocks: [MarkdownBlock], callout: Callout?)
     case unorderedList([ListItem])
