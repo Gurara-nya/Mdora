@@ -96,6 +96,7 @@
 - Add async, downsampled, bounded local image caching to reduce main-thread stalls, disk reads, and image decoding during preview redraws.
 - Stream inline marker and missing-reference collection over inline-capable block content to reduce analyzer allocations after explicit preview refreshes.
 - Count words, characters, lines, and reading time in one source pass to avoid split/components allocations during preview refresh.
+- Share one inline diagnostics scan for missing references and footnotes to avoid parsing the same inline content twice.
 - Add source-map-backed task checkbox editing from preview, including extended task states.
 - Resolve internal and neighboring-file preview navigation for wiki heading/block links, footnotes, tags, and mentions.
 - Add export to HTML.

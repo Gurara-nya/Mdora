@@ -234,8 +234,7 @@ public enum MarkdownAnalyzer {
     ) -> [MarkdownDiagnostic] {
         var diagnostics: [MarkdownDiagnostic] = []
         diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
-        diagnostics.append(contentsOf: referenceDiagnostics(in: blocks))
-        diagnostics.append(contentsOf: footnoteDiagnostics(in: blocks))
+        diagnostics.append(contentsOf: inlineReferenceDiagnostics(in: blocks))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
         diagnostics.append(contentsOf: duplicateReferenceDiagnostics(in: blocks))
@@ -727,13 +726,14 @@ public enum MarkdownAnalyzer {
         return diagnostics
     }
 
-    private static func referenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+    private static func inlineReferenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
         let definitions = Set(referenceDefinitions(from: blocks).keys)
-        let referencedLabels = referencedDefinitionLabels(in: blocks)
+        let footnoteDefinitions = Set(
+            blockFootnoteLabels(in: blocks).map(normalizedFootnoteLabel)
+        )
+        let references = inlineDiagnosticReferences(in: blocks)
 
-        let missing = referencedLabels.subtracting(definitions).sorted()
-
-        return missing.map { label in
+        let missingReferences = references.referenceLabels.subtracting(definitions).sorted().map { label in
             MarkdownDiagnostic(
                 id: "missing-reference-\(label)",
                 severity: .warning,
@@ -741,21 +741,32 @@ public enum MarkdownAnalyzer {
                 message: "No reference definition found for [\(label)]."
             )
         }
-    }
 
-    private static func referencedDefinitionLabels(in blocks: [MarkdownBlock]) -> Set<String> {
-        var labels: Set<String> = []
-
-        forEachInlineText(in: blocks) { text in
-            collectReferencedDefinitionLabels(from: text, into: &labels)
+        let missingFootnotes = references.footnoteLabels.subtracting(footnoteDefinitions).sorted().map { identifier in
+            MarkdownDiagnostic(
+                id: "missing-footnote-\(identifier)",
+                severity: .warning,
+                title: "Missing footnote",
+                message: "No footnote definition found for [^\(identifier)]."
+            )
         }
 
-        return labels
+        return missingReferences + missingFootnotes
     }
 
-    private static func collectReferencedDefinitionLabels(
+    private static func inlineDiagnosticReferences(in blocks: [MarkdownBlock]) -> InlineDiagnosticReferences {
+        var references = InlineDiagnosticReferences()
+
+        forEachInlineText(in: blocks) { text in
+            collectInlineDiagnosticReferences(from: text, into: &references)
+        }
+
+        return references
+    }
+
+    private static func collectInlineDiagnosticReferences(
         from text: String,
-        into labels: inout Set<String>
+        into references: inout InlineDiagnosticReferences
     ) {
         guard !text.isEmpty else { return }
 
@@ -764,52 +775,15 @@ public enum MarkdownAnalyzer {
             case let .referenceLink(_, label), let .imageReference(_, label):
                 let normalized = LinkReferenceDefinition.normalizedLabel(label)
                 if !normalized.isEmpty {
-                    labels.insert(normalized)
+                    references.referenceLabels.insert(normalized)
+                }
+            case let .footnote(identifier):
+                let normalized = normalizedFootnoteLabel(identifier)
+                if !normalized.isEmpty {
+                    references.footnoteLabels.insert(normalized)
                 }
             default:
                 break
-            }
-        }
-    }
-
-    private static func footnoteDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
-        let definitions = Set(
-            blockFootnoteLabels(in: blocks).map(normalizedFootnoteLabel)
-        )
-        let references = referencedFootnoteLabels(in: blocks)
-
-        return references.subtracting(definitions).sorted().map { identifier in
-            MarkdownDiagnostic(
-                id: "missing-footnote-\(identifier)",
-                severity: .warning,
-                title: "Missing footnote",
-                message: "No footnote definition found for [^\(identifier)]."
-            )
-        }
-    }
-
-    private static func referencedFootnoteLabels(in blocks: [MarkdownBlock]) -> Set<String> {
-        var labels: Set<String> = []
-
-        forEachInlineText(in: blocks) { text in
-            collectReferencedFootnoteLabels(from: text, into: &labels)
-        }
-
-        return labels
-    }
-
-    private static func collectReferencedFootnoteLabels(
-        from text: String,
-        into labels: inout Set<String>
-    ) {
-        guard !text.isEmpty else { return }
-
-        for segment in InlineMarkdownParser.parse(text) {
-            if case let .footnote(identifier) = segment {
-                let normalized = normalizedFootnoteLabel(identifier)
-                if !normalized.isEmpty {
-                    labels.insert(normalized)
-                }
             }
         }
     }
@@ -902,4 +876,9 @@ private struct DocumentTextCounts {
     var words: Int
     var characters: Int
     var lines: Int
+}
+
+private struct InlineDiagnosticReferences {
+    var referenceLabels: Set<String> = []
+    var footnoteLabels: Set<String> = []
 }
