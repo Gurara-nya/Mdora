@@ -29,6 +29,8 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/.build/arm64-apple-macosx/$CONFIGURATION"
 DIST_DIR="$SCRIPT_DIR/dist"
+ASSETS_DIR="$SCRIPT_DIR/Assets"
+APP_ICON="$ASSETS_DIR/AppIcon.icns"
 APP_BUNDLE="$DIST_DIR/Mdora.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
@@ -59,6 +61,13 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 # 复制可执行文件
 cp "$BUILD_DIR/Mdora" "$MACOS_DIR/Mdora"
 chmod +x "$MACOS_DIR/Mdora"
+
+# 复制应用图标
+if [ -f "$APP_ICON" ]; then
+  cp "$APP_ICON" "$RESOURCES_DIR/Mdora.icns"
+else
+  echo -e "${YELLOW}  ⚠️  未找到应用图标: ${APP_ICON}${NC}"
+fi
 
 # 写入 Info.plist（如果项目根目录有就直接复制，否则内联生成）
 PLIST_SRC="$SCRIPT_DIR/Info.plist"
@@ -95,6 +104,8 @@ else
         </dict>
     </array>
     <key>CFBundleExecutable</key>
+    <string>Mdora</string>
+    <key>CFBundleIconFile</key>
     <string>Mdora</string>
     <key>CFBundleIdentifier</key>
     <string>dev.gurara.mdora</string>

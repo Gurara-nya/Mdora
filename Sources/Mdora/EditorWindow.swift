@@ -96,6 +96,7 @@ struct EditorWindow: View {
                                 document: parsed,
                                 theme: theme,
                                 style: previewStyle,
+                                isFrozen: previewIsFrozen,
                                 activeLine: selectedLayout.wrappedValue.showsEditor && !isEditorEditing ? editorSelection.line : nil,
                                 documentURL: documentURL,
                                 onTaskStateChange: updateTaskState

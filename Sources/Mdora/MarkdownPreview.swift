@@ -55,6 +55,7 @@ struct MarkdownPreview: View {
     let document: ParsedMarkdownDocument
     let theme: MdoraTheme
     let style: MarkdownPreviewStyle
+    let isFrozen: Bool
     let activeLine: Int?
     let documentURL: URL?
     let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
@@ -109,17 +110,33 @@ struct MarkdownPreview: View {
             }
             .animation(renderStyle.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
             .onChange(of: markdown) { _, _ in
-                guard renderStyle.animationsEnabled else { return }
+                guard !isFrozen, renderStyle.animationsEnabled else { return }
                 updatePulse = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
                     updatePulse = false
                 }
             }
             .onChange(of: activeBlockIndex) { _, blockIndex in
+                guard !isFrozen else {
+                    pendingActiveScrollWorkItem?.cancel()
+                    return
+                }
                 scheduleActiveBlockScroll(blockIndex, proxy: proxy)
+            }
+            .onChange(of: isFrozen) { _, frozen in
+                pendingActiveScrollWorkItem?.cancel()
+                if frozen {
+                    lastSyncedBlockIndex = nil
+                } else {
+                    scrollToActiveBlock(activeBlockIndex, proxy: proxy, force: true)
+                }
             }
             .onChange(of: style.syncsToEditor) { _, syncsToEditor in
                 pendingActiveScrollWorkItem?.cancel()
+                guard !isFrozen else {
+                    lastSyncedBlockIndex = nil
+                    return
+                }
                 guard syncsToEditor else {
                     lastSyncedBlockIndex = nil
                     return
@@ -128,12 +145,14 @@ struct MarkdownPreview: View {
                 scrollToActiveBlock(activeBlockIndex, proxy: proxy, force: true)
             }
             .onAppear {
+                guard !isFrozen else { return }
                 scrollToActiveBlock(activeBlockIndex, proxy: proxy, force: true)
             }
             .onDisappear {
                 pendingActiveScrollWorkItem?.cancel()
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdoraNavigateRequested)) { notification in
+                guard !isFrozen else { return }
                 guard let url = notification.object as? URL else { return }
                 handlePreviewNavigation(url, in: parsed, proxy: proxy)
             }
@@ -147,6 +166,10 @@ struct MarkdownPreview: View {
 
     private var effectiveStyle: MarkdownPreviewStyle {
         var resolvedStyle = style
+        if isFrozen {
+            resolvedStyle.animationsEnabled = false
+            resolvedStyle.syncsToEditor = false
+        }
         if shouldDisablePreviewAnimations {
             resolvedStyle.animationsEnabled = false
         }
