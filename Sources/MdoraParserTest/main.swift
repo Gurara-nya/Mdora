@@ -761,6 +761,23 @@ func runTests() {
     assert(!streamingMarkerDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
     print("✅ Streaming marker collection preserves rich inline marker recognition without broad segment arrays!")
 
+    let footnoteDiagnosticMarkdown = """
+    Real missing footnote[^missing] and known footnote[^known].
+    Code span `[^code]` should stay code.
+
+    ```text
+    [^fence]
+    ```
+
+    [^known]: Known footnote.
+    """
+    let footnoteDiagnosticDocument = MarkdownParser.parse(footnoteDiagnosticMarkdown)
+    assert(footnoteDiagnosticDocument.diagnostics.contains { $0.id == "missing-footnote-missing" })
+    assert(!footnoteDiagnosticDocument.diagnostics.contains { $0.id == "missing-footnote-known" })
+    assert(!footnoteDiagnosticDocument.diagnostics.contains { $0.id == "missing-footnote-code" })
+    assert(!footnoteDiagnosticDocument.diagnostics.contains { $0.id == "missing-footnote-fence" })
+    print("✅ Missing-footnote diagnostics follow inline parsing and ignore code spans and fences!")
+
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
     [Uses bad][bad]

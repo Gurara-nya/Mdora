@@ -209,7 +209,7 @@ public enum MarkdownAnalyzer {
         var diagnostics: [MarkdownDiagnostic] = []
         diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
         diagnostics.append(contentsOf: referenceDiagnostics(in: blocks))
-        diagnostics.append(contentsOf: footnoteDiagnostics(in: markdown, blocks: blocks))
+        diagnostics.append(contentsOf: footnoteDiagnostics(in: blocks))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
         diagnostics.append(contentsOf: duplicateReferenceDiagnostics(in: blocks))
@@ -746,21 +746,11 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func footnoteDiagnostics(in markdown: String, blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
+    private static func footnoteDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
         let definitions = Set(
-            blocks.compactMap { block -> String? in
-                if case let .footnoteDefinition(identifier, _) = block {
-                    return identifier.lowercased()
-                }
-
-                return nil
-            }
+            blockFootnoteLabels(in: blocks).map(normalizedFootnoteLabel)
         )
-
-        let references = Set(
-            matches(in: markdown, pattern: #"\[\^([^\]]+)\]"#, group: 1)
-                .map { $0.lowercased() }
-        )
+        let references = referencedFootnoteLabels(in: blocks)
 
         return references.subtracting(definitions).sorted().map { identifier in
             MarkdownDiagnostic(
@@ -770,6 +760,36 @@ public enum MarkdownAnalyzer {
                 message: "No footnote definition found for [^\(identifier)]."
             )
         }
+    }
+
+    private static func referencedFootnoteLabels(in blocks: [MarkdownBlock]) -> Set<String> {
+        var labels: Set<String> = []
+
+        forEachInlineText(in: blocks) { text in
+            collectReferencedFootnoteLabels(from: text, into: &labels)
+        }
+
+        return labels
+    }
+
+    private static func collectReferencedFootnoteLabels(
+        from text: String,
+        into labels: inout Set<String>
+    ) {
+        guard !text.isEmpty else { return }
+
+        for segment in InlineMarkdownParser.parse(text) {
+            if case let .footnote(identifier) = segment {
+                let normalized = normalizedFootnoteLabel(identifier)
+                if !normalized.isEmpty {
+                    labels.insert(normalized)
+                }
+            }
+        }
+    }
+
+    private static func normalizedFootnoteLabel(_ label: String) -> String {
+        label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private static func headingDiagnostics(outline: [DocumentSymbol]) -> [MarkdownDiagnostic] {
