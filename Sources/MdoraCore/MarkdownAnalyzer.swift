@@ -187,17 +187,43 @@ public enum MarkdownAnalyzer {
     }
 
     public static func stats(for markdown: String, blocks: [MarkdownBlock]) -> MarkdownStats {
-        let words = markdown.split { character in
-            character.isWhitespace || character.isNewline
-        }.count
+        let textCounts = textCounts(in: markdown)
 
         return MarkdownStats(
-            words: words,
-            characters: markdown.count,
-            lines: max(1, markdown.components(separatedBy: .newlines).count),
+            words: textCounts.words,
+            characters: textCounts.characters,
+            lines: textCounts.lines,
             blocks: blocks.count,
             blockKinds: blockKinds(from: blocks),
-            readingMinutes: max(1, Int(ceil(Double(words) / 220.0)))
+            readingMinutes: max(1, Int(ceil(Double(textCounts.words) / 220.0)))
+        )
+    }
+
+    private static func textCounts(in markdown: String) -> DocumentTextCounts {
+        var words = 0
+        var characters = 0
+        var lineBreaks = 0
+        var isInsideWord = false
+
+        for character in markdown {
+            characters += 1
+
+            for scalar in character.unicodeScalars where CharacterSet.newlines.contains(scalar) {
+                lineBreaks += 1
+            }
+
+            if character.isWhitespace || character.isNewline {
+                isInsideWord = false
+            } else if !isInsideWord {
+                words += 1
+                isInsideWord = true
+            }
+        }
+
+        return DocumentTextCounts(
+            words: words,
+            characters: characters,
+            lines: max(1, lineBreaks + 1)
         )
     }
 
@@ -870,4 +896,10 @@ private struct InlineMarkerCollections {
     var citations: [String] = []
     var emojiShortcodes: [String] = []
     var keyboardShortcuts: [String] = []
+}
+
+private struct DocumentTextCounts {
+    var words: Int
+    var characters: Int
+    var lines: Int
 }

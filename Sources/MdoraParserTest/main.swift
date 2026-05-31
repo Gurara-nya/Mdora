@@ -63,6 +63,19 @@ func runTests() {
     assert(MarkdownHTMLRenderer.renderFragment(hardBreakMarkdown).contains("<p>Line one<br>Line two<br>Line three Line four</p>"))
     print("✅ CommonMark hard line breaks survive parsing, preview tokens, and HTML export!")
 
+    let statsMarkdown = "One two\n\n三 four\n"
+    let statsDocument = MarkdownParser.parse(statsMarkdown)
+    assert(statsDocument.stats.words == 4)
+    assert(statsDocument.stats.characters == statsMarkdown.count)
+    assert(statsDocument.stats.lines == 4)
+
+    let readingTimeMarkdown = Array(repeating: "word", count: 221).joined(separator: " ")
+    let readingTimeDocument = MarkdownParser.parse(readingTimeMarkdown)
+    assert(readingTimeDocument.stats.words == 221)
+    assert(readingTimeDocument.stats.lines == 1)
+    assert(readingTimeDocument.stats.readingMinutes == 2)
+    print("✅ Document stats count words, characters, lines, and reading time without array-heavy scans!")
+
     // 3b. Test fenced code ranges used by editor highlighting
     let fencedHighlightMarkdown = """
     Before `inline`
