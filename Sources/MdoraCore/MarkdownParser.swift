@@ -981,7 +981,7 @@ private struct BlockParser {
             if Self.isTableSeparator(line) { break }
             if Self.parseListLine(line) != nil { break }
             if Self.isFootnoteDefinition(line) { break }
-            if isDefinitionListStart(at: index) { break }
+            if Self.isDefinitionMarkerLine(self.line(at: 1)) { break }
             if isLinkReferenceDefinitionStart(at: index) { break }
             if Self.parseAbbreviationDefinitionLine(line.trimmed) != nil { break }
             if line.trimmed.hasPrefix("<!--") { break }
@@ -1016,31 +1016,9 @@ private struct BlockParser {
         return Self.parseReferenceDestinationAndTitle(lines[continuationIndex].trimmed) != nil
     }
 
-    private func isDefinitionListStart(at lineIndex: Int) -> Bool {
-        var cursor = lineIndex
-        var hasTerm = false
-
-        while lines.indices.contains(cursor) {
-            let line = lines[cursor]
-            let trimmed = line.trimmed
-
-            if trimmed.isEmpty {
-                return false
-            }
-
-            if Self.definitionText(from: trimmed) != nil {
-                return hasTerm
-            }
-
-            if hasTerm, Self.isBlockStartLine(line) {
-                return false
-            }
-
-            hasTerm = true
-            cursor += 1
-        }
-
-        return false
+    private static func isDefinitionMarkerLine(_ line: String?) -> Bool {
+        guard let line else { return false }
+        return definitionText(from: line.trimmed) != nil
     }
 
     private static func isThematicBreakLine(_ line: String) -> Bool {

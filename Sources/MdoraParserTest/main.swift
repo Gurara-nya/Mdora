@@ -1096,7 +1096,18 @@ func runTests() {
         fatalError("❌ Expected empty definition marker to remain part of a definition list")
     }
     assert(emptyDefinitionItems[0].definitions == ["continued after empty marker"])
-    print("✅ Markdown Extra definition lists support shared terms, loose continuations, and empty markers!")
+
+    let definitionProbeParagraph = (0 ..< 240)
+        .map { "Long paragraph line \($0)" }
+        .joined(separator: "\n")
+    let definitionProbeDocument = MarkdownParser.parse(definitionProbeParagraph + "\n:not a definition marker")
+    guard definitionProbeDocument.blocks.count == 1,
+          case .paragraph(let definitionProbeText) = definitionProbeDocument.blocks[0] else {
+        fatalError("❌ Expected definition-list probing to keep ordinary paragraphs intact")
+    }
+    assert(definitionProbeText.contains("Long paragraph line 239"))
+    assert(definitionProbeText.contains(":not a definition marker"))
+    print("✅ Markdown Extra definition lists support shared terms and keep paragraph probing narrow!")
 
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
