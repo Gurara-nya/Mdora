@@ -102,13 +102,21 @@ func runTests() {
     let analyzerReuseDocument = MarkdownParser.parse(analyzerReuseMarkdown)
     let analyzerReuseReferences = MarkdownAnalyzer.referenceDefinitions(from: analyzerReuseDocument.blocks)
     let analyzerReuseAbbreviations = MarkdownAnalyzer.abbreviationDefinitions(from: analyzerReuseDocument.blocks)
+    let analyzerReuseMarkers = MarkdownAnalyzer.markers(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        sourceMap: analyzerReuseDocument.sourceMap,
+        referenceDefinitions: analyzerReuseReferences,
+        abbreviationDefinitions: analyzerReuseAbbreviations
+    )
     assert(MarkdownAnalyzer.markers(
         in: analyzerReuseMarkdown,
         blocks: analyzerReuseDocument.blocks,
         sourceMap: analyzerReuseDocument.sourceMap,
         referenceDefinitions: analyzerReuseReferences,
         abbreviationDefinitions: analyzerReuseAbbreviations
-    ) == MarkdownAnalyzer.markers(
+    ) == analyzerReuseMarkers)
+    assert(analyzerReuseMarkers == MarkdownAnalyzer.markers(
         in: analyzerReuseMarkdown,
         blocks: analyzerReuseDocument.blocks,
         sourceMap: analyzerReuseDocument.sourceMap
@@ -123,9 +131,16 @@ func runTests() {
         blocks: analyzerReuseDocument.blocks,
         outline: analyzerReuseDocument.outline
     ))
+    assert(MarkdownAnalyzer.diagnostics(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        outline: analyzerReuseDocument.outline,
+        referenceDefinitions: analyzerReuseReferences,
+        markers: analyzerReuseMarkers
+    ) == analyzerReuseDocument.diagnostics)
     assert(analyzerReuseDocument.diagnostics.contains { $0.id == "missing-reference-missing" })
     assert(analyzerReuseDocument.diagnostics.contains { $0.id == "duplicate-reference-known" })
-    print("✅ Analyzer reuse avoids duplicate definition scans while preserving markers and diagnostics!")
+    print("✅ Analyzer reuse avoids duplicate definition and inline diagnostic scans while preserving output!")
 
     let blockMarkerMarkdown = """
     # Heading {#custom-anchor}
@@ -910,6 +925,13 @@ func runTests() {
     [known]: https://example.com/known
     """
     let collapsedReferenceDocument = MarkdownParser.parse(collapsedReferenceMarkdown)
+    let collapsedReferenceDiagnosticsWithoutMarkerReuse = MarkdownAnalyzer.diagnostics(
+        in: collapsedReferenceMarkdown,
+        blocks: collapsedReferenceDocument.blocks,
+        outline: collapsedReferenceDocument.outline,
+        referenceDefinitions: collapsedReferenceDocument.referenceDefinitions
+    )
+    assert(collapsedReferenceDiagnosticsWithoutMarkerReuse == collapsedReferenceDocument.diagnostics)
     assert(collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-missing" })
     assert(collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
     assert(!collapsedReferenceDocument.diagnostics.contains { $0.id == "missing-reference-known" })

@@ -35,7 +35,8 @@ public enum MarkdownParser {
             in: markdown,
             blocks: blocks,
             outline: outline,
-            referenceDefinitions: referenceDefinitions
+            referenceDefinitions: referenceDefinitions,
+            markers: markers
         )
         let stats = MarkdownAnalyzer.stats(for: markdown, blocks: blocks)
 

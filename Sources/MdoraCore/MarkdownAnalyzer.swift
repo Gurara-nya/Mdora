@@ -214,12 +214,17 @@ public enum MarkdownAnalyzer {
         in markdown: String,
         blocks: [MarkdownBlock],
         outline: [DocumentSymbol],
-        referenceDefinitions precomputedReferences: [String: LinkReferenceDefinition]? = nil
+        referenceDefinitions precomputedReferences: [String: LinkReferenceDefinition]? = nil,
+        markers precomputedMarkers: MarkdownMarkers? = nil
     ) -> [MarkdownDiagnostic] {
         var diagnostics: [MarkdownDiagnostic] = []
         let references = precomputedReferences ?? referenceDefinitions(from: blocks)
         diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
-        diagnostics.append(contentsOf: inlineReferenceDiagnostics(in: blocks, referenceDefinitionKeys: Set(references.keys)))
+        diagnostics.append(contentsOf: inlineReferenceDiagnostics(
+            in: blocks,
+            referenceDefinitionKeys: Set(references.keys),
+            markers: precomputedMarkers
+        ))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
         diagnostics.append(contentsOf: duplicateReferenceDiagnostics(in: blocks))
@@ -908,12 +913,13 @@ public enum MarkdownAnalyzer {
 
     private static func inlineReferenceDiagnostics(
         in blocks: [MarkdownBlock],
-        referenceDefinitionKeys definitions: Set<String>
+        referenceDefinitionKeys definitions: Set<String>,
+        markers: MarkdownMarkers?
     ) -> [MarkdownDiagnostic] {
         let footnoteDefinitions = Set(
             blockFootnoteLabels(in: blocks).map(normalizedFootnoteLabel)
         )
-        let references = inlineDiagnosticReferences(in: blocks)
+        let references = markers.map(inlineDiagnosticReferences(from:)) ?? inlineDiagnosticReferences(in: blocks)
 
         let missingReferences = references.referenceLabels.subtracting(definitions).sorted().map { label in
             MarkdownDiagnostic(
@@ -934,6 +940,19 @@ public enum MarkdownAnalyzer {
         }
 
         return missingReferences + missingFootnotes
+    }
+
+    private static func inlineDiagnosticReferences(from markers: MarkdownMarkers) -> InlineDiagnosticReferences {
+        InlineDiagnosticReferences(
+            referenceLabels: Set((markers.linkReferences + markers.imageReferences).compactMap { label in
+                let normalized = LinkReferenceDefinition.normalizedLabel(label)
+                return normalized.isEmpty ? nil : normalized
+            }),
+            footnoteLabels: Set(markers.footnotes.compactMap { label in
+                let normalized = normalizedFootnoteLabel(label)
+                return normalized.isEmpty ? nil : normalized
+            })
+        )
     }
 
     private static func inlineDiagnosticReferences(in blocks: [MarkdownBlock]) -> InlineDiagnosticReferences {
