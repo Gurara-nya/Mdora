@@ -48,8 +48,65 @@ public enum MarkdownDiagramDirection: Equatable {
 
 public enum MarkdownDiagramGraphParser {
     public static func parse(kind: DiagramKind, source: String) -> MarkdownDiagramGraph {
+        if let cached = cache.graph(kind: kind, source: source) {
+            return cached
+        }
+
         var parser = DiagramGraphSourceParser(kind: kind, source: source)
-        return parser.parse()
+        let graph = parser.parse()
+        cache.store(graph, kind: kind, source: source)
+        return graph
+    }
+
+    public static func clearCache() {
+        cache.removeAll()
+    }
+
+    private static let cache = MarkdownDiagramGraphParseCache()
+}
+
+private final class MarkdownDiagramGraphParseCache: @unchecked Sendable {
+    private let cache = NSCache<NSString, MarkdownDiagramGraphBox>()
+    private let maxCacheableSourceLength = 65_536
+
+    init() {
+        cache.countLimit = 512
+        cache.totalCostLimit = 2_000_000
+    }
+
+    func graph(kind: DiagramKind, source: String) -> MarkdownDiagramGraph? {
+        guard shouldCache(source) else { return nil }
+        return cache.object(forKey: key(kind: kind, source: source))?.graph
+    }
+
+    func store(_ graph: MarkdownDiagramGraph, kind: DiagramKind, source: String) {
+        guard shouldCache(source) else { return }
+        let cost = source.utf16.count + graph.nodes.count * 64 + graph.edges.count * 80
+        cache.setObject(
+            MarkdownDiagramGraphBox(graph),
+            forKey: key(kind: kind, source: source),
+            cost: cost
+        )
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    private func shouldCache(_ source: String) -> Bool {
+        !source.isEmpty && source.utf16.count <= maxCacheableSourceLength
+    }
+
+    private func key(kind: DiagramKind, source: String) -> NSString {
+        "\(kind.rawValue)\u{1F}\(source)" as NSString
+    }
+}
+
+private final class MarkdownDiagramGraphBox: @unchecked Sendable {
+    let graph: MarkdownDiagramGraph
+
+    init(_ graph: MarkdownDiagramGraph) {
+        self.graph = graph
     }
 }
 

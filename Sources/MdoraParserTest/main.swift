@@ -231,6 +231,10 @@ func runTests() {
     assert(mermaidGraph.direction == .leftToRight)
     assert(mermaidGraph.nodes.map(\.id) == ["A", "B"])
     assert(mermaidGraph.edges == [MarkdownDiagramEdge(from: "A", to: "B")])
+    let cachedMermaidGraph = MarkdownDiagramGraphParser.parse(kind: .mermaid, source: diagramInfoStringBlock.source)
+    assert(cachedMermaidGraph == mermaidGraph)
+    MarkdownDiagramGraphParser.clearCache()
+    assert(MarkdownDiagramGraphParser.parse(kind: .mermaid, source: diagramInfoStringBlock.source) == mermaidGraph)
 
     let labeledMermaidGraph = MarkdownDiagramGraphParser.parse(
         kind: .mermaid,
@@ -254,7 +258,7 @@ func runTests() {
     assert(sequenceGraph.direction == .leftToRight)
     assert(sequenceGraph.nodes.map(\.id) == ["Writer", "Preview"])
     assert(sequenceGraph.edges == [MarkdownDiagramEdge(from: "Writer", to: "Preview", label: "refresh")])
-    print("✅ CommonMark code fences honor indentation, content de-indentation, and info-string rules!")
+    print("✅ CommonMark code fences and cached diagram graph parsing honor info-string rules!")
 
     let variableFenceMarkdown = #"""
     ````swift
