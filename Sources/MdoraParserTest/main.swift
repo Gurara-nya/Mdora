@@ -651,6 +651,35 @@ func runTests() {
     assert(fenceWindowSyntaxRanges.inlineExcludedRanges.allSatisfy {
         NSIntersectionRange($0, fenceWindowRange) == $0
     })
+
+    let repeatedProtectedMarkdown = (0 ..< 24).map { index in
+        """
+        ```text
+        `inside fence \(index)`
+        ```
+        Tail `outside-\(index)`
+        $$
+        `inside math \(index)`
+        $$
+        """
+    }.joined(separator: "\n")
+    let repeatedProtectedNSString = repeatedProtectedMarkdown as NSString
+    let repeatedProtectedRanges = MarkdownSyntaxHighlightScanner.ranges(in: repeatedProtectedMarkdown)
+    let repeatedCodeSpans = repeatedProtectedRanges.codeSpanRanges.map {
+        repeatedProtectedNSString.substring(with: $0)
+    }
+    assert(repeatedCodeSpans.count == 24)
+    assert(repeatedCodeSpans.first == "`outside-0`")
+    assert(repeatedCodeSpans.last == "`outside-23`")
+
+    let repeatedWindowRange = repeatedProtectedNSString.range(of: "outside-17")
+    let repeatedWindowRanges = MarkdownSyntaxHighlightScanner.ranges(
+        in: repeatedProtectedMarkdown,
+        intersecting: repeatedWindowRange
+    )
+    assert(repeatedWindowRanges.codeSpanRanges.map {
+        repeatedProtectedNSString.substring(with: $0)
+    } == ["outside-17"])
     print("✅ Editor syntax highlighting protects display math blocks from inline recoloring!")
 
     // 4c. Test balanced parentheses in inline link and image destinations

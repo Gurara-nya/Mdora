@@ -49,11 +49,11 @@ public enum MarkdownSyntaxHighlightScanner {
         let fencedRanges = blockRanges.fencedRanges
         let mathBlockRanges = blockRanges.mathBlockRanges
 
-        let codeSpanRanges = candidateCodeSpanRanges.filter { codeSpanRange in
-            !(fencedRanges + mathBlockRanges).contains { protectedRange in
-                NSIntersectionRange(codeSpanRange, protectedRange).length > 0
-            }
-        }
+        let protectedBlockRanges = mergedRanges(fencedRanges + mathBlockRanges)
+        let codeSpanRanges = codeSpanRanges(
+            candidateCodeSpanRanges,
+            excluding: protectedBlockRanges
+        )
         let returnedFencedRanges = rangesForHighlighting(fencedRanges, clippedTo: targetRange)
         let returnedMathBlockRanges = rangesForHighlighting(mathBlockRanges, clippedTo: targetRange)
         let returnedCodeSpanRanges = rangesForHighlighting(codeSpanRanges, clippedTo: targetRange)
@@ -96,7 +96,8 @@ public enum MarkdownSyntaxHighlightScanner {
         var accepted: [ProtectedBlockRange] = []
 
         for candidate in sortedCandidates {
-            guard !accepted.contains(where: { NSIntersectionRange($0.range, candidate.range).length > 0 }) else {
+            if let last = accepted.last,
+               NSIntersectionRange(last.range, candidate.range).length > 0 {
                 continue
             }
 
@@ -107,6 +108,41 @@ public enum MarkdownSyntaxHighlightScanner {
             accepted.compactMap { $0.kind == .fence ? $0.range : nil },
             accepted.compactMap { $0.kind == .math ? $0.range : nil }
         )
+    }
+
+    private static func codeSpanRanges(
+        _ ranges: [NSRange],
+        excluding protectedRanges: [NSRange]
+    ) -> [NSRange] {
+        guard !ranges.isEmpty, !protectedRanges.isEmpty else { return ranges }
+
+        var accepted: [NSRange] = []
+        var protectedIndex = 0
+
+        for range in ranges {
+            while protectedIndex < protectedRanges.count,
+                  protectedRanges[protectedIndex].upperBound <= range.location {
+                protectedIndex += 1
+            }
+
+            var overlapsProtectedRange = false
+            var scanIndex = protectedIndex
+
+            while scanIndex < protectedRanges.count,
+                  protectedRanges[scanIndex].location < range.upperBound {
+                if NSIntersectionRange(range, protectedRanges[scanIndex]).length > 0 {
+                    overlapsProtectedRange = true
+                    break
+                }
+                scanIndex += 1
+            }
+
+            if !overlapsProtectedRange {
+                accepted.append(range)
+            }
+        }
+
+        return accepted
     }
 
     private static func mergedRanges(_ ranges: [NSRange]) -> [NSRange] {
