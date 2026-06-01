@@ -1018,16 +1018,21 @@ public enum MarkdownAnalyzer {
     }
 
     private static func headingDiagnostics(outline: [DocumentSymbol]) -> [MarkdownDiagnostic] {
-        let grouped = Dictionary(grouping: outline, by: \.anchor)
+        var countsByAnchor: [String: Int] = [:]
+        countsByAnchor.reserveCapacity(outline.count)
 
-        return grouped.compactMap { anchor, symbols in
-            guard symbols.count > 1 else { return nil }
+        for symbol in outline {
+            countsByAnchor[symbol.anchor, default: 0] += 1
+        }
+
+        return countsByAnchor.compactMap { anchor, count in
+            guard count > 1 else { return nil }
 
             return MarkdownDiagnostic(
                 id: "duplicate-heading-\(anchor)",
                 severity: .info,
                 title: "Duplicate heading anchor",
-                message: "\(symbols.count) headings produce the same #\(anchor) anchor."
+                message: "\(count) headings produce the same #\(anchor) anchor."
             )
         }
         .sorted { $0.id < $1.id }

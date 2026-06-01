@@ -1168,13 +1168,16 @@ func runTests() {
     let duplicateHeadingDocument = MarkdownParser.parse(duplicateHeadingMarkdown)
     assert(duplicateHeadingDocument.outline.map(\.anchor) == ["repeat", "repeat-1", "repeat", "repeat-2"])
     assert(duplicateHeadingDocument.markers.customAnchors == ["repeat"])
-    assert(duplicateHeadingDocument.diagnostics.contains { $0.id == "duplicate-heading-repeat" })
+    assert(duplicateHeadingDocument.diagnostics.contains {
+        $0.id == "duplicate-heading-repeat" &&
+            $0.message == "2 headings produce the same #repeat anchor."
+    })
 
     let duplicateHeadingHTML = MarkdownHTMLRenderer.renderFragment(duplicateHeadingMarkdown)
     assert(duplicateHeadingHTML.contains(#"<h1 id="repeat">Repeat</h1>"#))
     assert(duplicateHeadingHTML.contains(#"<h1 id="repeat-1">Repeat</h1>"#))
     assert(duplicateHeadingHTML.contains(#"<h1 id="repeat-2">Repeat</h1>"#))
-    print("✅ Generated heading anchors are de-duplicated while explicit duplicate anchors stay diagnostic!")
+    print("✅ Generated heading anchors de-duplicate while duplicate diagnostics stream counts!")
 
     let headingCompatibilityMarkdown = """
     #
