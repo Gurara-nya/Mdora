@@ -76,6 +76,7 @@ struct MarkdownPreview: View {
                         MarkdownBlockView(
                             block: block,
                             blockIndex: index,
+                            taskItemOffset: 0,
                             theme: theme,
                             isActive: index == activeBlockIndex,
                             onTaskStateChange: onTaskStateChange
@@ -264,6 +265,7 @@ struct MarkdownPreview: View {
 private struct MarkdownBlockView: View {
     let block: MarkdownBlock
     let blockIndex: Int?
+    let taskItemOffset: Int
     let theme: MdoraTheme
     let isActive: Bool
     let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
@@ -304,7 +306,14 @@ private struct MarkdownBlockView: View {
                     .lineSpacing(5)
             }
         case let .blockquote(blocks, callout):
-            BlockquoteView(blocks: blocks, callout: callout, theme: theme)
+            BlockquoteView(
+                blocks: blocks,
+                callout: callout,
+                sourceBlockIndex: blockIndex,
+                taskItemOffset: taskItemOffset,
+                theme: theme,
+                onTaskStateChange: onTaskStateChange
+            )
         case let .unorderedList(items):
             ListBlockView(items: items, isOrdered: false, theme: theme)
         case let .orderedList(items):
@@ -313,6 +322,7 @@ private struct MarkdownBlockView: View {
             TaskListBlockView(
                 items: items,
                 blockIndex: blockIndex,
+                taskItemOffset: taskItemOffset,
                 theme: theme,
                 onTaskStateChange: onTaskStateChange
             )
@@ -415,11 +425,21 @@ private struct FrontMatterView: View {
 private struct BlockquoteView: View {
     let blocks: [MarkdownBlock]
     let callout: Callout?
+    let sourceBlockIndex: Int?
+    let taskItemOffset: Int
     let theme: MdoraTheme
+    let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
 
     var body: some View {
         if let callout {
-            CalloutView(callout: callout, blocks: blocks, theme: theme)
+            CalloutView(
+                callout: callout,
+                blocks: blocks,
+                sourceBlockIndex: sourceBlockIndex,
+                taskItemOffset: taskItemOffset,
+                theme: theme,
+                onTaskStateChange: onTaskStateChange
+            )
         } else {
             HStack(alignment: .top, spacing: 12) {
                 Rectangle()
@@ -431,10 +451,11 @@ private struct BlockquoteView: View {
                         let block = blocks[index]
                         MarkdownBlockView(
                             block: block,
-                            blockIndex: nil,
+                            blockIndex: sourceBlockIndex,
+                            taskItemOffset: nestedTaskItemOffset(for: index),
                             theme: theme,
                             isActive: false,
-                            onTaskStateChange: nil
+                            onTaskStateChange: onTaskStateChange
                         )
                     }
                 }
@@ -442,19 +463,38 @@ private struct BlockquoteView: View {
             .padding(.vertical, 4)
         }
     }
+
+    private func nestedTaskItemOffset(for index: Int) -> Int {
+        taskItemOffset + blocks.prefix(index).reduce(0) { count, block in
+            count + taskItemCount(in: block)
+        }
+    }
 }
 
 private struct CalloutView: View {
     let callout: Callout
     let blocks: [MarkdownBlock]
+    let sourceBlockIndex: Int?
+    let taskItemOffset: Int
     let theme: MdoraTheme
+    let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
     @Environment(\.mdoraPreviewStyle) private var style
     @State private var isExpanded: Bool
 
-    init(callout: Callout, blocks: [MarkdownBlock], theme: MdoraTheme) {
+    init(
+        callout: Callout,
+        blocks: [MarkdownBlock],
+        sourceBlockIndex: Int?,
+        taskItemOffset: Int,
+        theme: MdoraTheme,
+        onTaskStateChange: ((Int, Int, TaskState) -> Void)?
+    ) {
         self.callout = callout
         self.blocks = blocks
+        self.sourceBlockIndex = sourceBlockIndex
+        self.taskItemOffset = taskItemOffset
         self.theme = theme
+        self.onTaskStateChange = onTaskStateChange
         _isExpanded = State(initialValue: callout.fold != .collapsed)
     }
 
@@ -487,10 +527,11 @@ private struct CalloutView: View {
                         let block = blocks[index]
                         MarkdownBlockView(
                             block: block,
-                            blockIndex: nil,
+                            blockIndex: sourceBlockIndex,
+                            taskItemOffset: nestedTaskItemOffset(for: index),
                             theme: theme,
                             isActive: false,
-                            onTaskStateChange: nil
+                            onTaskStateChange: onTaskStateChange
                         )
                     }
                 }
@@ -504,6 +545,23 @@ private struct CalloutView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(callout.kind.tint.opacity(0.36), lineWidth: 1)
         )
+    }
+
+    private func nestedTaskItemOffset(for index: Int) -> Int {
+        taskItemOffset + blocks.prefix(index).reduce(0) { count, block in
+            count + taskItemCount(in: block)
+        }
+    }
+}
+
+private func taskItemCount(in block: MarkdownBlock) -> Int {
+    switch block {
+    case let .taskList(items):
+        items.count
+    case let .blockquote(blocks, _):
+        blocks.reduce(0) { count, block in count + taskItemCount(in: block) }
+    default:
+        0
     }
 }
 
@@ -540,6 +598,7 @@ private struct ListBlockView: View {
 private struct TaskListBlockView: View {
     let items: [TaskItem]
     let blockIndex: Int?
+    let taskItemOffset: Int
     let theme: MdoraTheme
     let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
 
@@ -561,8 +620,9 @@ private struct TaskListBlockView: View {
     @ViewBuilder
     private func taskStateControl(for item: TaskItem, itemIndex: Int) -> some View {
         if let blockIndex, let onTaskStateChange {
+            let sourceItemIndex = taskItemOffset + itemIndex
             Button {
-                onTaskStateChange(blockIndex, itemIndex, item.state.previewToggleState)
+                onTaskStateChange(blockIndex, sourceItemIndex, item.state.previewToggleState)
             } label: {
                 taskStateIcon(for: item.state, depth: item.depth)
             }
@@ -570,7 +630,7 @@ private struct TaskListBlockView: View {
             .contextMenu {
                 ForEach(TaskState.allCases, id: \.self) { state in
                     Button {
-                        onTaskStateChange(blockIndex, itemIndex, state)
+                        onTaskStateChange(blockIndex, sourceItemIndex, state)
                     } label: {
                         Label(state.title, systemImage: state.systemImage)
                     }

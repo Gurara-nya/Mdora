@@ -1337,7 +1337,34 @@ func runTests() {
         to: .done
     )
     assert(updatedParenthesizedTask?.contains("5) [x] Parenthesized follow-up") == true)
-    print("✅ Task source editing updates the targeted Markdown marker!")
+
+    let quotedTaskMarkdown = """
+    > [!NOTE]
+    > Intro
+    > - [ ] Quoted draft
+    > - [/] Quoted review
+    >
+    > > - [!] Nested important
+    """
+    let quotedTaskDocument = MarkdownParser.parse(quotedTaskMarkdown)
+    let updatedQuotedTask = MarkdownTaskSourceEditor.updatingTaskState(
+        in: quotedTaskMarkdown,
+        document: quotedTaskDocument,
+        blockIndex: 0,
+        itemIndex: 1,
+        to: .done
+    )
+    assert(updatedQuotedTask?.contains("> - [x] Quoted review") == true)
+
+    let updatedNestedQuotedTask = MarkdownTaskSourceEditor.updatingTaskState(
+        in: quotedTaskMarkdown,
+        document: quotedTaskDocument,
+        blockIndex: 0,
+        itemIndex: 2,
+        to: .question
+    )
+    assert(updatedNestedQuotedTask?.contains("> > - [?] Nested important") == true)
+    print("✅ Task source editing updates root and quoted Markdown task markers!")
 
     // 10. Test smart typing continuations
     assert(MarkdownTypingContinuation.continuation(after: "- [/] Review compatibility") == "\n- [ ] ")

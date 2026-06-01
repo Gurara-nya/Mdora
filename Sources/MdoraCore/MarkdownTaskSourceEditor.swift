@@ -9,8 +9,8 @@ public enum MarkdownTaskSourceEditor {
         to state: TaskState
     ) -> String? {
         guard document.blocks.indices.contains(blockIndex),
-              case let .taskList(items) = document.blocks[blockIndex],
-              items.indices.contains(itemIndex),
+              itemIndex >= 0,
+              itemIndex < taskItemCount(in: document.blocks[blockIndex]),
               let markerRange = taskMarkerRange(
                 in: markdown,
                 document: document,
@@ -68,9 +68,9 @@ public enum MarkdownTaskSourceEditor {
         let line = line as NSString
         var offset = 0
 
-        while offset < line.length && line.character(at: offset) == CharacterCode.space {
-            offset += 1
-        }
+        skipSpaces(in: line, from: &offset)
+        stripBlockquotePrefixes(in: line, from: &offset)
+        skipSpaces(in: line, from: &offset)
 
         guard offset < line.length else { return nil }
 
@@ -106,6 +106,30 @@ public enum MarkdownTaskSourceEditor {
         return contentOffset + 1
     }
 
+    private static func taskItemCount(in block: MarkdownBlock) -> Int {
+        switch block {
+        case let .taskList(items):
+            items.count
+        case let .blockquote(blocks, _):
+            blocks.reduce(0) { count, block in count + taskItemCount(in: block) }
+        default:
+            0
+        }
+    }
+
+    private static func stripBlockquotePrefixes(in line: NSString, from offset: inout Int) {
+        while offset < line.length, line.character(at: offset) == CharacterCode.greaterThan {
+            offset += 1
+            skipSpaces(in: line, from: &offset)
+        }
+    }
+
+    private static func skipSpaces(in line: NSString, from offset: inout Int) {
+        while offset < line.length && line.character(at: offset) == CharacterCode.space {
+            offset += 1
+        }
+    }
+
     private static func isUnorderedMarkerStart(_ value: unichar) -> Bool {
         value == CharacterCode.hyphen || value == CharacterCode.asterisk || value == CharacterCode.plus
     }
@@ -126,6 +150,7 @@ private enum CharacterCode {
     static let hyphen = "-".utf16.first!
     static let asterisk = "*".utf16.first!
     static let plus = "+".utf16.first!
+    static let greaterThan = ">".utf16.first!
     static let openBracket = "[".utf16.first!
     static let closeBracket = "]".utf16.first!
     static let zero = "0".utf16.first!
