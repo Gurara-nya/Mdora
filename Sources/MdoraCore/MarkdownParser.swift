@@ -739,12 +739,36 @@ private struct BlockParser {
 
         while index < lines.count {
             let line = currentLine
-            guard line.hasPrefix("    ") || line.hasPrefix("\t") else { break }
-            textLines.append(line.trimmed)
+
+            if line.trimmed.isEmpty {
+                guard let nextLine = self.line(at: 1),
+                      Self.footnoteContinuationText(from: nextLine) != nil else {
+                    break
+                }
+
+                textLines.append("")
+                index += 1
+                continue
+            }
+
+            guard let continuation = Self.footnoteContinuationText(from: line) else { break }
+            textLines.append(continuation)
             index += 1
         }
 
-        return .footnoteDefinition(identifier: identifier, text: textLines.joined(separator: " "))
+        return .footnoteDefinition(identifier: identifier, text: textLines.joined(separator: "\n").trimmed)
+    }
+
+    private static func footnoteContinuationText(from line: String) -> String? {
+        if line.hasPrefix("    ") {
+            return String(line.dropFirst(4)).trimmed
+        }
+
+        if line.hasPrefix("\t") {
+            return String(line.dropFirst()).trimmed
+        }
+
+        return nil
     }
 
     private mutating func parseDefinitionList() -> MarkdownBlock? {

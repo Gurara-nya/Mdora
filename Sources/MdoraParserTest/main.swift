@@ -1034,6 +1034,27 @@ func runTests() {
     assert(!footnoteDiagnosticDocument.diagnostics.contains { $0.id == "missing-footnote-fence" })
     print("✅ Missing-footnote diagnostics follow inline parsing and ignore code spans and fences!")
 
+    let multilineFootnoteMarkdown = """
+    Text[^long].
+
+    [^long]: First line
+        continued **bold**
+
+        second paragraph [link](https://example.com)
+    Tail paragraph.
+    """
+    let multilineFootnoteDocument = MarkdownParser.parse(multilineFootnoteMarkdown)
+    assert(multilineFootnoteDocument.blocks.count == 3)
+    guard case .footnoteDefinition("long", let multilineFootnoteText) = multilineFootnoteDocument.blocks[1] else {
+        fatalError("❌ Expected multiline footnote definition to stay one block")
+    }
+    assert(multilineFootnoteText == "First line\ncontinued **bold**\n\nsecond paragraph [link](https://example.com)")
+    assert(multilineFootnoteDocument.sourceRange(forBlockIndex: 1) == MarkdownBlockSourceRange(blockIndex: 1, startLine: 3, endLine: 6))
+    assert(!multilineFootnoteDocument.diagnostics.contains { $0.id == "missing-footnote-long" })
+    let multilineFootnoteHTML = MarkdownHTMLRenderer.renderFragment(multilineFootnoteDocument)
+    assert(multilineFootnoteHTML.contains(#"<sup>long</sup> First line<br>continued <strong>bold</strong><br><br>second paragraph <a href="https://example.com">link</a>"#))
+    print("✅ Multiline Markdown Extra footnotes keep indented continuations and inline formatting!")
+
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
     [Uses bad][bad]
