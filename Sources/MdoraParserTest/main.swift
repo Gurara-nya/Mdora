@@ -1377,7 +1377,14 @@ func runTests() {
     assert(MarkdownTypingContinuation.continuation(after: "> 7) [!] quoted ordered task") == "\n> 8) [ ] ")
     assert(MarkdownTypingContinuation.continuation(after: "> > 3. nested quote ordered item") == "\n> > 4. ")
     assert(MarkdownTypingContinuation.continuation(after: "    indented") == "\n    ")
-    print("✅ Smart typing continuation preserves task, quote, nested quote, ordered, and indentation context!")
+    assert(MarkdownTypingContinuation.continuation(after: "1. ") == "\n")
+    assert(MarkdownTypingContinuation.continuation(after: "1) [ ] ") == "\n")
+    assert(MarkdownTypingContinuation.continuation(after: "> - [ ] ") == "\n")
+    assert(MarkdownTypingContinuation.exitsContainerOnReturn(after: "- "))
+    assert(MarkdownTypingContinuation.exitsContainerOnReturn(after: "  1. "))
+    assert(MarkdownTypingContinuation.exitsContainerOnReturn(after: "> > - [ ] "))
+    assert(!MarkdownTypingContinuation.exitsContainerOnReturn(after: "- keep writing"))
+    print("✅ Smart typing continuation preserves context and exits empty lists, tasks, and quotes cleanly!")
 
     // 11. Test line indentation editing
     let lineEditMarkdown = "- [ ] One\n  - [ ] Two\nPlain"

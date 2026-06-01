@@ -1420,8 +1420,8 @@ private final class MarkdownNSTextView: NSTextView {
             return
         }
 
-        if let continuation = smartContinuation() {
-            insertText(continuation, replacementRange: selectedRange())
+        if let edit = smartContinuationEdit() {
+            insertText(edit.replacement, replacementRange: edit.replacementRange)
             onSmartNewline?()
         } else {
             super.insertNewline(sender)
@@ -1443,7 +1443,7 @@ private final class MarkdownNSTextView: NSTextView {
         onSmartNewline?()
     }
 
-    private func smartContinuation() -> String? {
+    private func smartContinuationEdit() -> (replacementRange: NSRange, replacement: String)? {
         let source = string as NSString
         guard source.length > 0 else { return nil }
 
@@ -1452,7 +1452,22 @@ private final class MarkdownNSTextView: NSTextView {
         let lineRange = source.lineRange(for: NSRange(location: lookupLocation, length: 0))
         let linePrefixLength = max(0, selectedLocation - lineRange.location)
         let linePrefix = source.substring(with: NSRange(location: lineRange.location, length: linePrefixLength))
-        return MarkdownTypingContinuation.continuation(after: linePrefix)
+        let lineSuffixLength = max(0, NSMaxRange(lineRange) - selectedLocation)
+        let lineSuffix = source.substring(with: NSRange(location: selectedLocation, length: lineSuffixLength))
+
+        if lineSuffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           MarkdownTypingContinuation.exitsContainerOnReturn(after: linePrefix) {
+            return (
+                replacementRange: NSRange(location: lineRange.location, length: linePrefixLength),
+                replacement: "\n"
+            )
+        }
+
+        guard let continuation = MarkdownTypingContinuation.continuation(after: linePrefix) else {
+            return nil
+        }
+
+        return (replacementRange: selectedRange(), replacement: continuation)
     }
 }
 

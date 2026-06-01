@@ -11,7 +11,7 @@ public enum MarkdownTypingContinuation {
             return nil
         }
 
-        if trimmed == ">" || trimmed == "> " {
+        if exitsContainerOnReturn(after: linePrefix) {
             return "\n"
         }
 
@@ -36,6 +36,63 @@ public enum MarkdownTypingContinuation {
         }
 
         return nil
+    }
+
+    public static func exitsContainerOnReturn(after linePrefix: String) -> Bool {
+        let trimmed = linePrefix.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return false }
+        return isEmptyContainerMarker(trimmed)
+    }
+
+    private static func isEmptyContainerMarker(_ trimmed: String) -> Bool {
+        if trimmed == ">" {
+            return true
+        }
+
+        if trimmed.hasPrefix(">") {
+            let quoted = removingLeadingQuoteMarkers(from: trimmed)
+            return quoted.isEmpty || isEmptyContainerMarker(quoted)
+        }
+
+        if ["-", "*", "+"].contains(trimmed) {
+            return true
+        }
+
+        for bullet in ["-", "*", "+"] {
+            for checkbox in taskCheckboxes where trimmed == "\(bullet) \(checkbox)" {
+                return true
+            }
+        }
+
+        return isEmptyOrderedContainerMarker(trimmed)
+    }
+
+    private static func removingLeadingQuoteMarkers(from text: String) -> String {
+        var cursor = text.startIndex
+
+        while cursor < text.endIndex, text[cursor] == ">" {
+            cursor = text.index(after: cursor)
+            if cursor < text.endIndex, text[cursor] == " " {
+                cursor = text.index(after: cursor)
+            }
+        }
+
+        return String(text[cursor...]).trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func isEmptyOrderedContainerMarker(_ trimmed: String) -> Bool {
+        guard let delimiterIndex = trimmed.firstIndex(where: { $0 == "." || $0 == ")" }) else {
+            return false
+        }
+
+        let numberPart = trimmed[..<delimiterIndex]
+        guard !numberPart.isEmpty, numberPart.allSatisfy({ $0.isNumber }) else { return false }
+
+        let afterDelimiter = trimmed.index(after: delimiterIndex)
+        guard afterDelimiter == trimmed.endIndex || trimmed[afterDelimiter] == " " else { return false }
+
+        let content = String(trimmed[afterDelimiter...]).trimmingCharacters(in: .whitespaces)
+        return content.isEmpty || taskCheckboxes.contains(content)
     }
 
     private static func blockquoteContinuation(trimmed: String, leading: String) -> String? {
