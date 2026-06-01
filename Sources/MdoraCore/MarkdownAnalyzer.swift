@@ -646,27 +646,45 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func blockIdentifiers(in blocks: [MarkdownBlock]) -> [String] {
-        blocks.flatMap(blockIdentifierTexts(from:)).compactMap(MarkdownBlockIDParser.trailingIdentifier)
+    private static func collectBlockIdentifierCounts(in blocks: [MarkdownBlock], into counts: inout [String: Int]) {
+        for block in blocks {
+            collectBlockIdentifierCounts(from: block, into: &counts)
+        }
     }
 
-    private static func blockIdentifierTexts(from block: MarkdownBlock) -> [String] {
+    private static func collectBlockIdentifierCounts(from block: MarkdownBlock, into counts: inout [String: Int]) {
         switch block {
         case let .heading(_, text, _, _), let .paragraph(text):
-            return [text]
+            incrementBlockIDCount(from: text, in: &counts)
         case let .blockquote(blocks, _):
-            return blocks.flatMap(blockIdentifierTexts(from:))
+            collectBlockIdentifierCounts(in: blocks, into: &counts)
         case let .unorderedList(items), let .orderedList(items):
-            return items.map(\.text)
+            for item in items {
+                incrementBlockIDCount(from: item.text, in: &counts)
+            }
         case let .taskList(items):
-            return items.map(\.text)
+            for item in items {
+                incrementBlockIDCount(from: item.text, in: &counts)
+            }
         case let .definitionList(items):
-            return items.flatMap { $0.terms + $0.definitions }
+            for item in items {
+                for term in item.terms {
+                    incrementBlockIDCount(from: term, in: &counts)
+                }
+                for definition in item.definitions {
+                    incrementBlockIDCount(from: definition, in: &counts)
+                }
+            }
         case let .footnoteDefinition(_, text):
-            return [text]
+            incrementBlockIDCount(from: text, in: &counts)
         case .frontMatter, .codeBlock, .diagram, .mathBlock, .table, .linkReferenceDefinition, .abbreviationDefinition, .image, .thematicBreak, .htmlComment, .html:
-            return []
+            break
         }
+    }
+
+    private static func incrementBlockIDCount(from text: String, in counts: inout [String: Int]) {
+        guard let identifier = MarkdownBlockIDParser.trailingIdentifier(in: text) else { return }
+        counts[identifier, default: 0] += 1
     }
 
     private static func inlineMarkers(
@@ -1016,16 +1034,17 @@ public enum MarkdownAnalyzer {
     }
 
     private static func blockIDDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
-        let grouped = Dictionary(grouping: blockIdentifiers(in: blocks), by: { $0 })
+        var counts: [String: Int] = [:]
+        collectBlockIdentifierCounts(in: blocks, into: &counts)
 
-        return grouped.compactMap { identifier, identifiers in
-            guard identifiers.count > 1 else { return nil }
+        return counts.compactMap { identifier, count in
+            guard count > 1 else { return nil }
 
             return MarkdownDiagnostic(
                 id: "duplicate-block-id-\(identifier)",
                 severity: .warning,
                 title: "Duplicate block id",
-                message: "\(identifiers.count) blocks use the same ^\(identifier) id."
+                message: "\(count) blocks use the same ^\(identifier) id."
             )
         }
         .sorted { $0.id < $1.id }

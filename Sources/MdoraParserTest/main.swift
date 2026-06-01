@@ -189,6 +189,33 @@ func runTests() {
     assert(blockMarkerDocument.markers.taskStates.contains(TaskStateCount(state: .inProgress, count: 1)))
     print("✅ Block-level analyzer markers are collected in one pass without losing rich syntax markers!")
 
+    let duplicateBlockIDMarkdown = """
+    Paragraph ^shared-id
+    - Item ^shared-id
+
+    > Quote ^nested-id
+    > - [ ] Task ^nested-id
+
+    Term
+    : Definition ^definition-id
+    Other Term
+    : More ^definition-id
+    """
+    let duplicateBlockIDDocument = MarkdownParser.parse(duplicateBlockIDMarkdown)
+    assert(duplicateBlockIDDocument.diagnostics.contains {
+        $0.id == "duplicate-block-id-shared-id" &&
+            $0.message == "2 blocks use the same ^shared-id id."
+    })
+    assert(duplicateBlockIDDocument.diagnostics.contains {
+        $0.id == "duplicate-block-id-nested-id" &&
+            $0.message == "2 blocks use the same ^nested-id id."
+    })
+    assert(duplicateBlockIDDocument.diagnostics.contains {
+        $0.id == "duplicate-block-id-definition-id" &&
+            $0.message == "2 blocks use the same ^definition-id id."
+    })
+    print("✅ Duplicate block-id diagnostics stream nested, list, task, and definition blocks!")
+
     let parsedFragment = MarkdownHTMLRenderer.renderFragment(cachedDocument)
     assert(parsedFragment == MarkdownHTMLRenderer.renderFragment(cachedDocumentMarkdown))
     let parsedDocumentHTML = MarkdownHTMLRenderer.renderDocument(cachedDocument, title: "Cached")
