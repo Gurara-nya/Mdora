@@ -441,6 +441,7 @@ private struct BlockquoteView: View {
                 onTaskStateChange: onTaskStateChange
             )
         } else {
+            let taskOffsets = taskItemOffsets(for: blocks, baseOffset: taskItemOffset)
             HStack(alignment: .top, spacing: 12) {
                 Rectangle()
                     .fill(theme.palette.borderColor)
@@ -452,7 +453,7 @@ private struct BlockquoteView: View {
                         MarkdownBlockView(
                             block: block,
                             blockIndex: sourceBlockIndex,
-                            taskItemOffset: nestedTaskItemOffset(for: index),
+                            taskItemOffset: taskOffsets[index],
                             theme: theme,
                             isActive: false,
                             onTaskStateChange: onTaskStateChange
@@ -461,12 +462,6 @@ private struct BlockquoteView: View {
                 }
             }
             .padding(.vertical, 4)
-        }
-    }
-
-    private func nestedTaskItemOffset(for index: Int) -> Int {
-        taskItemOffset + blocks.prefix(index).reduce(0) { count, block in
-            count + taskItemCount(in: block)
         }
     }
 }
@@ -522,13 +517,14 @@ private struct CalloutView: View {
             .buttonStyle(.plain)
 
             if isExpanded {
+                let taskOffsets = taskItemOffsets(for: blocks, baseOffset: taskItemOffset)
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(blocks.indices, id: \.self) { index in
                         let block = blocks[index]
                         MarkdownBlockView(
                             block: block,
                             blockIndex: sourceBlockIndex,
-                            taskItemOffset: nestedTaskItemOffset(for: index),
+                            taskItemOffset: taskOffsets[index],
                             theme: theme,
                             isActive: false,
                             onTaskStateChange: onTaskStateChange
@@ -546,12 +542,19 @@ private struct CalloutView: View {
                 .stroke(callout.kind.tint.opacity(0.36), lineWidth: 1)
         )
     }
+}
 
-    private func nestedTaskItemOffset(for index: Int) -> Int {
-        taskItemOffset + blocks.prefix(index).reduce(0) { count, block in
-            count + taskItemCount(in: block)
-        }
+private func taskItemOffsets(for blocks: [MarkdownBlock], baseOffset: Int) -> [Int] {
+    var offsets: [Int] = []
+    offsets.reserveCapacity(blocks.count)
+
+    var nextOffset = baseOffset
+    for block in blocks {
+        offsets.append(nextOffset)
+        nextOffset += taskItemCount(in: block)
     }
+
+    return offsets
 }
 
 private func taskItemCount(in block: MarkdownBlock) -> Int {
