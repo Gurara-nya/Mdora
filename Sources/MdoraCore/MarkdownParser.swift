@@ -21,17 +21,20 @@ public enum MarkdownParser {
         let blocks = parsedBlocks.blocks
         let outline = MarkdownAnalyzer.outline(from: blocks)
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
+        let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
+        let abbreviationDefinitions = MarkdownAnalyzer.abbreviationDefinitions(from: blocks)
         let markers = MarkdownAnalyzer.markers(
             in: markdown,
             blocks: blocks,
-            sourceMap: parsedBlocks.sourceMap
+            sourceMap: parsedBlocks.sourceMap,
+            referenceDefinitions: referenceDefinitions,
+            abbreviationDefinitions: abbreviationDefinitions
         )
-        let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
-        let abbreviationDefinitions = MarkdownAnalyzer.abbreviationDefinitions(from: blocks)
         let diagnostics = MarkdownAnalyzer.diagnostics(
             in: markdown,
             blocks: blocks,
-            outline: outline
+            outline: outline,
+            referenceDefinitions: referenceDefinitions
         )
         let stats = MarkdownAnalyzer.stats(for: markdown, blocks: blocks)
 

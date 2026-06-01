@@ -92,6 +92,41 @@ func runTests() {
     assert(MarkdownParser.parse(cachedDocumentMarkdown) == cachedDocument)
     print("✅ Whole-document parse cache preserves parsed Markdown output across repeated refreshes!")
 
+    let analyzerReuseMarkdown = """
+    [Known][known] [Missing][missing] HTML.
+
+    [known]: https://example.com
+    [known]: https://duplicate.example
+    *[HTML]: Hyper Text Markup Language
+    """
+    let analyzerReuseDocument = MarkdownParser.parse(analyzerReuseMarkdown)
+    let analyzerReuseReferences = MarkdownAnalyzer.referenceDefinitions(from: analyzerReuseDocument.blocks)
+    let analyzerReuseAbbreviations = MarkdownAnalyzer.abbreviationDefinitions(from: analyzerReuseDocument.blocks)
+    assert(MarkdownAnalyzer.markers(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        sourceMap: analyzerReuseDocument.sourceMap,
+        referenceDefinitions: analyzerReuseReferences,
+        abbreviationDefinitions: analyzerReuseAbbreviations
+    ) == MarkdownAnalyzer.markers(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        sourceMap: analyzerReuseDocument.sourceMap
+    ))
+    assert(MarkdownAnalyzer.diagnostics(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        outline: analyzerReuseDocument.outline,
+        referenceDefinitions: analyzerReuseReferences
+    ) == MarkdownAnalyzer.diagnostics(
+        in: analyzerReuseMarkdown,
+        blocks: analyzerReuseDocument.blocks,
+        outline: analyzerReuseDocument.outline
+    ))
+    assert(analyzerReuseDocument.diagnostics.contains { $0.id == "missing-reference-missing" })
+    assert(analyzerReuseDocument.diagnostics.contains { $0.id == "duplicate-reference-known" })
+    print("✅ Analyzer reuse avoids duplicate definition scans while preserving markers and diagnostics!")
+
     let parsedFragment = MarkdownHTMLRenderer.renderFragment(cachedDocument)
     assert(parsedFragment == MarkdownHTMLRenderer.renderFragment(cachedDocumentMarkdown))
     let parsedDocumentHTML = MarkdownHTMLRenderer.renderDocument(cachedDocument, title: "Cached")

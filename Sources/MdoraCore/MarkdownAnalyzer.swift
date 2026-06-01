@@ -119,10 +119,13 @@ public enum MarkdownAnalyzer {
     public static func markers(
         in markdown: String,
         blocks: [MarkdownBlock],
-        sourceMap: [MarkdownBlockSourceRange] = []
+        sourceMap: [MarkdownBlockSourceRange] = [],
+        referenceDefinitions precomputedReferences: [String: LinkReferenceDefinition]? = nil,
+        abbreviationDefinitions precomputedAbbreviations: [String: AbbreviationDefinition]? = nil
     ) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
-        let references = referenceDefinitions(from: blocks)
+        let references = precomputedReferences ?? referenceDefinitions(from: blocks)
+        let abbreviations = precomputedAbbreviations ?? abbreviationDefinitions(from: blocks)
         let inlineMarkers = inlineMarkers(in: blocks, references: references)
 
         markers.links = unique(inlineMarkers.links)
@@ -136,7 +139,7 @@ public enum MarkdownAnalyzer {
         markers.wikiEmbeds = unique(inlineMarkers.wikiEmbeds)
         markers.blockIDs = unique(blockIdentifiers(in: blocks))
         markers.customAnchors = unique(customHeadingAnchors(in: blocks))
-        markers.abbreviations = unique(abbreviationDefinitions(from: blocks).values.sorted { lhs, rhs in
+        markers.abbreviations = unique(abbreviations.values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
         })
         markers.footnotes = unique(blockFootnoteLabels(in: blocks) + inlineMarkers.footnotes)
@@ -234,11 +237,13 @@ public enum MarkdownAnalyzer {
     public static func diagnostics(
         in markdown: String,
         blocks: [MarkdownBlock],
-        outline: [DocumentSymbol]
+        outline: [DocumentSymbol],
+        referenceDefinitions precomputedReferences: [String: LinkReferenceDefinition]? = nil
     ) -> [MarkdownDiagnostic] {
         var diagnostics: [MarkdownDiagnostic] = []
+        let references = precomputedReferences ?? referenceDefinitions(from: blocks)
         diagnostics.append(contentsOf: structuralDiagnostics(in: markdown))
-        diagnostics.append(contentsOf: inlineReferenceDiagnostics(in: blocks))
+        diagnostics.append(contentsOf: inlineReferenceDiagnostics(in: blocks, referenceDefinitionKeys: Set(references.keys)))
         diagnostics.append(contentsOf: headingDiagnostics(outline: outline))
         diagnostics.append(contentsOf: blockIDDiagnostics(in: blocks))
         diagnostics.append(contentsOf: duplicateReferenceDiagnostics(in: blocks))
@@ -916,8 +921,10 @@ public enum MarkdownAnalyzer {
         return diagnostics
     }
 
-    private static func inlineReferenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
-        let definitions = Set(referenceDefinitions(from: blocks).keys)
+    private static func inlineReferenceDiagnostics(
+        in blocks: [MarkdownBlock],
+        referenceDefinitionKeys definitions: Set<String>
+    ) -> [MarkdownDiagnostic] {
         let footnoteDefinitions = Set(
             blockFootnoteLabels(in: blocks).map(normalizedFootnoteLabel)
         )
