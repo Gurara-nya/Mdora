@@ -7,10 +7,10 @@ public enum MarkdownHTMLRenderer {
 
         init(
             references: [String: LinkReferenceDefinition],
-            abbreviations: [String: AbbreviationDefinition]
+            abbreviationMatcher: MarkdownAbbreviationMatcher
         ) {
             self.references = references
-            self.abbreviationMatcher = MarkdownAbbreviationMatcher(abbreviations.values)
+            self.abbreviationMatcher = abbreviationMatcher
         }
     }
 
@@ -52,7 +52,7 @@ public enum MarkdownHTMLRenderer {
     public static func renderFragment(_ document: ParsedMarkdownDocument) -> String {
         let context = RenderContext(
             references: document.referenceDefinitions,
-            abbreviations: document.abbreviationDefinitions
+            abbreviationMatcher: document.abbreviationMatcher
         )
 
         return document.blocks.map { block in

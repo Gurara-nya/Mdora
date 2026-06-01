@@ -23,6 +23,7 @@ public enum MarkdownParser {
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
         let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
         let abbreviationDefinitions = MarkdownAnalyzer.abbreviationDefinitions(from: blocks)
+        let abbreviationMatcher = MarkdownAbbreviationMatcher(abbreviationDefinitions.values)
         let markers = MarkdownAnalyzer.markers(
             in: markdown,
             blocks: blocks,
@@ -46,6 +47,7 @@ public enum MarkdownParser {
             markers: markers,
             referenceDefinitions: referenceDefinitions,
             abbreviationDefinitions: abbreviationDefinitions,
+            abbreviationMatcher: abbreviationMatcher,
             diagnostics: diagnostics,
             stats: stats
         )

@@ -203,7 +203,12 @@ func runTests() {
     *[API]: Application Programming Interface
     *[API Gateway]: Application Programming Interface Gateway
     """
-    let abbreviationHTML = MarkdownHTMLRenderer.renderFragment(abbreviationMarkdown)
+    let abbreviationDocument = MarkdownParser.parse(abbreviationMarkdown)
+    assert(abbreviationDocument.abbreviationMatcher.matchingDefinition(
+        in: abbreviationStartText,
+        at: abbreviationStart
+    )?.term == "API Gateway")
+    let abbreviationHTML = MarkdownHTMLRenderer.renderFragment(abbreviationDocument)
     assert(abbreviationHTML.contains(#"<abbr title="Application Programming Interface Gateway">API Gateway</abbr> talks to <abbr title="Application Programming Interface">API</abbr>."#))
     print("✅ Abbreviation rendering sorts once by longest match for preview/export compatibility!")
 

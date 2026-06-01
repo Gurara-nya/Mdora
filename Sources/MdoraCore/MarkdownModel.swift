@@ -8,6 +8,7 @@ public struct ParsedMarkdownDocument: Equatable {
     public var markers: MarkdownMarkers
     public var referenceDefinitions: [String: LinkReferenceDefinition]
     public var abbreviationDefinitions: [String: AbbreviationDefinition]
+    public var abbreviationMatcher: MarkdownAbbreviationMatcher
     public var diagnostics: [MarkdownDiagnostic]
     public var stats: MarkdownStats
 
@@ -19,6 +20,7 @@ public struct ParsedMarkdownDocument: Equatable {
         markers: MarkdownMarkers,
         referenceDefinitions: [String: LinkReferenceDefinition] = [:],
         abbreviationDefinitions: [String: AbbreviationDefinition] = [:],
+        abbreviationMatcher: MarkdownAbbreviationMatcher? = nil,
         diagnostics: [MarkdownDiagnostic] = [],
         stats: MarkdownStats
     ) {
@@ -29,6 +31,7 @@ public struct ParsedMarkdownDocument: Equatable {
         self.markers = markers
         self.referenceDefinitions = referenceDefinitions
         self.abbreviationDefinitions = abbreviationDefinitions
+        self.abbreviationMatcher = abbreviationMatcher ?? MarkdownAbbreviationMatcher(abbreviationDefinitions.values)
         self.diagnostics = diagnostics
         self.stats = stats
     }

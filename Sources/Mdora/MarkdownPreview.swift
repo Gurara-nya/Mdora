@@ -91,10 +91,7 @@ struct MarkdownPreview: View {
             }
             .environment(\.mdoraPreviewStyle, renderStyle)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
-            .environment(
-                \.mdoraAbbreviationMatcher,
-                MarkdownAbbreviationMatcher(parsed.abbreviationDefinitions.values)
-            )
+            .environment(\.mdoraAbbreviationMatcher, parsed.abbreviationMatcher)
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
             .environment(\.openURL, OpenURLAction { url in
                 if url.scheme == "mdora" {
