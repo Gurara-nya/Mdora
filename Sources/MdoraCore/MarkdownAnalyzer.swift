@@ -355,7 +355,7 @@ public enum MarkdownAnalyzer {
                 if sourceRange.contains(line: lineNumber),
                    blocks.indices.contains(sourceRange.blockIndex),
                    shouldScanRawTaskTokenLine(in: blocks[sourceRange.blockIndex]),
-                   let token = taskToken(in: String(rawLine)) {
+                   let token = taskToken(in: rawLine) {
                     tokens.append(token)
                 }
             }
@@ -425,13 +425,13 @@ public enum MarkdownAnalyzer {
 
     private static func collectTaskTokens(inText text: String, into tokens: inout [TaskToken]) {
         for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
-            if let token = taskToken(in: String(line)) {
+            if let token = taskToken(in: line) {
                 tokens.append(token)
             }
         }
     }
 
-    private static func taskToken(in line: String) -> TaskToken? {
+    private static func taskToken<S: StringProtocol>(in line: S) -> TaskToken? {
         var cursor = line.startIndex
         skipWhitespace(in: line, from: &cursor)
         stripHeadingPrefix(in: line, from: &cursor)
@@ -466,7 +466,7 @@ public enum MarkdownAnalyzer {
         return TaskToken(kind: kind, text: text)
     }
 
-    private static func stripHeadingPrefix(in line: String, from cursor: inout String.Index) {
+    private static func stripHeadingPrefix<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         guard cursor < line.endIndex, line[cursor] == "#" else { return }
 
         var scan = cursor
@@ -486,12 +486,12 @@ public enum MarkdownAnalyzer {
         skipWhitespace(in: line, from: &cursor)
     }
 
-    private static func stripListPrefix(in line: String, from cursor: inout String.Index) {
+    private static func stripListPrefix<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         stripMarkdownListMarker(in: line, from: &cursor)
         stripTaskStatePrefix(in: line, from: &cursor)
     }
 
-    private static func stripMarkdownListMarker(in line: String, from cursor: inout String.Index) {
+    private static func stripMarkdownListMarker<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         guard cursor < line.endIndex else { return }
 
         let marker = line[cursor]
@@ -520,7 +520,7 @@ public enum MarkdownAnalyzer {
         skipWhitespace(in: line, from: &cursor)
     }
 
-    private static func stripTaskStatePrefix(in line: String, from cursor: inout String.Index) {
+    private static func stripTaskStatePrefix<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         guard cursor < line.endIndex, line[cursor] == "[" else { return }
         guard let markerIndex = line.index(cursor, offsetBy: 1, limitedBy: line.endIndex),
               markerIndex < line.endIndex,
@@ -537,13 +537,13 @@ public enum MarkdownAnalyzer {
         skipWhitespace(in: line, from: &cursor)
     }
 
-    private static func stripHTMLCommentPrefix(in line: String, from cursor: inout String.Index) {
+    private static func stripHTMLCommentPrefix<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         guard line[cursor...].hasPrefix("<!--") else { return }
         cursor = line.index(cursor, offsetBy: 4)
         skipWhitespace(in: line, from: &cursor)
     }
 
-    private static func skipWhitespace(in line: String, from cursor: inout String.Index) {
+    private static func skipWhitespace<S: StringProtocol>(in line: S, from cursor: inout S.Index) {
         while cursor < line.endIndex, line[cursor].isWhitespace {
             cursor = line.index(after: cursor)
         }

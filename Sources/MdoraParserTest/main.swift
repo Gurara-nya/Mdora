@@ -1492,6 +1492,7 @@ func runTests() {
     // 15. Test TODO-style marker recognition across Markdown prefixes
     let taskTokenMarkdown = """
     TODO: Root marker
+    todo: Lowercase marker
     + FIXME: Plus marker
     1. BUG: Ordered dot marker
     2) HACK: Ordered paren marker
@@ -1502,6 +1503,7 @@ func runTests() {
     let taskTokenDocument = MarkdownParser.parse(taskTokenMarkdown)
     assert(taskTokenDocument.markers.taskTokens.map { "\($0.kind.title): \($0.text)" } == [
         "TODO: Root marker",
+        "TODO: Lowercase marker",
         "FIXME: Plus marker",
         "BUG: Ordered dot marker",
         "HACK: Ordered paren marker",
