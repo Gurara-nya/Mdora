@@ -126,6 +126,7 @@ public enum MarkdownAnalyzer {
         var markers = MarkdownMarkers()
         let references = precomputedReferences ?? referenceDefinitions(from: blocks)
         let abbreviations = precomputedAbbreviations ?? abbreviationDefinitions(from: blocks)
+        let blockMarkers = collectBlockMarkers(in: blocks)
         let inlineMarkers = inlineMarkers(in: blocks, references: references)
 
         markers.links = unique(inlineMarkers.links)
@@ -137,19 +138,19 @@ public enum MarkdownAnalyzer {
         markers.mentions = unique(inlineMarkers.mentions)
         markers.wikiLinks = unique(inlineMarkers.wikiLinks)
         markers.wikiEmbeds = unique(inlineMarkers.wikiEmbeds)
-        markers.blockIDs = unique(blockIdentifiers(in: blocks))
-        markers.customAnchors = unique(customHeadingAnchors(in: blocks))
+        markers.blockIDs = unique(blockMarkers.blockIDs)
+        markers.customAnchors = unique(blockMarkers.customAnchors)
         markers.abbreviations = unique(abbreviations.values.sorted { lhs, rhs in
             lhs.term.localizedCaseInsensitiveCompare(rhs.term) == .orderedAscending
         })
-        markers.footnotes = unique(blockFootnoteLabels(in: blocks) + inlineMarkers.footnotes)
-        markers.linkReferences = unique(blockReferenceLabels(in: blocks) + inlineMarkers.linkReferences)
-        markers.htmlComments = unique(htmlComments(in: blocks))
+        markers.footnotes = unique(blockMarkers.footnotes + inlineMarkers.footnotes)
+        markers.linkReferences = unique(blockMarkers.linkReferences + inlineMarkers.linkReferences)
+        markers.htmlComments = unique(blockMarkers.htmlComments)
         markers.inlineHTML = unique(inlineMarkers.inlineHTML)
         markers.htmlEntities = unique(inlineMarkers.htmlEntities)
         markers.taskTokens = taskTokens(in: markdown, blocks: blocks, sourceMap: sourceMap)
-        markers.taskStates = taskStateCounts(in: blocks)
-        markers.mathExpressions = unique(blockMathExpressions(in: blocks) + inlineMarkers.mathExpressions)
+        markers.taskStates = blockMarkers.taskStates
+        markers.mathExpressions = unique(blockMarkers.mathExpressions + inlineMarkers.mathExpressions)
         markers.highlights = unique(inlineMarkers.highlights)
         markers.superscripts = unique(inlineMarkers.superscripts)
         markers.subscripts = unique(inlineMarkers.subscripts)
@@ -161,34 +162,9 @@ public enum MarkdownAnalyzer {
         markers.citations = unique(inlineMarkers.citations)
         markers.emojiShortcodes = unique(inlineMarkers.emojiShortcodes)
         markers.keyboardShortcuts = unique(inlineMarkers.keyboardShortcuts)
-
-        markers.codeLanguages = unique(
-            blocks.compactMap { block in
-                if case let .codeBlock(language, _) = block {
-                    return language?.lowercased()
-                }
-
-                return nil
-            }
-        )
-
-        markers.diagrams = unique(
-            blocks.compactMap { block in
-                if case let .diagram(diagram) = block {
-                    return diagram.kind
-                }
-
-                return nil
-            }
-        )
-
-        markers.callouts = blocks.compactMap { block in
-            if case let .blockquote(_, callout) = block {
-                return callout
-            }
-
-            return nil
-        }
+        markers.codeLanguages = unique(blockMarkers.codeLanguages)
+        markers.diagrams = unique(blockMarkers.diagrams)
+        markers.callouts = blockMarkers.callouts
 
         return markers
     }
@@ -568,26 +544,86 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func blockMathExpressions(in blocks: [MarkdownBlock]) -> [String] {
-        blocks.compactMap { block -> String? in
-            if case let .mathBlock(expression) = block {
-                let trimmed = expression.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : trimmed
-            }
+    private static func collectBlockMarkers(in blocks: [MarkdownBlock]) -> BlockMarkerCollections {
+        var markers = BlockMarkerCollections()
 
-            return nil
+        for block in blocks {
+            collectBlockMarkers(from: block, isNested: false, into: &markers)
+        }
+
+        return markers
+    }
+
+    private static func collectBlockMarkers(
+        from block: MarkdownBlock,
+        isNested: Bool,
+        into markers: inout BlockMarkerCollections
+    ) {
+        switch block {
+        case let .heading(_, text, _, customAnchor):
+            appendBlockID(from: text, to: &markers.blockIDs)
+            if let customAnchor {
+                markers.customAnchors.append(customAnchor)
+            }
+        case let .paragraph(text):
+            appendBlockID(from: text, to: &markers.blockIDs)
+        case let .blockquote(blocks, callout):
+            if !isNested, let callout {
+                markers.callouts.append(callout)
+            }
+            for block in blocks {
+                collectBlockMarkers(from: block, isNested: true, into: &markers)
+            }
+        case let .unorderedList(items), let .orderedList(items):
+            for item in items {
+                appendBlockID(from: item.text, to: &markers.blockIDs)
+            }
+        case let .taskList(items):
+            for item in items {
+                appendBlockID(from: item.text, to: &markers.blockIDs)
+                if !isNested {
+                    markers.taskStateCounts[item.state, default: 0] += 1
+                }
+            }
+        case let .codeBlock(language, _):
+            if !isNested, let language {
+                markers.codeLanguages.append(language.lowercased())
+            }
+        case let .diagram(diagram):
+            if !isNested {
+                markers.diagrams.append(diagram.kind)
+            }
+        case let .mathBlock(expression):
+            guard !isNested else { break }
+            appendTrimmed(expression, to: &markers.mathExpressions)
+        case let .definitionList(items):
+            for item in items {
+                appendBlockID(from: item.term, to: &markers.blockIDs)
+                for definition in item.definitions {
+                    appendBlockID(from: definition, to: &markers.blockIDs)
+                }
+            }
+        case let .footnoteDefinition(identifier, text):
+            appendBlockID(from: text, to: &markers.blockIDs)
+            if !isNested {
+                appendTrimmed(identifier, to: &markers.footnotes)
+            }
+        case let .linkReferenceDefinition(definition):
+            if !isNested {
+                appendTrimmed(definition.label, to: &markers.linkReferences)
+            }
+        case let .htmlComment(comment):
+            if !isNested {
+                markers.htmlComments.append(comment)
+            }
+        case .frontMatter, .table, .abbreviationDefinition, .image, .thematicBreak, .html:
+            break
         }
     }
 
-    private static func blockReferenceLabels(in blocks: [MarkdownBlock]) -> [String] {
-        blocks.compactMap { block -> String? in
-            if case let .linkReferenceDefinition(definition) = block {
-                let trimmed = definition.label.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : trimmed
-            }
-
-            return nil
-        }
+    private static func appendBlockID(from text: String, to identifiers: inout [String]) {
+        guard let identifier = MarkdownBlockIDParser.trailingIdentifier(in: text) else { return }
+        identifiers.append(identifier)
     }
 
     private static func blockFootnoteLabels(in blocks: [MarkdownBlock]) -> [String] {
@@ -603,22 +639,6 @@ public enum MarkdownAnalyzer {
 
     private static func blockIdentifiers(in blocks: [MarkdownBlock]) -> [String] {
         blocks.flatMap(blockIdentifierTexts(from:)).compactMap(MarkdownBlockIDParser.trailingIdentifier)
-    }
-
-    private static func taskStateCounts(in blocks: [MarkdownBlock]) -> [TaskStateCount] {
-        var counts: [TaskState: Int] = [:]
-
-        for block in blocks {
-            guard case let .taskList(items) = block else { continue }
-            for item in items {
-                counts[item.state, default: 0] += 1
-            }
-        }
-
-        return TaskState.allCases.compactMap { state in
-            guard let count = counts[state], count > 0 else { return nil }
-            return TaskStateCount(state: state, count: count)
-        }
     }
 
     private static func blockIdentifierTexts(from block: MarkdownBlock) -> [String] {
@@ -786,41 +806,6 @@ public enum MarkdownAnalyzer {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         values.append(trimmed)
-    }
-
-    private static func htmlComments(in blocks: [MarkdownBlock]) -> [String] {
-        blocks.compactMap { block in
-            if case let .htmlComment(comment) = block {
-                return comment
-            }
-
-            return nil
-        }
-    }
-
-    private static func customHeadingAnchors(in blocks: [MarkdownBlock]) -> [String] {
-        var anchors: [String] = []
-
-        for block in blocks {
-            collectCustomHeadingAnchors(from: block, into: &anchors)
-        }
-
-        return anchors
-    }
-
-    private static func collectCustomHeadingAnchors(from block: MarkdownBlock, into anchors: inout [String]) {
-        switch block {
-        case let .heading(_, _, _, customAnchor):
-            if let customAnchor {
-                anchors.append(customAnchor)
-            }
-        case let .blockquote(blocks, _):
-            for block in blocks {
-                collectCustomHeadingAnchors(from: block, into: &anchors)
-            }
-        default:
-            break
-        }
     }
 
     private static func structuralDiagnostics(in markdown: String) -> [MarkdownDiagnostic] {
@@ -1038,6 +1023,26 @@ public enum MarkdownAnalyzer {
             )
         }
         .sorted { $0.id < $1.id }
+    }
+}
+
+private struct BlockMarkerCollections {
+    var blockIDs: [String] = []
+    var customAnchors: [String] = []
+    var footnotes: [String] = []
+    var linkReferences: [String] = []
+    var htmlComments: [String] = []
+    var mathExpressions: [String] = []
+    var codeLanguages: [String] = []
+    var diagrams: [DiagramKind] = []
+    var callouts: [Callout] = []
+    var taskStateCounts: [TaskState: Int] = [:]
+
+    var taskStates: [TaskStateCount] {
+        TaskState.allCases.compactMap { state in
+            guard let count = taskStateCounts[state], count > 0 else { return nil }
+            return TaskStateCount(state: state, count: count)
+        }
     }
 }
 

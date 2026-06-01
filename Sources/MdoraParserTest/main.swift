@@ -127,6 +127,53 @@ func runTests() {
     assert(analyzerReuseDocument.diagnostics.contains { $0.id == "duplicate-reference-known" })
     print("✅ Analyzer reuse avoids duplicate definition scans while preserving markers and diagnostics!")
 
+    let blockMarkerMarkdown = """
+    # Heading {#custom-anchor}
+
+    Paragraph ^para-id
+
+    > [!note] Heads up
+    > Quote text ^quote-id
+
+    - [x] Done ^done-id
+    - [/] Doing
+
+    ```swift
+    let x = 1
+    ```
+
+    $$
+    x + y
+    $$
+
+    [^note]: Footnote ^foot-id
+
+    [ref]: https://example.com
+
+    <!-- visible comment -->
+
+    ```mermaid
+    flowchart LR
+      A --> B
+    ```
+    """
+    let blockMarkerDocument = MarkdownParser.parse(blockMarkerMarkdown)
+    assert(blockMarkerDocument.markers.blockIDs.contains("para-id"))
+    assert(blockMarkerDocument.markers.blockIDs.contains("quote-id"))
+    assert(blockMarkerDocument.markers.blockIDs.contains("done-id"))
+    assert(blockMarkerDocument.markers.blockIDs.contains("foot-id"))
+    assert(blockMarkerDocument.markers.customAnchors.contains("custom-anchor"))
+    assert(blockMarkerDocument.markers.footnotes.contains("note"))
+    assert(blockMarkerDocument.markers.linkReferences.contains("ref"))
+    assert(blockMarkerDocument.markers.htmlComments.contains { $0.contains("visible comment") })
+    assert(blockMarkerDocument.markers.mathExpressions.contains("x + y"))
+    assert(blockMarkerDocument.markers.codeLanguages.contains("swift"))
+    assert(blockMarkerDocument.markers.diagrams.contains(.mermaid))
+    assert(blockMarkerDocument.markers.callouts.contains { $0.kind == .note })
+    assert(blockMarkerDocument.markers.taskStates.contains(TaskStateCount(state: .done, count: 1)))
+    assert(blockMarkerDocument.markers.taskStates.contains(TaskStateCount(state: .inProgress, count: 1)))
+    print("✅ Block-level analyzer markers are collected in one pass without losing rich syntax markers!")
+
     let parsedFragment = MarkdownHTMLRenderer.renderFragment(cachedDocument)
     assert(parsedFragment == MarkdownHTMLRenderer.renderFragment(cachedDocumentMarkdown))
     let parsedDocumentHTML = MarkdownHTMLRenderer.renderDocument(cachedDocument, title: "Cached")
