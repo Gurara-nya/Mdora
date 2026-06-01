@@ -98,16 +98,59 @@ def radial_glow(
     base.alpha_composite(glow)
 
 
-def rounded_line(
-    draw: ImageDraw.ImageDraw,
+def cubic_points(
     start: tuple[int, int],
+    control1: tuple[int, int],
+    control2: tuple[int, int],
     end: tuple[int, int],
-    width: int,
-    fill: tuple[int, int, int, int],
-) -> None:
-    draw.line([start, end], width=width, fill=fill)
+    steps: int,
+) -> list[tuple[int, int]]:
+    points: list[tuple[int, int]] = []
+
+    for step in range(steps + 1):
+        t = step / steps
+        mt = 1 - t
+        x = (
+            mt ** 3 * start[0]
+            + 3 * mt ** 2 * t * control1[0]
+            + 3 * mt * t ** 2 * control2[0]
+            + t ** 3 * end[0]
+        )
+        y = (
+            mt ** 3 * start[1]
+            + 3 * mt ** 2 * t * control1[1]
+            + 3 * mt * t ** 2 * control2[1]
+            + t ** 3 * end[1]
+        )
+        points.append((int(round(x)), int(round(y))))
+
+    return points
+
+
+def liquid_monogram_points() -> list[tuple[int, int]]:
+    segments = [
+        ((s(318), s(684)), (s(318), s(574)), (s(322), s(436)), (s(386), s(406))),
+        ((s(386), s(406)), (s(445), s(378)), (s(478), s(539)), (s(512), s(616))),
+        ((s(512), s(616)), (s(546), s(539)), (s(579), s(378)), (s(638), s(406))),
+        ((s(638), s(406)), (s(702), s(436)), (s(706), s(574)), (s(706), s(684))),
+    ]
+
+    points: list[tuple[int, int]] = []
+    for segment in segments:
+        sampled = cubic_points(*segment, steps=56)
+        if points:
+            sampled = sampled[1:]
+        points.extend(sampled)
+
+    return points
+
+
+def draw_round_path(mask: Image.Image, points: list[tuple[int, int]], width: int, fill: int = 255) -> None:
+    draw = ImageDraw.Draw(mask)
+    draw.line(points, fill=fill, width=width, joint="curve")
     radius = width // 2
-    for point in (start, end):
+
+    for point in points[::3] + points[-1:]:
         draw.ellipse(
             (
                 point[0] - radius,
@@ -117,6 +160,75 @@ def rounded_line(
             ),
             fill=fill,
         )
+
+
+def draw_round_rgba_path(
+    layer: Image.Image,
+    points: list[tuple[int, int]],
+    width: int,
+    fill: tuple[int, int, int, int],
+) -> None:
+    draw = ImageDraw.Draw(layer, "RGBA")
+    draw.line(points, fill=fill, width=width, joint="curve")
+    radius = width // 2
+
+    for point in points[::3] + points[-1:]:
+        draw.ellipse(
+            (
+                point[0] - radius,
+                point[1] - radius,
+                point[0] + radius,
+                point[1] + radius,
+            ),
+            fill=fill,
+        )
+
+
+def draw_liquid_monogram(base: Image.Image) -> None:
+    points = liquid_monogram_points()
+    mask = Image.new("L", base.size, 0)
+    draw_round_path(mask, points, s(78))
+
+    shadow = Image.new("RGBA", base.size, (39, 90, 170, 80))
+    shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(13)))
+    shadow.putalpha(shadow_alpha)
+    base.alpha_composite(shadow, (s(0), s(16)))
+
+    soft_shadow = Image.new("RGBA", base.size, (93, 95, 220, 36))
+    soft_shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(28)))
+    soft_shadow.putalpha(soft_shadow_alpha)
+    base.alpha_composite(soft_shadow, (s(0), s(28)))
+
+    body = vertical_gradient(
+        CANVAS,
+        CANVAS,
+        [
+            (0.00, (222, 253, 255, 210)),
+            (0.32, (126, 205, 241, 198)),
+            (0.70, (93, 151, 222, 178)),
+            (1.00, (154, 148, 248, 154)),
+        ],
+    )
+    radial_glow(body, (s(376), s(432)), s(220), (255, 255, 255, 118), steps=52)
+    radial_glow(body, (s(636), s(680)), s(270), (100, 218, 255, 64), steps=52)
+    paste_with_mask(base, body, mask)
+
+    glass = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw_round_rgba_path(glass, points, s(80), (255, 255, 255, 46))
+    draw_round_rgba_path(glass, points, s(70), (80, 157, 222, 88))
+    draw_round_rgba_path(glass, [(x - s(12), y - s(15)) for x, y in points], s(15), (255, 255, 255, 164))
+    draw_round_rgba_path(glass, [(x - s(2), y + s(2)) for x, y in points], s(9), (223, 250, 255, 58))
+    draw_round_rgba_path(glass, [(x + s(10), y + s(12)) for x, y in points], s(13), (49, 95, 188, 54))
+    glass.putalpha(Image.composite(glass.getchannel("A"), Image.new("L", base.size, 0), mask))
+    base.alpha_composite(glass)
+
+    sparkle = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    sparkle_draw = ImageDraw.Draw(sparkle, "RGBA")
+    sparkle_draw.ellipse((s(366), s(400), s(418), s(452)), fill=(255, 255, 255, 66))
+    sparkle_draw.ellipse((s(618), s(400), s(662), s(444)), fill=(255, 255, 255, 50))
+    sparkle_draw.ellipse((s(488), s(588), s(532), s(632)), fill=(255, 255, 255, 30))
+    sparkle.putalpha(Image.composite(sparkle.getchannel("A").filter(ImageFilter.GaussianBlur(s(9))), Image.new("L", base.size, 0), mask))
+    base.alpha_composite(sparkle)
 
 
 def create_icon() -> Image.Image:
@@ -181,31 +293,7 @@ def create_icon() -> Image.Image:
     fold.putalpha(fold.getchannel("A").filter(ImageFilter.GaussianBlur(s(0.4))))
     image.alpha_composite(fold)
 
-    mark_shadow = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    mark_shadow_draw = ImageDraw.Draw(mark_shadow, "RGBA")
-    mark_width = s(56)
-    for start, end in (
-        ((s(424), s(428)), (s(375), s(725))),
-        ((s(603), s(428)), (s(554), s(725))),
-        ((s(347), s(531)), (s(690), s(531))),
-        ((s(326), s(650)), (s(669), s(650))),
-    ):
-        rounded_line(mark_shadow_draw, start, end, mark_width, (44, 88, 151, 92))
-    mark_shadow = mark_shadow.filter(ImageFilter.GaussianBlur(s(9)))
-    image.alpha_composite(mark_shadow, (s(0), s(9)))
-
-    mark = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    mark_draw = ImageDraw.Draw(mark, "RGBA")
-    for start, end in (
-        ((s(424), s(428)), (s(375), s(725))),
-        ((s(603), s(428)), (s(554), s(725))),
-        ((s(347), s(531)), (s(690), s(531))),
-        ((s(326), s(650)), (s(669), s(650))),
-    ):
-        rounded_line(mark_draw, start, end, mark_width, (87, 151, 202, 146))
-        rounded_line(mark_draw, (start[0] - s(4), start[1] - s(5)), (end[0] - s(4), end[1] - s(5)), s(18), (255, 255, 255, 106))
-        rounded_line(mark_draw, (start[0] + s(5), start[1] + s(5)), (end[0] + s(5), end[1] + s(5)), s(12), (71, 116, 187, 68))
-    image.alpha_composite(mark)
+    draw_liquid_monogram(image)
 
     return image.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
