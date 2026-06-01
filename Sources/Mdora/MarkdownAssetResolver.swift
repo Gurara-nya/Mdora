@@ -49,6 +49,8 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
     }
 
     private let cache = NSCache<NSURL, CachedImage>()
+    private let inFlightLock = NSLock()
+    private var inFlightLoads: [NSURL: Task<CGImage?, Never>] = [:]
     private let previewMaxPixelDimension = 1_600
 
     private init() {
@@ -66,28 +68,66 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
     }
 
     func loadPreviewImage(for url: URL) -> CGImage? {
-        let key = url.standardizedFileURL as NSURL
+        let standardizedURL = url.standardizedFileURL
+        let key = standardizedURL as NSURL
         if let cached = cache.object(forKey: key) {
             return cached.image
         }
 
-        guard let image = Self.loadThumbnail(from: url, maxPixelDimension: previewMaxPixelDimension) else { return nil }
+        guard let image = Self.loadThumbnail(from: standardizedURL, maxPixelDimension: previewMaxPixelDimension) else { return nil }
         cache.setObject(CachedImage(image), forKey: key, cost: cost(for: image))
         return image
     }
 
     func loadPreviewImageInBackground(for url: URL) async -> CGImage? {
-        if let cached = cachedPreviewImage(for: url) {
+        let standardizedURL = url.standardizedFileURL
+        let key = standardizedURL as NSURL
+
+        if let cached = cachedPreviewImage(for: standardizedURL) {
             return cached
         }
 
-        return await Task.detached(priority: .utility) { [self] in
-            loadPreviewImage(for: url)
-        }.value
+        let task = loadTask(for: standardizedURL, key: key)
+        let image = await task.value
+        clearFinishedLoad(for: key)
+        return image
     }
 
     func removeAll() {
         cache.removeAllObjects()
+        let tasks = cancelInFlightLoads()
+        for task in tasks {
+            task.cancel()
+        }
+    }
+
+    private func loadTask(for url: URL, key: NSURL) -> Task<CGImage?, Never> {
+        inFlightLock.lock()
+        if let existing = inFlightLoads[key] {
+            inFlightLock.unlock()
+            return existing
+        }
+
+        let task = Task.detached(priority: .utility) { [self] in
+            loadPreviewImage(for: url)
+        }
+        inFlightLoads[key] = task
+        inFlightLock.unlock()
+        return task
+    }
+
+    private func clearFinishedLoad(for key: NSURL) {
+        inFlightLock.lock()
+        inFlightLoads[key] = nil
+        inFlightLock.unlock()
+    }
+
+    private func cancelInFlightLoads() -> [Task<CGImage?, Never>] {
+        inFlightLock.lock()
+        let tasks = Array(inFlightLoads.values)
+        inFlightLoads.removeAll()
+        inFlightLock.unlock()
+        return tasks
     }
 
     private static func loadThumbnail(from url: URL, maxPixelDimension: Int) -> CGImage? {
