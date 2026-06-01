@@ -200,6 +200,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         private var lastReportedSelection = EditorSelection.start
         private var lastSelectionComputation: SelectionComputation?
         private var currentHighlightRange: NSRange?
+        private var currentHighlightScalars: Set<Unicode.Scalar> = []
         private var currentInlineHighlightExcludedRanges: [NSRange] = []
         private var lastHighlightedRange: NSRange?
         @MainActor private static var expressionCache: [ExpressionCacheKey: NSRegularExpression] = [:]
@@ -530,6 +531,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             textStorage.beginEditing()
             currentHighlightRange = targetRange
+            currentHighlightScalars = Self.highlightScalars(in: textView.string, range: targetRange)
             textStorage.setAttributes(baseAttributes, range: resetRange)
             highlightLines(in: textView, storage: textStorage, baseFont: baseFont)
             let syntaxHighlightRanges = MarkdownSyntaxHighlightScanner.ranges(
@@ -544,15 +546,15 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             ])
             highlightInline(pattern: #"\|"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted
-            ])
+            ], requiredScalars: "|")
             highlightInline(pattern: #"!\[[^\]]*\]\([^\)]+\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
-            ])
+            ], requiredScalars: "!")
             highlightInline(pattern: #"!\[[^\]]*\]\[[^\]]*\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
-            ])
+            ], requiredScalars: "!")
             highlightCodeSpans(syntaxHighlightRanges.codeSpanRanges, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.code
@@ -560,79 +562,79 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"\*\*[^*\n]+\*\*|__[^_\n]+__"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .bold)
-            ])
+            ], requiredScalars: "*_")
             highlightInline(pattern: #"(?<!\*)\*[^*\n]+\*(?!\*)|(?<!_)_[^_\n]+_(?!_)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .font: italicFont(size: baseSize)
-            ])
+            ], requiredScalars: "*_")
             highlightInline(pattern: #"~~[^~]+~~"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .strikethroughStyle: NSUnderlineStyle.single.rawValue
-            ])
+            ], requiredScalars: "~")
             highlightInline(pattern: #"==[^=\n]+=="#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.accent.withAlphaComponent(0.16)
-            ])
+            ], requiredScalars: "=")
             highlightInline(pattern: #"\{#[A-Za-z0-9_\-:\.]+(?:\s+[^}\n]+)?\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.12),
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"\{\+\+[^\n]*?\+\+\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"\{--[^\n]*?--\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .strikethroughStyle: NSUnderlineStyle.single.rawValue
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"\{~~[^\n]*?~>[^\n]*?~~\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"\{>>[^\n]*?<<\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .backgroundColor: palette.surface
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"\{==[^\n]*?==\}"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.accent.withAlphaComponent(0.20)
-            ])
+            ], requiredScalars: "{")
             highlightInline(pattern: #"(?<!\^)\^[^^\n]+\^(?!\^)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .baselineOffset: 4,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
-            ])
+            ], requiredScalars: "^")
             highlightInline(pattern: #"(?m)(?<=\s)\^[A-Za-z0-9_\-:\.]+$"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.12),
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
-            ])
+            ], requiredScalars: "^")
             highlightInline(pattern: #"(?<!~)~[^~\n]+~(?!~)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .baselineOffset: -2,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
-            ])
+            ], requiredScalars: "~")
             highlightInline(pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
-            ])
+            ], requiredScalars: "[")
             highlightInline(pattern: #"(?<!\!)\[[^\]]+\]\[[^\]]*\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
-            ])
+            ], requiredScalars: "[")
             highlightInline(pattern: #"!\[\[[^\]]+\]\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.18)
-            ])
+            ], requiredScalars: "!")
             highlightInline(pattern: #"(?<!\!)\[\[[^\]]+\]\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.12)
-            ])
+            ], requiredScalars: "[")
             highlightInline(pattern: #"(?<!\\)\$([^$\n]+)(?<!\\)\$"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code
-            ])
+            ], requiredScalars: "$")
             highlightInline(pattern: #"(?m)(?: {2,}|\\)$"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.13)
@@ -641,33 +643,33 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 .foregroundColor: palette.accent,
                 .baselineOffset: 3,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
-            ])
+            ], requiredScalars: "[")
             highlightInline(pattern: #"\[@[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
-            ])
+            ], requiredScalars: "[")
             highlightInline(pattern: #"</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>\n]*)?\s*/?>"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.muted,
                 .backgroundColor: palette.code,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .regular)
-            ])
+            ], requiredScalars: "<")
             highlightInline(pattern: #"&(?:#[0-9]+|#x[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.accent.withAlphaComponent(0.10)
-            ])
+            ], requiredScalars: "&")
             highlightInline(pattern: #"<kbd>[^<]+</kbd>"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.text,
                 .backgroundColor: palette.surface,
                 .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .semibold)
-            ])
+            ], requiredScalars: "<")
             highlightInline(pattern: #"<[A-Z][A-Z0-9+\-.]{1,31}:[^\s<>]+>|<[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}>"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
-            ], options: [.caseInsensitive])
+            ], options: [.caseInsensitive], requiredScalars: "<")
             highlightInline(pattern: #"(?<!\w):[A-Za-z0-9_\-\+]{2,}:"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
-            ])
+            ], requiredScalars: ":")
             highlightAutoLinks(in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
@@ -675,13 +677,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"(?<![\w@])([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})(?![\w@])"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .underlineStyle: NSUnderlineStyle.single.rawValue
-            ], options: [.caseInsensitive])
+            ], options: [.caseInsensitive], requiredScalars: "@")
             highlightInline(pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
-            ])
+            ], requiredScalars: "#")
             highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
-            ])
+            ], requiredScalars: "@")
             highlightInline(pattern: #"(?im)^\s*(?:(?:[-*+]\s+|\d+[.)]\s+)(?:\[(?: |x|X|/|-|>|!|\?)\]\s+)?)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*$"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
@@ -690,6 +692,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             textStorage.endEditing()
 
             currentHighlightRange = nil
+            currentHighlightScalars = []
             currentInlineHighlightExcludedRanges = []
             lastHighlightedRange = targetRange
             textView.typingAttributes = baseAttributes
@@ -737,6 +740,11 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         private static func union(_ lhs: NSRange, _ rhs: NSRange?) -> NSRange {
             guard let rhs, rhs.location != NSNotFound else { return lhs }
             return NSUnionRange(lhs, rhs)
+        }
+
+        private static func highlightScalars(in text: String, range: NSRange) -> Set<Unicode.Scalar> {
+            guard let stringRange = Range(range, in: text) else { return [] }
+            return Set(text[stringRange].unicodeScalars)
         }
 
         @MainActor
@@ -1054,8 +1062,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             in textView: NSTextView,
             storage: NSTextStorage,
             attributes: [NSAttributedString.Key: Any],
-            options: NSRegularExpression.Options = []
+            options: NSRegularExpression.Options = [],
+            requiredScalars: String = ""
         ) {
+            guard containsAnyCurrentHighlightScalar(in: requiredScalars) else { return }
             guard let expression = Self.cachedExpression(pattern: pattern, options: options) else { return }
 
             let text = textView.string
@@ -1096,6 +1106,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             storage: NSTextStorage,
             attributes: [NSAttributedString.Key: Any]
         ) {
+            guard containsAnyCurrentHighlightScalar(in: ".:/wW") else { return }
             let text = textView.string
             let fullRange = NSRange(text.startIndex ..< text.endIndex, in: text)
             let range = (currentHighlightRange ?? fullRange).clamped(toLength: fullRange.length)
@@ -1104,6 +1115,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 guard !isInlineHighlightExcluded(match.range) else { continue }
                 storage.addAttributes(attributes, range: match.range)
             }
+        }
+
+        private func containsAnyCurrentHighlightScalar(in requiredScalars: String) -> Bool {
+            guard !requiredScalars.isEmpty else { return true }
+            guard !currentHighlightScalars.isEmpty else { return false }
+            return requiredScalars.unicodeScalars.contains { currentHighlightScalars.contains($0) }
         }
 
         private func isInlineHighlightExcluded(_ range: NSRange) -> Bool {
