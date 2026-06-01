@@ -819,6 +819,10 @@ func runTests() {
     assert(duplicateReferenceDefinition?.destination == "https://example.com/first")
     assert(duplicateReferenceDefinition?.title == "First")
     assert(duplicateReferenceDocument.diagnostics.contains { $0.id == "duplicate-reference-ref label" })
+    assert(duplicateReferenceDocument.diagnostics.contains {
+        $0.id == "duplicate-reference-ref label" &&
+            $0.message == "2 reference definitions use [ref   label]; the first definition is used."
+    })
     assert(!duplicateReferenceDocument.diagnostics.contains { $0.id == "missing-reference-ref label" })
 
     let duplicateReferenceHTML = MarkdownHTMLRenderer.renderFragment(duplicateReferenceMarkdown)

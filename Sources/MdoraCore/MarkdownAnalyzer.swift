@@ -1051,19 +1051,26 @@ public enum MarkdownAnalyzer {
     }
 
     private static func duplicateReferenceDiagnostics(in blocks: [MarkdownBlock]) -> [MarkdownDiagnostic] {
-        let definitions = blocks.compactMap { block -> LinkReferenceDefinition? in
-            guard case let .linkReferenceDefinition(definition) = block else { return nil }
-            return definition
-        }
-        let grouped = Dictionary(grouping: definitions, by: \.normalizedLabel)
+        var countsByLabel: [String: (label: String, count: Int)] = [:]
 
-        return grouped.compactMap { normalizedLabel, definitions in
-            guard definitions.count > 1 else { return nil }
+        for block in blocks {
+            guard case let .linkReferenceDefinition(definition) = block else { continue }
+            let normalizedLabel = definition.normalizedLabel
+
+            if let existing = countsByLabel[normalizedLabel] {
+                countsByLabel[normalizedLabel] = (existing.label, existing.count + 1)
+            } else {
+                countsByLabel[normalizedLabel] = (definition.label, 1)
+            }
+        }
+
+        return countsByLabel.compactMap { normalizedLabel, entry in
+            guard entry.count > 1 else { return nil }
             return MarkdownDiagnostic(
                 id: "duplicate-reference-\(normalizedLabel)",
                 severity: .info,
                 title: "Duplicate reference definition",
-                message: "\(definitions.count) reference definitions use [\(definitions[0].label)]; the first definition is used."
+                message: "\(entry.count) reference definitions use [\(entry.label)]; the first definition is used."
             )
         }
         .sorted { $0.id < $1.id }
