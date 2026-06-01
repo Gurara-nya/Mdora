@@ -13,6 +13,12 @@ struct HTMLExportDocument: FileDocument {
 
     var html: String
 
+    static let empty = HTMLExportDocument(html: "")
+
+    init(html: String) {
+        self.html = html
+    }
+
     init(markdown: String) {
         html = MarkdownHTMLRenderer.renderDocument(markdown, title: "Mdora Export")
     }

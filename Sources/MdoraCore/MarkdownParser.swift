@@ -2,6 +2,20 @@ import Foundation
 
 public enum MarkdownParser {
     public static func parse(_ markdown: String) -> ParsedMarkdownDocument {
+        if let cached = cache.document(for: markdown) {
+            return cached
+        }
+
+        let document = parseUncached(markdown)
+        cache.store(document, for: markdown)
+        return document
+    }
+
+    public static func clearCache() {
+        cache.removeAll()
+    }
+
+    private static func parseUncached(_ markdown: String) -> ParsedMarkdownDocument {
         var parser = BlockParser(markdown: markdown)
         let parsedBlocks = parser.parseBlocks()
         let blocks = parsedBlocks.blocks
@@ -32,6 +46,56 @@ public enum MarkdownParser {
             diagnostics: diagnostics,
             stats: stats
         )
+    }
+
+    private static let cache = MarkdownDocumentParseCache()
+}
+
+private final class MarkdownDocumentParseCache: @unchecked Sendable {
+    private let cache = NSCache<NSString, ParsedMarkdownDocumentBox>()
+    private let maxCacheableMarkdownLength = 400_000
+
+    init() {
+        cache.countLimit = 96
+        cache.totalCostLimit = 24_000_000
+    }
+
+    func document(for markdown: String) -> ParsedMarkdownDocument? {
+        guard shouldCache(markdown) else { return nil }
+        return cache.object(forKey: markdown as NSString)?.document
+    }
+
+    func store(_ document: ParsedMarkdownDocument, for markdown: String) {
+        guard shouldCache(markdown) else { return }
+        cache.setObject(
+            ParsedMarkdownDocumentBox(document),
+            forKey: markdown as NSString,
+            cost: cost(for: document, markdown: markdown)
+        )
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    private func shouldCache(_ markdown: String) -> Bool {
+        !markdown.isEmpty && markdown.utf16.count <= maxCacheableMarkdownLength
+    }
+
+    private func cost(for document: ParsedMarkdownDocument, markdown: String) -> Int {
+        markdown.utf16.count +
+            document.blocks.count * 96 +
+            document.sourceMap.count * 32 +
+            document.outline.count * 64 +
+            document.diagnostics.count * 96
+    }
+}
+
+private final class ParsedMarkdownDocumentBox: @unchecked Sendable {
+    let document: ParsedMarkdownDocument
+
+    init(_ document: ParsedMarkdownDocument) {
+        self.document = document
     }
 }
 

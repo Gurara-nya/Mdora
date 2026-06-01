@@ -76,6 +76,22 @@ func runTests() {
     assert(readingTimeDocument.stats.readingMinutes == 2)
     print("✅ Document stats count words, characters, lines, and reading time without array-heavy scans!")
 
+    MarkdownParser.clearCache()
+    let cachedDocumentMarkdown = """
+    # Cached Parse
+
+    [[Home|Start]] and `inline code`.
+
+    - [ ] one
+    - [x] two
+    """
+    let cachedDocument = MarkdownParser.parse(cachedDocumentMarkdown)
+    let cachedDocumentRepeat = MarkdownParser.parse(cachedDocumentMarkdown)
+    assert(cachedDocumentRepeat == cachedDocument)
+    MarkdownParser.clearCache()
+    assert(MarkdownParser.parse(cachedDocumentMarkdown) == cachedDocument)
+    print("✅ Whole-document parse cache preserves parsed Markdown output across repeated refreshes!")
+
     // 3b. Test fenced code ranges used by editor highlighting
     let fencedHighlightMarkdown = """
     Before `inline`

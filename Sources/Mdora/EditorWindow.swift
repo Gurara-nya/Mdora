@@ -25,6 +25,7 @@ struct EditorWindow: View {
     @State private var isEditorEditing = false
     @State private var isPreviewStale = false
     @State private var pendingCommittedMarkdown: String?
+    @State private var htmlExportDocument = HTMLExportDocument.empty
 
     init(document: Binding<MarkdownDocument>, documentURL: URL?) {
         self._document = document
@@ -378,7 +379,7 @@ struct EditorWindow: View {
         }
         .fileExporter(
             isPresented: $isExportingHTML,
-            document: HTMLExportDocument(markdown: document.text),
+            document: htmlExportDocument,
             contentType: .html,
             defaultFilename: "Mdora 导出文档.html"
         ) { result in
@@ -388,6 +389,7 @@ struct EditorWindow: View {
             case .failure(let error):
                 setStatusMessage(error.localizedDescription, autoClear: false)
             }
+            htmlExportDocument = .empty
         }
         .onChange(of: document.text) { _, newMarkdown in
             noteDocumentTextChanged(newMarkdown)
@@ -495,6 +497,7 @@ struct EditorWindow: View {
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
         case .exportHTML:
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
+            htmlExportDocument = HTMLExportDocument(markdown: markdown)
             isExportingHTML = true
         case .exportPDF:
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
