@@ -20,14 +20,18 @@ final class PDFExporter: NSObject, WKNavigationDelegate {
         super.init()
     }
 
-    static func export(markdown: String, title: String, baseURL: URL?, destinationURL: URL, completion: @escaping (Result<Void, Error>) -> Void) {
-        let html = MarkdownHTMLRenderer.renderDocument(markdown, title: title)
+    static func export(html: String, baseURL: URL?, destinationURL: URL, completion: @escaping (Result<Void, Error>) -> Void) {
         let exporter = PDFExporter(html: html, baseURL: baseURL, destinationURL: destinationURL, completion: completion)
         activeExporters.insert(exporter)
 
         DispatchQueue.main.async {
             exporter.start()
         }
+    }
+
+    static func export(markdown: String, title: String, baseURL: URL?, destinationURL: URL, completion: @escaping (Result<Void, Error>) -> Void) {
+        let html = MarkdownHTMLRenderer.renderDocument(markdown, title: title)
+        export(html: html, baseURL: baseURL, destinationURL: destinationURL, completion: completion)
     }
 
     private func start() {

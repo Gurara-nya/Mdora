@@ -26,6 +26,8 @@ struct EditorWindow: View {
     @State private var isPreviewStale = false
     @State private var pendingCommittedMarkdown: String?
     @State private var htmlExportDocument = HTMLExportDocument.empty
+    @State private var pendingHTMLExportTask: Task<Void, Never>?
+    @State private var pendingPDFExportTask: Task<Void, Never>?
 
     init(document: Binding<MarkdownDocument>, documentURL: URL?) {
         self._document = document
@@ -389,6 +391,7 @@ struct EditorWindow: View {
             case .failure(let error):
                 setStatusMessage(error.localizedDescription, autoClear: false)
             }
+            pendingHTMLExportTask = nil
             htmlExportDocument = .empty
         }
         .onChange(of: document.text) { _, newMarkdown in
@@ -399,6 +402,8 @@ struct EditorWindow: View {
         }
         .onDisappear {
             pendingParseTask?.cancel()
+            pendingHTMLExportTask?.cancel()
+            pendingPDFExportTask?.cancel()
             pendingStatusClearTask?.cancel()
         }
     }
@@ -497,11 +502,29 @@ struct EditorWindow: View {
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
         case .exportHTML:
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
-            htmlExportDocument = HTMLExportDocument(markdown: markdown)
-            isExportingHTML = true
+            prepareHTMLExport(markdown: markdown)
         case .exportPDF:
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
             exportToPDF(markdown: markdown)
+        }
+    }
+
+    @MainActor
+    private func prepareHTMLExport(markdown: String) {
+        pendingHTMLExportTask?.cancel()
+        htmlExportDocument = .empty
+        setStatusMessage("正在生成 HTML...", autoClear: false)
+
+        pendingHTMLExportTask = Task { @MainActor in
+            let html = await Task.detached(priority: .userInitiated) {
+                MarkdownHTMLRenderer.renderDocument(markdown, title: "Mdora Export")
+            }.value
+
+            guard !Task.isCancelled else { return }
+            pendingHTMLExportTask = nil
+            htmlExportDocument = HTMLExportDocument(html: html)
+            isExportingHTML = true
+            setStatusMessage("HTML 已生成，选择保存位置", autoClear: false)
         }
     }
 
@@ -608,22 +631,35 @@ struct EditorWindow: View {
             }
 
             withAnimation {
-                setStatusMessage("正在导出 PDF...", autoClear: false)
+                setStatusMessage("正在生成 PDF 内容...", autoClear: false)
             }
 
-            PDFExporter.export(
-                markdown: markdown,
-                title: defaultName,
-                baseURL: documentURL?.deletingLastPathComponent(),
-                destinationURL: destinationURL
-            ) { result in
-                DispatchQueue.main.async {
-                    withAnimation {
-                        switch result {
-                        case .success:
-                            setStatusMessage("导出 PDF 成功")
-                        case .failure(let error):
-                            setStatusMessage("PDF 导出失败: \(error.localizedDescription)", autoClear: false)
+            pendingPDFExportTask?.cancel()
+            let baseURL = documentURL?.deletingLastPathComponent()
+            pendingPDFExportTask = Task { @MainActor in
+                let html = await Task.detached(priority: .userInitiated) {
+                    MarkdownHTMLRenderer.renderDocument(markdown, title: defaultName)
+                }.value
+
+                guard !Task.isCancelled else { return }
+                pendingPDFExportTask = nil
+                withAnimation {
+                    setStatusMessage("正在导出 PDF...", autoClear: false)
+                }
+
+                PDFExporter.export(
+                    html: html,
+                    baseURL: baseURL,
+                    destinationURL: destinationURL
+                ) { result in
+                    DispatchQueue.main.async {
+                        withAnimation {
+                            switch result {
+                            case .success:
+                                setStatusMessage("导出 PDF 成功")
+                            case .failure(let error):
+                                setStatusMessage("PDF 导出失败: \(error.localizedDescription)", autoClear: false)
+                            }
                         }
                     }
                 }
