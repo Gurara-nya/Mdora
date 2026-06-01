@@ -501,10 +501,8 @@ struct EditorWindow: View {
         case .refresh:
             refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
         case .exportHTML:
-            refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
             prepareHTMLExport(markdown: markdown)
         case .exportPDF:
-            refreshParsedDocument(from: markdown, successMessage: "预览与分析已刷新")
             exportToPDF(markdown: markdown)
         }
     }
@@ -516,13 +514,16 @@ struct EditorWindow: View {
         setStatusMessage("正在生成 HTML...", autoClear: false)
 
         pendingHTMLExportTask = Task { @MainActor in
-            let html = await Task.detached(priority: .userInitiated) {
-                MarkdownHTMLRenderer.renderDocument(markdown, title: "Mdora Export")
+            let snapshot = await Task.detached(priority: .userInitiated) {
+                let parsed = MarkdownParser.parse(markdown)
+                let html = MarkdownHTMLRenderer.renderDocument(parsed, title: "Mdora Export")
+                return MarkdownExportSnapshot(document: parsed, html: html)
             }.value
 
             guard !Task.isCancelled else { return }
             pendingHTMLExportTask = nil
-            htmlExportDocument = HTMLExportDocument(html: html)
+            guard applyParsedDocument(snapshot.document, for: markdown) else { return }
+            htmlExportDocument = HTMLExportDocument(html: snapshot.html)
             isExportingHTML = true
             setStatusMessage("HTML 已生成，选择保存位置", autoClear: false)
         }
@@ -548,22 +549,29 @@ struct EditorWindow: View {
 
             guard !Task.isCancelled else { return }
 
-            let currentDraft = MarkdownDraftRegistry.shared.text(for: document.id)
-            guard document.text == markdown,
-                  currentDraft == nil || currentDraft == markdown else {
-                isEditorEditing = true
-                isPreviewStale = true
-                setStatusMessage("编辑中，预览暂停，保存或 ⌘R 刷新", autoClear: false)
-                return
-            }
-
-            parsedDocument = parsed
-            parsedMarkdown = markdown
-            isPreviewStale = false
-            MarkdownDraftRegistry.shared.clear(for: document.id, matching: markdown)
-            commandCenter.send(.acceptCommittedText(markdown))
+            guard applyParsedDocument(parsed, for: markdown) else { return }
             setStatusMessage(successMessage)
         }
+    }
+
+    @MainActor
+    private func applyParsedDocument(_ parsed: ParsedMarkdownDocument, for markdown: String) -> Bool {
+        let currentDraft = MarkdownDraftRegistry.shared.text(for: document.id)
+        guard document.text == markdown,
+              currentDraft == nil || currentDraft == markdown else {
+            isEditorEditing = true
+            isPreviewStale = true
+            setStatusMessage("编辑中，预览暂停，保存或 ⌘R 刷新", autoClear: false)
+            return false
+        }
+
+        parsedDocument = parsed
+        parsedMarkdown = markdown
+        isPreviewStale = false
+        isEditorEditing = false
+        MarkdownDraftRegistry.shared.clear(for: document.id, matching: markdown)
+        commandCenter.send(.acceptCommittedText(markdown))
+        return true
     }
 
     @MainActor
@@ -637,18 +645,21 @@ struct EditorWindow: View {
             pendingPDFExportTask?.cancel()
             let baseURL = documentURL?.deletingLastPathComponent()
             pendingPDFExportTask = Task { @MainActor in
-                let html = await Task.detached(priority: .userInitiated) {
-                    MarkdownHTMLRenderer.renderDocument(markdown, title: defaultName)
+                let snapshot = await Task.detached(priority: .userInitiated) {
+                    let parsed = MarkdownParser.parse(markdown)
+                    let html = MarkdownHTMLRenderer.renderDocument(parsed, title: defaultName)
+                    return MarkdownExportSnapshot(document: parsed, html: html)
                 }.value
 
                 guard !Task.isCancelled else { return }
                 pendingPDFExportTask = nil
+                guard applyParsedDocument(snapshot.document, for: markdown) else { return }
                 withAnimation {
                     setStatusMessage("正在导出 PDF...", autoClear: false)
                 }
 
                 PDFExporter.export(
-                    html: html,
+                    html: snapshot.html,
                     baseURL: baseURL,
                     destinationURL: destinationURL
                 ) { result in
@@ -666,6 +677,11 @@ struct EditorWindow: View {
             }
         }
     }
+}
+
+private struct MarkdownExportSnapshot: Sendable {
+    var document: ParsedMarkdownDocument
+    var html: String
 }
 
 enum LayoutMode: String, CaseIterable, Identifiable {

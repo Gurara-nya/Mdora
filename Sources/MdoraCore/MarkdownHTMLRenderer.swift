@@ -17,7 +17,11 @@ public enum MarkdownHTMLRenderer {
     }
 
     public static func renderDocument(_ markdown: String, title: String) -> String {
-        let fragment = renderFragment(markdown)
+        renderDocument(MarkdownParser.parse(markdown), title: title)
+    }
+
+    public static func renderDocument(_ document: ParsedMarkdownDocument, title: String) -> String {
+        let fragment = renderFragment(document)
         let escapedTitle = escapeHTML(title)
 
         return [
@@ -44,7 +48,10 @@ public enum MarkdownHTMLRenderer {
     }
 
     public static func renderFragment(_ markdown: String) -> String {
-        let document = MarkdownParser.parse(markdown)
+        renderFragment(MarkdownParser.parse(markdown))
+    }
+
+    public static func renderFragment(_ document: ParsedMarkdownDocument) -> String {
         let context = RenderContext(
             references: document.referenceDefinitions,
             abbreviations: document.abbreviationDefinitions

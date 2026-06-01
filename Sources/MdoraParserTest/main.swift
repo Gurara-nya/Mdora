@@ -92,6 +92,12 @@ func runTests() {
     assert(MarkdownParser.parse(cachedDocumentMarkdown) == cachedDocument)
     print("✅ Whole-document parse cache preserves parsed Markdown output across repeated refreshes!")
 
+    let parsedFragment = MarkdownHTMLRenderer.renderFragment(cachedDocument)
+    assert(parsedFragment == MarkdownHTMLRenderer.renderFragment(cachedDocumentMarkdown))
+    let parsedDocumentHTML = MarkdownHTMLRenderer.renderDocument(cachedDocument, title: "Cached")
+    assert(parsedDocumentHTML == MarkdownHTMLRenderer.renderDocument(cachedDocumentMarkdown, title: "Cached"))
+    print("✅ HTML export can render directly from an existing parsed document without reparsing!")
+
     // 3b. Test fenced code ranges used by editor highlighting
     let fencedHighlightMarkdown = """
     Before `inline`
