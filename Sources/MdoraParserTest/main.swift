@@ -1270,6 +1270,41 @@ func runTests() {
     assert(escapedPipeTableHTML.contains("<code>x|y</code>"))
     print("✅ GFM tables keep escaped pipes and code-span pipes inside their cells!")
 
+    let raggedTableMarkdown = """
+    Name | Score | Note
+    --- | ---: | :---
+    Ada | 99
+    Linus | 88 | Kernel | ignored
+    Grace | 97 | Compiler
+    """
+    let raggedTableDocument = MarkdownParser.parse(raggedTableMarkdown)
+    guard case .table(let raggedTable) = raggedTableDocument.blocks[0] else {
+        fatalError("❌ Expected ragged GFM table sample to parse as a table")
+    }
+    assert(raggedTable.headers == ["Name", "Score", "Note"])
+    assert(raggedTable.alignments == [.leading, .trailing, .leading])
+    assert(raggedTable.rows == [
+        ["Ada", "99", ""],
+        ["Linus", "88", "Kernel"],
+        ["Grace", "97", "Compiler"]
+    ])
+
+    let raggedTableHTML = MarkdownHTMLRenderer.renderFragment(raggedTableMarkdown)
+    assert(raggedTableHTML.contains("<td style=\"text-align: left\"></td>"))
+    assert(!raggedTableHTML.contains("ignored"))
+
+    let mismatchedTableMarkdown = """
+    | A | B |
+    | --- |
+    | 1 | 2 |
+    """
+    let mismatchedTableDocument = MarkdownParser.parse(mismatchedTableMarkdown)
+    assert(!mismatchedTableDocument.blocks.contains { block in
+        if case .table = block { return true }
+        return false
+    })
+    print("✅ GFM tables require matching header and delimiter columns, then normalize ragged body rows!")
+
     // 7. Test CommonMark parenthesized ordered list markers
     let parenthesizedOrderedMarkdown = """
     1) First step

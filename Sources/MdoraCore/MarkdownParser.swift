@@ -470,14 +470,17 @@ private struct BlockParser {
         guard currentLine.contains("|"), Self.isTableSeparator(separator) else { return nil }
 
         let headers = Self.splitTableRow(currentLine)
-        let alignments = Self.parseTableAlignments(separator)
-        guard !headers.isEmpty, !alignments.isEmpty else { return nil }
+        let alignmentCells = Self.splitTableRow(separator)
+        guard !headers.isEmpty, headers.count == alignmentCells.count else { return nil }
+
+        let alignments = Self.parseTableAlignments(alignmentCells)
+        let columnCount = headers.count
 
         index += 2
         var rows: [[String]] = []
 
         while index < lines.count, currentLine.contains("|"), !currentLine.trimmed.isEmpty {
-            rows.append(Self.splitTableRow(currentLine))
+            rows.append(Self.normalizedTableRow(Self.splitTableRow(currentLine), columnCount: columnCount))
             index += 1
         }
 
@@ -1355,7 +1358,11 @@ private struct BlockParser {
     }
 
     private static func parseTableAlignments(_ line: String) -> [TableAlignment] {
-        splitTableRow(line).map { cell in
+        parseTableAlignments(splitTableRow(line))
+    }
+
+    private static func parseTableAlignments(_ cells: [String]) -> [TableAlignment] {
+        cells.map { cell in
             let trimmed = cell.trimmed
             let leading = trimmed.hasPrefix(":")
             let trailing = trimmed.hasSuffix(":")
@@ -1364,6 +1371,13 @@ private struct BlockParser {
             if trailing { return .trailing }
             return .leading
         }
+    }
+
+    private static func normalizedTableRow(_ cells: [String], columnCount: Int) -> [String] {
+        if cells.count == columnCount { return cells }
+        if cells.count > columnCount { return Array(cells.prefix(columnCount)) }
+
+        return cells + Array(repeating: "", count: columnCount - cells.count)
     }
 
     private static func parseImageSyntax(_ line: String) -> (alt: String, source: String, title: String?)? {

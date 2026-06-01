@@ -256,8 +256,9 @@ public enum MarkdownHTMLRenderer {
         }.joined()
 
         let bodyRows = table.rows.map { row in
-            let cells = row.enumerated().map { index, cell in
-                "<td style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(cell, context: context))</td>"
+            let cells = table.headers.indices.map { index in
+                let cell = row.indices.contains(index) ? row[index] : ""
+                return "<td style=\"text-align: \(cssAlignment(table.alignments, at: index))\">\(renderInline(cell, context: context))</td>"
             }.joined()
 
             return "<tr>\(cells)</tr>"

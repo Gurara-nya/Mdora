@@ -69,6 +69,10 @@ struct EditorWindow: View {
         )
     }
 
+    private var layoutPickerTrailingPadding: CGFloat {
+        showInspector && !focusMode ? 288 : 18
+    }
+
     var body: some View {
         let parsed = parsedDocument
         let previewIsFrozen = selectedLayout.wrappedValue.showsPreview && isPreviewStale
@@ -125,8 +129,8 @@ struct EditorWindow: View {
                 .background(theme.palette.windowColor)
 
                 FloatingLayoutPicker(layoutMode: selectedLayout, theme: theme)
-                    .padding(.trailing, showInspector && !focusMode ? 276 : 16)
-                    .padding(.top, 12)
+                    .padding(.trailing, layoutPickerTrailingPadding)
+                    .padding(.top, 10)
                     .transition(.opacity.combined(with: .scale))
                     .zIndex(10)
             }
@@ -361,12 +365,9 @@ struct EditorWindow: View {
                     Button("放宽显示边界") {
                         previewLineWidth = (previewLineWidth + 80).clamped(to: 620 ... 1040)
                     }
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                }
-                .help("编辑器与视图排版选项")
 
-                Menu {
+                    Divider()
+
                     Button("导出为 HTML 网页...") {
                         requestEditorDraftCommit(reason: .exportHTML)
                     }
@@ -374,9 +375,9 @@ struct EditorWindow: View {
                         requestEditorDraftCommit(reason: .exportPDF)
                     }
                 } label: {
-                    Label("文件导出", systemImage: "square.and.arrow.up")
+                    Image(systemName: "slider.horizontal.3")
                 }
-                .help("导出当前文档为 HTML 网页或 PDF 格式")
+                .help("编辑器、视图排版与导出选项")
             }
         }
         .fileExporter(
@@ -734,7 +735,7 @@ struct FloatingLayoutPicker: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             ForEach(LayoutMode.allCases) { mode in
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
@@ -744,23 +745,23 @@ struct FloatingLayoutPicker: View {
                     Image(systemName: mode.systemImage)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(layoutMode == mode ? .white : theme.palette.textColor.opacity(0.72))
-                        .frame(width: 26, height: 22)
+                        .frame(width: 28, height: 24)
                         .background(layoutMode == mode ? theme.palette.accentColor : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .help(mode.title)
             }
         }
-        .padding(3)
-        .background(theme.palette.surfaceColor.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .padding(4)
+        .background(theme.palette.surfaceColor.opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(theme.palette.borderColor.opacity(0.38), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.borderColor.opacity(0.34), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-        .opacity(isHovered ? 1.0 : 0.68)
+        .shadow(color: Color.black.opacity(0.07), radius: 5, x: 0, y: 2)
+        .opacity(isHovered ? 1.0 : 0.88)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) {
                 isHovered = hovering

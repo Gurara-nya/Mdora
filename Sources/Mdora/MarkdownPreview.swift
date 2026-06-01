@@ -1152,7 +1152,7 @@ private struct TableBlockView: View {
                 ForEach(table.rows.indices, id: \.self) { rowIndex in
                     let row = table.rows[rowIndex]
                     GridRow {
-                        ForEach(0 ..< max(table.headers.count, row.count), id: \.self) { index in
+                        ForEach(table.headers.indices, id: \.self) { index in
                             TableCell(
                                 text: row.indices.contains(index) ? row[index] : "",
                                 alignment: alignment(at: index),
