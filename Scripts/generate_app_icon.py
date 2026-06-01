@@ -127,12 +127,14 @@ def cubic_points(
     return points
 
 
-def liquid_monogram_points() -> list[tuple[int, int]]:
+def liquid_flow_points() -> list[tuple[int, int]]:
     segments = [
-        ((s(318), s(684)), (s(318), s(574)), (s(322), s(436)), (s(386), s(406))),
-        ((s(386), s(406)), (s(445), s(378)), (s(478), s(539)), (s(512), s(616))),
-        ((s(512), s(616)), (s(546), s(539)), (s(579), s(378)), (s(638), s(406))),
-        ((s(638), s(406)), (s(702), s(436)), (s(706), s(574)), (s(706), s(684))),
+        ((s(290), s(632)), (s(294), s(528)), (s(340), s(448)), (s(438), s(424))),
+        ((s(438), s(424)), (s(532), s(401)), (s(588), s(501)), (s(538), s(578))),
+        ((s(538), s(578)), (s(502), s(634)), (s(455), s(702)), (s(530), s(724))),
+        ((s(530), s(724)), (s(624), s(752)), (s(610), s(592)), (s(664), s(502))),
+        ((s(664), s(502)), (s(710), s(426)), (s(790), s(428)), (s(798), s(520))),
+        ((s(798), s(520)), (s(807), s(618)), (s(744), s(664)), (s(670), s(670))),
     ]
 
     points: list[tuple[int, int]] = []
@@ -145,12 +147,25 @@ def liquid_monogram_points() -> list[tuple[int, int]]:
     return points
 
 
-def draw_round_path(mask: Image.Image, points: list[tuple[int, int]], width: int, fill: int = 255) -> None:
-    draw = ImageDraw.Draw(mask)
-    draw.line(points, fill=fill, width=width, joint="curve")
-    radius = width // 2
+def path_width_at(index: int, point_count: int, base_width: int) -> int:
+    if point_count <= 1:
+        return base_width
 
-    for point in points[::3] + points[-1:]:
+    t = index / (point_count - 1)
+    end_taper = min(1.0, min(t, 1 - t) * 4.2)
+    waist = 0.94 + 0.08 * (1 - abs(0.5 - t) * 2)
+    return int(round(base_width * (0.64 + 0.36 * end_taper) * waist))
+
+
+def draw_variable_round_path(mask: Image.Image, points: list[tuple[int, int]], width: int, fill: int = 255) -> None:
+    draw = ImageDraw.Draw(mask)
+
+    for index in range(len(points) - 1):
+        current_width = max(1, path_width_at(index, len(points), width))
+        draw.line((points[index], points[index + 1]), fill=fill, width=current_width, joint="curve")
+
+    for index, point in enumerate(points):
+        radius = max(1, path_width_at(index, len(points), width) // 2)
         draw.ellipse(
             (
                 point[0] - radius,
@@ -162,17 +177,20 @@ def draw_round_path(mask: Image.Image, points: list[tuple[int, int]], width: int
         )
 
 
-def draw_round_rgba_path(
+def draw_variable_rgba_path(
     layer: Image.Image,
     points: list[tuple[int, int]],
     width: int,
     fill: tuple[int, int, int, int],
 ) -> None:
     draw = ImageDraw.Draw(layer, "RGBA")
-    draw.line(points, fill=fill, width=width, joint="curve")
-    radius = width // 2
 
-    for point in points[::3] + points[-1:]:
+    for index in range(len(points) - 1):
+        current_width = max(1, path_width_at(index, len(points), width))
+        draw.line((points[index], points[index + 1]), fill=fill, width=current_width, joint="curve")
+
+    for index, point in enumerate(points):
+        radius = max(1, path_width_at(index, len(points), width) // 2)
         draw.ellipse(
             (
                 point[0] - radius,
@@ -184,50 +202,62 @@ def draw_round_rgba_path(
         )
 
 
-def draw_liquid_monogram(base: Image.Image) -> None:
-    points = liquid_monogram_points()
+def shifted_points(points: list[tuple[int, int]], dx: int, dy: int) -> list[tuple[int, int]]:
+    return [(x + dx, y + dy) for x, y in points]
+
+
+def draw_liquid_flow_mark(base: Image.Image) -> None:
+    points = liquid_flow_points()
     mask = Image.new("L", base.size, 0)
-    draw_round_path(mask, points, s(78))
+    draw_variable_round_path(mask, points, s(92))
 
-    shadow = Image.new("RGBA", base.size, (39, 90, 170, 80))
-    shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(13)))
+    shadow = Image.new("RGBA", base.size, (33, 82, 180, 74))
+    shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(16)))
     shadow.putalpha(shadow_alpha)
-    base.alpha_composite(shadow, (s(0), s(16)))
+    base.alpha_composite(shadow, (s(0), s(18)))
 
-    soft_shadow = Image.new("RGBA", base.size, (93, 95, 220, 36))
-    soft_shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(28)))
+    soft_shadow = Image.new("RGBA", base.size, (92, 82, 226, 34))
+    soft_shadow_alpha = mask.filter(ImageFilter.GaussianBlur(s(36)))
     soft_shadow.putalpha(soft_shadow_alpha)
-    base.alpha_composite(soft_shadow, (s(0), s(28)))
+    base.alpha_composite(soft_shadow, (s(0), s(31)))
 
     body = vertical_gradient(
         CANVAS,
         CANVAS,
         [
-            (0.00, (222, 253, 255, 210)),
-            (0.32, (126, 205, 241, 198)),
-            (0.70, (93, 151, 222, 178)),
-            (1.00, (154, 148, 248, 154)),
+            (0.00, (244, 255, 255, 202)),
+            (0.28, (163, 230, 255, 188)),
+            (0.62, (92, 167, 232, 174)),
+            (1.00, (154, 143, 248, 152)),
         ],
     )
-    radial_glow(body, (s(376), s(432)), s(220), (255, 255, 255, 118), steps=52)
-    radial_glow(body, (s(636), s(680)), s(270), (100, 218, 255, 64), steps=52)
+    radial_glow(body, (s(370), s(438)), s(220), (255, 255, 255, 136), steps=56)
+    radial_glow(body, (s(575), s(690)), s(260), (129, 104, 255, 72), steps=56)
+    radial_glow(body, (s(776), s(488)), s(210), (93, 230, 255, 78), steps=56)
     paste_with_mask(base, body, mask)
 
     glass = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    draw_round_rgba_path(glass, points, s(80), (255, 255, 255, 46))
-    draw_round_rgba_path(glass, points, s(70), (80, 157, 222, 88))
-    draw_round_rgba_path(glass, [(x - s(12), y - s(15)) for x, y in points], s(15), (255, 255, 255, 164))
-    draw_round_rgba_path(glass, [(x - s(2), y + s(2)) for x, y in points], s(9), (223, 250, 255, 58))
-    draw_round_rgba_path(glass, [(x + s(10), y + s(12)) for x, y in points], s(13), (49, 95, 188, 54))
+    draw_variable_rgba_path(glass, points, s(104), (255, 255, 255, 48))
+    draw_variable_rgba_path(glass, points, s(90), (66, 154, 226, 82))
+    draw_variable_rgba_path(glass, shifted_points(points, -s(15), -s(16)), s(17), (255, 255, 255, 188))
+    draw_variable_rgba_path(glass, shifted_points(points, -s(3), -s(3)), s(8), (230, 252, 255, 64))
+    draw_variable_rgba_path(glass, shifted_points(points, s(12), s(14)), s(16), (50, 94, 190, 50))
     glass.putalpha(Image.composite(glass.getchannel("A"), Image.new("L", base.size, 0), mask))
     base.alpha_composite(glass)
 
+    edge = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw_variable_rgba_path(edge, points, s(100), (255, 255, 255, 42))
+    draw_variable_rgba_path(edge, shifted_points(points, s(7), s(8)), s(82), (64, 119, 218, 36))
+    edge_alpha = Image.composite(edge.getchannel("A").filter(ImageFilter.GaussianBlur(s(1.2))), Image.new("L", base.size, 0), mask)
+    edge.putalpha(edge_alpha)
+    base.alpha_composite(edge)
+
     sparkle = Image.new("RGBA", base.size, (0, 0, 0, 0))
     sparkle_draw = ImageDraw.Draw(sparkle, "RGBA")
-    sparkle_draw.ellipse((s(366), s(400), s(418), s(452)), fill=(255, 255, 255, 66))
-    sparkle_draw.ellipse((s(618), s(400), s(662), s(444)), fill=(255, 255, 255, 50))
-    sparkle_draw.ellipse((s(488), s(588), s(532), s(632)), fill=(255, 255, 255, 30))
-    sparkle.putalpha(Image.composite(sparkle.getchannel("A").filter(ImageFilter.GaussianBlur(s(9))), Image.new("L", base.size, 0), mask))
+    sparkle_draw.ellipse((s(388), s(396), s(452), s(452)), fill=(255, 255, 255, 72))
+    sparkle_draw.ellipse((s(517), s(560), s(562), s(607)), fill=(255, 255, 255, 42))
+    sparkle_draw.ellipse((s(742), s(438), s(789), s(482)), fill=(255, 255, 255, 54))
+    sparkle.putalpha(Image.composite(sparkle.getchannel("A").filter(ImageFilter.GaussianBlur(s(8))), Image.new("L", base.size, 0), mask))
     base.alpha_composite(sparkle)
 
 
@@ -293,7 +323,7 @@ def create_icon() -> Image.Image:
     fold.putalpha(fold.getchannel("A").filter(ImageFilter.GaussianBlur(s(0.4))))
     image.alpha_composite(fold)
 
-    draw_liquid_monogram(image)
+    draw_liquid_flow_mark(image)
 
     return image.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
