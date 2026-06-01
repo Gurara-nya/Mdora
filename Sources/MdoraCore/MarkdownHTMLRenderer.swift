@@ -3,16 +3,14 @@ import Foundation
 public enum MarkdownHTMLRenderer {
     private struct RenderContext {
         var references: [String: LinkReferenceDefinition]
-        var abbreviations: [String: AbbreviationDefinition]
+        var sortedAbbreviations: [AbbreviationDefinition]
 
-        var sortedAbbreviations: [AbbreviationDefinition] {
-            abbreviations.values.sorted { first, second in
-                if first.term.count == second.term.count {
-                    return first.term < second.term
-                }
-
-                return first.term.count > second.term.count
-            }
+        init(
+            references: [String: LinkReferenceDefinition],
+            abbreviations: [String: AbbreviationDefinition]
+        ) {
+            self.references = references
+            self.sortedAbbreviations = AbbreviationDefinition.sortedForLongestMatch(abbreviations.values)
         }
     }
 
@@ -477,7 +475,7 @@ public enum MarkdownHTMLRenderer {
     }
 
     private static func renderText(_ text: String, context: RenderContext) -> String {
-        guard !context.abbreviations.isEmpty else { return escapeHTML(text) }
+        guard !context.sortedAbbreviations.isEmpty else { return escapeHTML(text) }
 
         var rendered = ""
         var cursor = text.startIndex

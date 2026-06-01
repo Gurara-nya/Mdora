@@ -25,8 +25,8 @@ private struct MarkdownReferenceDefinitionsKey: EnvironmentKey {
     static let defaultValue: [String: LinkReferenceDefinition] = [:]
 }
 
-private struct MarkdownAbbreviationDefinitionsKey: EnvironmentKey {
-    static let defaultValue: [String: AbbreviationDefinition] = [:]
+private struct MarkdownAbbreviationsForRenderKey: EnvironmentKey {
+    static let defaultValue: [AbbreviationDefinition] = []
 }
 
 private struct MarkdownAssetBaseURLKey: EnvironmentKey {
@@ -39,9 +39,9 @@ private extension EnvironmentValues {
         set { self[MarkdownReferenceDefinitionsKey.self] = newValue }
     }
 
-    var mdoraAbbreviationDefinitions: [String: AbbreviationDefinition] {
-        get { self[MarkdownAbbreviationDefinitionsKey.self] }
-        set { self[MarkdownAbbreviationDefinitionsKey.self] = newValue }
+    var mdoraAbbreviationsForRender: [AbbreviationDefinition] {
+        get { self[MarkdownAbbreviationsForRenderKey.self] }
+        set { self[MarkdownAbbreviationsForRenderKey.self] = newValue }
     }
 
     var mdoraAssetBaseURL: URL? {
@@ -91,7 +91,10 @@ struct MarkdownPreview: View {
             }
             .environment(\.mdoraPreviewStyle, renderStyle)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
-            .environment(\.mdoraAbbreviationDefinitions, parsed.abbreviationDefinitions)
+            .environment(
+                \.mdoraAbbreviationsForRender,
+                AbbreviationDefinition.sortedForLongestMatch(parsed.abbreviationDefinitions.values)
+            )
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
             .environment(\.openURL, OpenURLAction { url in
                 if url.scheme == "mdora" {
@@ -1467,7 +1470,7 @@ private struct InlineMarkdownText: View {
     private let theme: MdoraTheme
     @Environment(\.mdoraPreviewStyle) private var style
     @Environment(\.mdoraReferenceDefinitions) private var referenceDefinitions
-    @Environment(\.mdoraAbbreviationDefinitions) private var abbreviationDefinitions
+    @Environment(\.mdoraAbbreviationsForRender) private var sortedAbbreviations
     @Environment(\.openURL) private var openURL
 
     init(_ text: String, theme: MdoraTheme) {
@@ -1485,7 +1488,6 @@ private struct InlineMarkdownText: View {
     }
 
     private var attributedString: AttributedString {
-        let sortedAbbreviations = sortedAbbreviationsForRender
         return renderInline(text, sortedAbbreviations: sortedAbbreviations)
     }
 
@@ -1804,16 +1806,6 @@ private struct InlineMarkdownText: View {
             let end = value.index(index, offsetBy: definition.term.count)
             return hasAbbreviationBoundary(before: index, in: value, term: definition.term)
                 && hasAbbreviationBoundary(after: end, in: value, term: definition.term)
-        }
-    }
-
-    private var sortedAbbreviationsForRender: [AbbreviationDefinition] {
-        abbreviationDefinitions.values.sorted { first, second in
-            if first.term.count == second.term.count {
-                return first.term < second.term
-            }
-
-            return first.term.count > second.term.count
         }
     }
 

@@ -98,6 +98,22 @@ func runTests() {
     assert(parsedDocumentHTML == MarkdownHTMLRenderer.renderDocument(cachedDocumentMarkdown, title: "Cached"))
     print("✅ HTML export can render directly from an existing parsed document without reparsing!")
 
+    let sortedAbbreviationTerms = AbbreviationDefinition.sortedForLongestMatch([
+        AbbreviationDefinition(term: "API", expansion: "Application Programming Interface"),
+        AbbreviationDefinition(term: "API Gateway", expansion: "Application Programming Interface Gateway")
+    ]).map(\.term)
+    assert(sortedAbbreviationTerms == ["API Gateway", "API"])
+
+    let abbreviationMarkdown = """
+    API Gateway talks to API.
+
+    *[API]: Application Programming Interface
+    *[API Gateway]: Application Programming Interface Gateway
+    """
+    let abbreviationHTML = MarkdownHTMLRenderer.renderFragment(abbreviationMarkdown)
+    assert(abbreviationHTML.contains(#"<abbr title="Application Programming Interface Gateway">API Gateway</abbr> talks to <abbr title="Application Programming Interface">API</abbr>."#))
+    print("✅ Abbreviation rendering sorts once by longest match for preview/export compatibility!")
+
     // 3b. Test fenced code ranges used by editor highlighting
     let fencedHighlightMarkdown = """
     Before `inline`

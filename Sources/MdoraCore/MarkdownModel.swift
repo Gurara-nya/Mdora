@@ -394,6 +394,18 @@ public struct AbbreviationDefinition: Equatable, Hashable, Sendable {
             }
             .joined(separator: " ")
     }
+
+    public static func sortedForLongestMatch<S: Sequence>(_ definitions: S) -> [AbbreviationDefinition]
+        where S.Element == AbbreviationDefinition
+    {
+        definitions.sorted { first, second in
+            if first.term.count == second.term.count {
+                return first.term < second.term
+            }
+
+            return first.term.count > second.term.count
+        }
+    }
 }
 
 public struct CriticSubstitution: Equatable, Hashable {
