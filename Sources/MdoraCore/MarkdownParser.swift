@@ -7,7 +7,11 @@ public enum MarkdownParser {
         let blocks = parsedBlocks.blocks
         let outline = MarkdownAnalyzer.outline(from: blocks)
         let metadata = MarkdownAnalyzer.metadata(from: blocks)
-        let markers = MarkdownAnalyzer.markers(in: markdown, blocks: blocks)
+        let markers = MarkdownAnalyzer.markers(
+            in: markdown,
+            blocks: blocks,
+            sourceMap: parsedBlocks.sourceMap
+        )
         let referenceDefinitions = MarkdownAnalyzer.referenceDefinitions(from: blocks)
         let abbreviationDefinitions = MarkdownAnalyzer.abbreviationDefinitions(from: blocks)
         let diagnostics = MarkdownAnalyzer.diagnostics(
@@ -153,7 +157,8 @@ private struct BlockParser {
                 continue
             }
 
-            append(parseParagraph(), startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
+            let paragraph = parseParagraph()
+            append(paragraph, startingAt: startIndex, to: &blocks, sourceMap: &sourceMap)
         }
 
         return ParsedBlocks(blocks: blocks, sourceMap: sourceMap)

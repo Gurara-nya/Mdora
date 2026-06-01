@@ -116,7 +116,11 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    public static func markers(in markdown: String, blocks: [MarkdownBlock]) -> MarkdownMarkers {
+    public static func markers(
+        in markdown: String,
+        blocks: [MarkdownBlock],
+        sourceMap: [MarkdownBlockSourceRange] = []
+    ) -> MarkdownMarkers {
         var markers = MarkdownMarkers()
         let references = referenceDefinitions(from: blocks)
         let inlineMarkers = inlineMarkers(in: blocks, references: references)
@@ -140,7 +144,7 @@ public enum MarkdownAnalyzer {
         markers.htmlComments = unique(htmlComments(in: blocks))
         markers.inlineHTML = unique(inlineMarkers.inlineHTML)
         markers.htmlEntities = unique(inlineMarkers.htmlEntities)
-        markers.taskTokens = taskTokens(in: markdown)
+        markers.taskTokens = taskTokens(in: markdown, blocks: blocks, sourceMap: sourceMap)
         markers.taskStates = taskStateCounts(in: blocks)
         markers.mathExpressions = unique(blockMathExpressions(in: blocks) + inlineMarkers.mathExpressions)
         markers.highlights = unique(inlineMarkers.highlights)
@@ -341,31 +345,222 @@ public enum MarkdownAnalyzer {
         }
     }
 
-    private static func taskTokens(in markdown: String) -> [TaskToken] {
-        let pattern = #"(?im)^\s*(?:(?:[-*+]\s+|\d+[.)]\s+)(?:\[(?: |x|X|/|-|>|!|\?)\]\s+)?)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b[:：]?\s*(.*?)(?:\s*-->)?\s*$"#
-        guard let expression = try? NSRegularExpression(pattern: pattern) else {
-            return []
+    private static func taskTokens(
+        in markdown: String,
+        blocks: [MarkdownBlock],
+        sourceMap: [MarkdownBlockSourceRange]
+    ) -> [TaskToken] {
+        guard !sourceMap.isEmpty else {
+            return taskTokens(in: blocks)
         }
 
-        let range = NSRange(markdown.startIndex ..< markdown.endIndex, in: markdown)
-        let matches = expression.matches(in: markdown, range: range)
+        var tokens: [TaskToken] = []
+        var lineNumber = 1
+        var sourceMapIndex = 0
 
-        let tokens = matches.compactMap { match -> TaskToken? in
-            guard match.numberOfRanges >= 3 else { return nil }
-            guard let markerRange = Range(match.range(at: 1), in: markdown) else { return nil }
-            guard let kind = TaskTokenKind(marker: String(markdown[markerRange])) else { return nil }
-
-            let text: String
-            if let textRange = Range(match.range(at: 2), in: markdown) {
-                text = String(markdown[textRange]).trimmingCharacters(in: .whitespaces)
-            } else {
-                text = ""
+        for rawLine in markdown.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+            while sourceMapIndex < sourceMap.count,
+                  lineNumber > sourceMap[sourceMapIndex].endLine {
+                sourceMapIndex += 1
             }
 
-            return TaskToken(kind: kind, text: text)
+            if sourceMapIndex < sourceMap.count {
+                let sourceRange = sourceMap[sourceMapIndex]
+                if sourceRange.contains(line: lineNumber),
+                   blocks.indices.contains(sourceRange.blockIndex),
+                   shouldScanRawTaskTokenLine(in: blocks[sourceRange.blockIndex]),
+                   let token = taskToken(in: String(rawLine)) {
+                    tokens.append(token)
+                }
+            }
+
+            lineNumber += 1
+        }
+
+        for block in blocks {
+            if case .blockquote = block {
+                collectTaskTokens(in: block, into: &tokens)
+            }
         }
 
         return unique(tokens)
+    }
+
+    private static func taskTokens(in blocks: [MarkdownBlock]) -> [TaskToken] {
+        var tokens: [TaskToken] = []
+
+        for block in blocks {
+            collectTaskTokens(in: block, into: &tokens)
+        }
+
+        return unique(tokens)
+    }
+
+    private static func shouldScanRawTaskTokenLine(in block: MarkdownBlock) -> Bool {
+        switch block {
+        case .heading, .paragraph, .unorderedList, .orderedList, .taskList, .definitionList, .footnoteDefinition, .htmlComment:
+            return true
+        case .blockquote, .frontMatter, .codeBlock, .diagram, .mathBlock, .table, .linkReferenceDefinition, .abbreviationDefinition, .image, .thematicBreak, .html:
+            return false
+        }
+    }
+
+    private static func collectTaskTokens(in block: MarkdownBlock, into tokens: inout [TaskToken]) {
+        switch block {
+        case let .heading(_, text, _, _), let .paragraph(text):
+            collectTaskTokens(inText: text, into: &tokens)
+        case let .blockquote(blocks, _):
+            for block in blocks {
+                collectTaskTokens(in: block, into: &tokens)
+            }
+        case let .unorderedList(items), let .orderedList(items):
+            for item in items {
+                collectTaskTokens(inText: item.text, into: &tokens)
+            }
+        case let .taskList(items):
+            for item in items {
+                collectTaskTokens(inText: item.text, into: &tokens)
+            }
+        case let .definitionList(items):
+            for item in items {
+                collectTaskTokens(inText: item.term, into: &tokens)
+                for definition in item.definitions {
+                    collectTaskTokens(inText: definition, into: &tokens)
+                }
+            }
+        case let .footnoteDefinition(_, text):
+            collectTaskTokens(inText: text, into: &tokens)
+        case let .htmlComment(comment):
+            collectTaskTokens(inText: comment, into: &tokens)
+        case .frontMatter, .codeBlock, .diagram, .mathBlock, .table, .linkReferenceDefinition, .abbreviationDefinition, .image, .thematicBreak, .html:
+            break
+        }
+    }
+
+    private static func collectTaskTokens(inText text: String, into tokens: inout [TaskToken]) {
+        for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+            if let token = taskToken(in: String(line)) {
+                tokens.append(token)
+            }
+        }
+    }
+
+    private static func taskToken(in line: String) -> TaskToken? {
+        var cursor = line.startIndex
+        skipWhitespace(in: line, from: &cursor)
+        stripHeadingPrefix(in: line, from: &cursor)
+        stripListPrefix(in: line, from: &cursor)
+        stripHTMLCommentPrefix(in: line, from: &cursor)
+        skipWhitespace(in: line, from: &cursor)
+
+        guard cursor < line.endIndex else { return nil }
+        let markerStart = cursor
+        while cursor < line.endIndex, line[cursor].isLetter {
+            cursor = line.index(after: cursor)
+        }
+
+        guard markerStart < cursor else { return nil }
+        let marker = String(line[markerStart ..< cursor])
+        guard let kind = TaskTokenKind(marker: marker) else { return nil }
+
+        if cursor < line.endIndex {
+            if line[cursor] == ":" || line[cursor] == "：" {
+                cursor = line.index(after: cursor)
+            } else if !line[cursor].isWhitespace {
+                return nil
+            }
+        }
+
+        skipWhitespace(in: line, from: &cursor)
+        let rawText = String(line[cursor...]).trimmingCharacters(in: .whitespaces)
+        let text = rawText.hasSuffix("-->")
+            ? String(rawText.dropLast(3)).trimmingCharacters(in: .whitespaces)
+            : rawText
+
+        return TaskToken(kind: kind, text: text)
+    }
+
+    private static func stripHeadingPrefix(in line: String, from cursor: inout String.Index) {
+        guard cursor < line.endIndex, line[cursor] == "#" else { return }
+
+        var scan = cursor
+        var count = 0
+        while scan < line.endIndex, line[scan] == "#", count < 6 {
+            count += 1
+            scan = line.index(after: scan)
+        }
+
+        guard count > 0,
+              scan < line.endIndex,
+              line[scan].isWhitespace else {
+            return
+        }
+
+        cursor = scan
+        skipWhitespace(in: line, from: &cursor)
+    }
+
+    private static func stripListPrefix(in line: String, from cursor: inout String.Index) {
+        stripMarkdownListMarker(in: line, from: &cursor)
+        stripTaskStatePrefix(in: line, from: &cursor)
+    }
+
+    private static func stripMarkdownListMarker(in line: String, from cursor: inout String.Index) {
+        guard cursor < line.endIndex else { return }
+
+        let marker = line[cursor]
+        if marker == "-" || marker == "*" || marker == "+" {
+            let afterMarker = line.index(after: cursor)
+            guard afterMarker < line.endIndex, line[afterMarker].isWhitespace else { return }
+            cursor = afterMarker
+            skipWhitespace(in: line, from: &cursor)
+            return
+        }
+
+        guard marker.isNumber else { return }
+        var scan = cursor
+        while scan < line.endIndex, line[scan].isNumber {
+            scan = line.index(after: scan)
+        }
+
+        guard scan < line.endIndex,
+              line[scan] == "." || line[scan] == ")" else {
+            return
+        }
+
+        let afterDelimiter = line.index(after: scan)
+        guard afterDelimiter < line.endIndex, line[afterDelimiter].isWhitespace else { return }
+        cursor = afterDelimiter
+        skipWhitespace(in: line, from: &cursor)
+    }
+
+    private static func stripTaskStatePrefix(in line: String, from cursor: inout String.Index) {
+        guard cursor < line.endIndex, line[cursor] == "[" else { return }
+        guard let markerIndex = line.index(cursor, offsetBy: 1, limitedBy: line.endIndex),
+              markerIndex < line.endIndex,
+              let closeIndex = line.index(cursor, offsetBy: 2, limitedBy: line.endIndex),
+              closeIndex < line.endIndex,
+              line[closeIndex] == "]",
+              TaskState(marker: line[markerIndex]) != nil else {
+            return
+        }
+
+        let afterClose = line.index(after: closeIndex)
+        guard afterClose < line.endIndex, line[afterClose].isWhitespace else { return }
+        cursor = afterClose
+        skipWhitespace(in: line, from: &cursor)
+    }
+
+    private static func stripHTMLCommentPrefix(in line: String, from cursor: inout String.Index) {
+        guard line[cursor...].hasPrefix("<!--") else { return }
+        cursor = line.index(cursor, offsetBy: 4)
+        skipWhitespace(in: line, from: &cursor)
+    }
+
+    private static func skipWhitespace(in line: String, from cursor: inout String.Index) {
+        while cursor < line.endIndex, line[cursor].isWhitespace {
+            cursor = line.index(after: cursor)
+        }
     }
 
     private static func blockMathExpressions(in blocks: [MarkdownBlock]) -> [String] {

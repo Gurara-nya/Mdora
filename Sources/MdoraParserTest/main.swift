@@ -1266,7 +1266,33 @@ func runTests() {
         "IMPORTANT: Ordered task marker",
         "QUESTION: Hidden comment marker"
     ])
-    print("✅ TODO-style markers are recognized in plain, list, task, ordered, and comment lines!")
+
+    let blockAwareTaskTokenMarkdown = """
+    Intro line
+    TODO: Same paragraph second line marker
+
+    ```text
+    TODO: Ignore code task
+    ```
+
+    $$
+    FIXME: Ignore math task
+    $$
+
+    > TODO: Quoted marker
+    > - FIXME: Quoted list marker
+    """
+    let blockAwareTaskTokenDocument = MarkdownParser.parse(blockAwareTaskTokenMarkdown)
+    assert(blockAwareTaskTokenDocument.sourceMap.first?.startLine == 1)
+    assert(blockAwareTaskTokenDocument.sourceMap.first?.endLine == 2)
+    assert(blockAwareTaskTokenDocument.blockIndex(containingLine: 2) == 0)
+    let blockAwareTaskTokens = blockAwareTaskTokenDocument.markers.taskTokens.map { "\($0.kind.title): \($0.text)" }
+    assert(blockAwareTaskTokens == [
+        "TODO: Same paragraph second line marker",
+        "TODO: Quoted marker",
+        "FIXME: Quoted list marker"
+    ])
+    print("✅ TODO-style markers are recognized in parsed writing blocks without code/math false positives!")
 
     // 16. Test internal preview link navigation targets
     let navigationMarkdown = """

@@ -22,15 +22,13 @@ final class MdoraCoreTests: XCTestCase {
         let document = MarkdownParser.parse(markdown)
         XCTAssertEqual(document.blocks.count, 5)
 
-        // Heading
-        if case let .heading(level, text, _) = document.blocks[0] {
+        if case let .heading(level, text, _, _) = document.blocks[0] {
             XCTAssertEqual(level, 1)
             XCTAssertEqual(text, "Heading 1")
         } else {
             XCTFail("First block should be a heading")
         }
 
-        // Blockquote
         if case let .blockquote(blocks, callout) = document.blocks[1] {
             XCTAssertEqual(callout?.kind, .important)
             XCTAssertEqual(blocks.count, 2)
@@ -57,26 +55,48 @@ final class MdoraCoreTests: XCTestCase {
             let content = try String(contentsOfFile: filePath, encoding: .utf8)
             let document = MarkdownParser.parse(content)
             XCTAssertFalse(document.blocks.isEmpty)
-
-            print("Successfully parsed real test.md, block count: \\(document.blocks.count)")
-
-            // Let's print out block distribution
-            for (index, block) in document.blocks.enumerated() {
-                switch block {
-                case let .heading(level, text, _):
-                    print("Block \\(index): Heading L\\(level) -> \\(text)")
-                case .paragraph(let text):
-                    print("Block \\(index): Paragraph -> \\(text.prefix(60))...")
-                case .blockquote(_, let callout):
-                    print("Block \\(index): Blockquote (Callout: \\(String(describing: callout?.kind)))")
-                case .mathBlock(let expr):
-                    print("Block \\(index): MathBlock -> \\(expr.prefix(60))...")
-                default:
-                    break
-                }
-            }
         } catch {
             XCTFail("Failed to load test.md: \\(error)")
         }
+    }
+
+    func testTaskTokensSkipNonWritingBlocks() {
+        let markdown = """
+        Intro line
+        TODO: Same paragraph second line marker
+
+        TODO: Root marker
+        - [ ] NOTE: Task checkbox marker
+
+        ```text
+        FIXME: Ignore code task
+        ```
+
+        $$
+        BUG: Ignore math task
+        $$
+
+        > IMPORTANT: Quoted marker
+        > - QUESTION: Quoted list marker
+        <!-- HACK: Hidden comment marker -->
+        """
+
+        let document = MarkdownParser.parse(markdown)
+
+        XCTAssertEqual(document.sourceMap.first?.startLine, 1)
+        XCTAssertEqual(document.sourceMap.first?.endLine, 2)
+        XCTAssertEqual(document.blockIndex(containingLine: 2), 0)
+
+        XCTAssertEqual(
+            document.markers.taskTokens.map { "\($0.kind.title): \($0.text)" },
+            [
+                "TODO: Same paragraph second line marker",
+                "TODO: Root marker",
+                "NOTE: Task checkbox marker",
+                "IMPORTANT: Quoted marker",
+                "QUESTION: Quoted list marker",
+                "HACK: Hidden comment marker"
+            ]
+        )
     }
 }
