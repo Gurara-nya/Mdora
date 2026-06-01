@@ -62,7 +62,17 @@ public struct MarkdownWikiLinkReference: Equatable, Hashable {
     }
 
     public static func parse(_ rawValue: String) -> MarkdownWikiLinkReference {
-        MarkdownWikiLinkReference(rawValue: rawValue)
+        if let cached = cache.reference(for: rawValue) {
+            return cached
+        }
+
+        let reference = MarkdownWikiLinkReference(rawValue: rawValue)
+        cache.store(reference, for: rawValue)
+        return reference
+    }
+
+    public static func clearCache() {
+        cache.removeAll()
     }
 
     private static func splitAlias(in rawValue: String) -> (target: String, alias: String?) {
@@ -123,4 +133,48 @@ public struct MarkdownWikiLinkReference: Equatable, Hashable {
     private static let imageExtensions: Set<String> = [
         "apng", "avif", "bmp", "gif", "heic", "jpeg", "jpg", "png", "svg", "tif", "tiff", "webp"
     ]
+
+    private static let cache = MarkdownWikiLinkReferenceCache()
+}
+
+private final class MarkdownWikiLinkReferenceCache: @unchecked Sendable {
+    private let cache = NSCache<NSString, MarkdownWikiLinkReferenceBox>()
+    private let maxCacheableRawValueLength = 8_192
+
+    init() {
+        cache.countLimit = 4_096
+        cache.totalCostLimit = 1_000_000
+    }
+
+    func reference(for rawValue: String) -> MarkdownWikiLinkReference? {
+        guard shouldCache(rawValue) else { return nil }
+        return cache.object(forKey: rawValue as NSString)?.reference
+    }
+
+    func store(_ reference: MarkdownWikiLinkReference, for rawValue: String) {
+        guard shouldCache(rawValue) else { return }
+        let cost = rawValue.utf16.count +
+            reference.target.utf16.count +
+            reference.path.utf16.count +
+            (reference.alias?.utf16.count ?? 0) +
+            (reference.heading?.utf16.count ?? 0) +
+            (reference.blockID?.utf16.count ?? 0)
+        cache.setObject(MarkdownWikiLinkReferenceBox(reference), forKey: rawValue as NSString, cost: cost)
+    }
+
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    private func shouldCache(_ rawValue: String) -> Bool {
+        !rawValue.isEmpty && rawValue.utf16.count <= maxCacheableRawValueLength
+    }
+}
+
+private final class MarkdownWikiLinkReferenceBox: @unchecked Sendable {
+    let reference: MarkdownWikiLinkReference
+
+    init(_ reference: MarkdownWikiLinkReference) {
+        self.reference = reference
+    }
 }

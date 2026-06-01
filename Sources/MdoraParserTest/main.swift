@@ -805,6 +805,31 @@ func runTests() {
     assert(!streamingMarkerDocument.diagnostics.contains { $0.id == "missing-reference-chart" })
     print("✅ Streaming marker collection preserves rich inline marker recognition without broad segment arrays!")
 
+    MarkdownWikiLinkReference.clearCache()
+    let wikiReference = MarkdownWikiLinkReference.parse(#"Docs/Project Note#Roadmap|Readable\|Alias"#)
+    assert(wikiReference.target == "Docs/Project Note#Roadmap")
+    assert(wikiReference.path == "Docs/Project Note")
+    assert(wikiReference.heading == "Roadmap")
+    assert(wikiReference.blockID == nil)
+    assert(wikiReference.alias == "Readable|Alias")
+    assert(wikiReference.inspectorText == "Readable|Alias -> Docs/Project Note#Roadmap")
+    assert(MarkdownWikiLinkReference.parse(#"Docs/Project Note#Roadmap|Readable\|Alias"#) == wikiReference)
+
+    let wikiBlockReference = MarkdownWikiLinkReference.parse("Docs/Project Note#^task-1|Task")
+    assert(wikiBlockReference.path == "Docs/Project Note")
+    assert(wikiBlockReference.heading == nil)
+    assert(wikiBlockReference.blockID == "task-1")
+    assert(wikiBlockReference.displayText == "Task")
+
+    let wikiEmbedReference = MarkdownWikiLinkReference.parse("Assets/mockup.png|App mockup")
+    assert(wikiEmbedReference.isImageEmbed)
+    assert(wikiEmbedReference.embedDisplayText == "App mockup")
+    assert(wikiEmbedReference.embedPreviewText == "[image: App mockup]")
+
+    MarkdownWikiLinkReference.clearCache()
+    assert(MarkdownWikiLinkReference.parse(#"Docs/Project Note#Roadmap|Readable\|Alias"#) == wikiReference)
+    print("✅ Wiki links and embeds parse cached targets, aliases, headings, blocks, and image embeds!")
+
     let footnoteDiagnosticMarkdown = """
     Real missing footnote[^missing] and known footnote[^known].
     Code span `[^code]` should stay code.
