@@ -732,56 +732,175 @@ private struct DiagramPreviewCanvas: View {
     let theme: MdoraTheme
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                ForEach(0 ..< nodeCount, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(theme.palette.previewColor)
-                        .frame(width: 82, height: 38)
-                        .overlay(
-                            Text(nodeTitle(index))
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(theme.palette.textColor)
-                                .lineLimit(1)
-                                .padding(.horizontal, 8)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(theme.palette.borderColor.opacity(0.5), lineWidth: 1)
-                        )
+        let graph = MarkdownDiagramGraphParser.parse(kind: kind, source: source)
 
-                    if index < nodeCount - 1 {
-                        Image(systemName: "arrow.right")
-                            .foregroundStyle(theme.palette.accentColor)
+        if graph.nodes.isEmpty {
+            DiagramSourceSummary(kind: kind, source: source, theme: theme)
+        } else {
+            DiagramGraphPreview(graph: graph, theme: theme)
+        }
+    }
+}
+
+private struct DiagramGraphPreview: View {
+    let graph: MarkdownDiagramGraph
+    let theme: MdoraTheme
+
+    private let maxVisibleNodes = 8
+    private let maxVisibleEdges = 12
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if graph.direction == .leftToRight {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        nodeChain
+                    }
+                    .padding(.vertical, 2)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    nodeChain
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            if !graph.edges.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(Array(graph.edges.prefix(maxVisibleEdges).enumerated()), id: \.offset) { _, edge in
+                        DiagramEdgeChip(edge: edge, graph: graph, theme: theme)
                     }
                 }
             }
 
-            Text(kind.title)
+            HStack(spacing: 6) {
+                Image(systemName: graph.kind.systemImage)
+                Text("\(graph.nodes.count) nodes · \(graph.edges.count) links")
+                if graph.nodes.count > maxVisibleNodes || graph.edges.count > maxVisibleEdges {
+                    Text("preview clipped for speed")
+                }
+            }
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(theme.palette.mutedColor)
+        }
+        .frame(maxWidth: .infinity, minHeight: 126, alignment: .leading)
+        .padding(12)
+        .background(theme.palette.previewColor.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var nodeChain: some View {
+        let visibleNodes = Array(graph.nodes.prefix(maxVisibleNodes))
+        ForEach(Array(visibleNodes.enumerated()), id: \.element.id) { index, node in
+            DiagramNodePill(node: node, theme: theme)
+
+            if index < visibleNodes.count - 1 {
+                Image(systemName: graph.direction == .leftToRight ? "arrow.right" : "arrow.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.palette.accentColor)
+            }
+        }
+    }
+}
+
+private struct DiagramNodePill: View {
+    let node: MarkdownDiagramNode
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(node.title)
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.palette.textColor)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if node.id != node.title {
+                Text(node.id)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(theme.palette.mutedColor)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .frame(width: 118)
+        .frame(minHeight: 44)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(theme.palette.surfaceColor)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.accentColor.opacity(0.25), lineWidth: 1)
+        )
+    }
+}
+
+private struct DiagramEdgeChip: View {
+    let edge: MarkdownDiagramEdge
+    let graph: MarkdownDiagramGraph
+    let theme: MdoraTheme
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(title(for: edge.from))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Image(systemName: "arrow.right")
+                .font(.caption2)
+                .foregroundStyle(theme.palette.accentColor)
+
+            Text(title(for: edge.to))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if let label = edge.label {
+                Text(label)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(theme.palette.accentColor)
+            }
+        }
+        .font(.caption2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor.opacity(0.68))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private func title(for id: String) -> String {
+        graph.nodes.first(where: { $0.id == id })?.title ?? id
+    }
+}
+
+private struct DiagramSourceSummary: View {
+    let kind: DiagramKind
+    let source: String
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: kind.systemImage)
+                .font(.title3)
+                .foregroundStyle(theme.palette.accentColor)
+
+            Text(source.components(separatedBy: .newlines).first(where: { !$0.trimmedForPreview.isEmpty }) ?? kind.title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(theme.palette.textColor)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Text("Diagram source recognized")
+                .font(.caption2)
                 .foregroundStyle(theme.palette.mutedColor)
         }
         .frame(maxWidth: .infinity, minHeight: 118)
         .padding(12)
         .background(theme.palette.previewColor.opacity(0.82))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var nodeCount: Int {
-        min(4, max(2, source.components(separatedBy: .newlines).filter { !$0.trimmedForPreview.isEmpty }.count))
-    }
-
-    private func nodeTitle(_ index: Int) -> String {
-        let candidates = source
-            .components(separatedBy: .newlines)
-            .map(\.trimmedForPreview)
-            .filter { !$0.isEmpty }
-
-        guard candidates.indices.contains(index) else {
-            return "Node \(index + 1)"
-        }
-
-        return String(candidates[index].prefix(18))
     }
 }
 

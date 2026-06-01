@@ -227,6 +227,33 @@ func runTests() {
     }
     assert(diagramInfoStringBlock.kind == .mermaid)
     assert(diagramInfoStringBlock.source == "flowchart LR\nA-->B")
+    let mermaidGraph = MarkdownDiagramGraphParser.parse(kind: .mermaid, source: diagramInfoStringBlock.source)
+    assert(mermaidGraph.direction == .leftToRight)
+    assert(mermaidGraph.nodes.map(\.id) == ["A", "B"])
+    assert(mermaidGraph.edges == [MarkdownDiagramEdge(from: "A", to: "B")])
+
+    let labeledMermaidGraph = MarkdownDiagramGraphParser.parse(
+        kind: .mermaid,
+        source: "flowchart TD\nA[Idea] -->|draft| B[Preview]"
+    )
+    assert(labeledMermaidGraph.direction == .topToBottom)
+    assert(labeledMermaidGraph.nodes.map(\.title) == ["Idea", "Preview"])
+    assert(labeledMermaidGraph.edges == [MarkdownDiagramEdge(from: "A", to: "B", label: "draft")])
+
+    let graphvizGraph = MarkdownDiagramGraphParser.parse(
+        kind: .graphviz,
+        source: "digraph G {\nrankdir=LR;\nStart -> Done [label=\"ship\"];\n}"
+    )
+    assert(graphvizGraph.direction == .leftToRight)
+    assert(graphvizGraph.edges == [MarkdownDiagramEdge(from: "Start", to: "Done", label: "ship")])
+
+    let sequenceGraph = MarkdownDiagramGraphParser.parse(
+        kind: .sequence,
+        source: "Writer->Preview: refresh"
+    )
+    assert(sequenceGraph.direction == .leftToRight)
+    assert(sequenceGraph.nodes.map(\.id) == ["Writer", "Preview"])
+    assert(sequenceGraph.edges == [MarkdownDiagramEdge(from: "Writer", to: "Preview", label: "refresh")])
     print("✅ CommonMark code fences honor indentation, content de-indentation, and info-string rules!")
 
     let variableFenceMarkdown = #"""
