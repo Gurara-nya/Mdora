@@ -1208,8 +1208,10 @@ private struct DefinitionListView: View {
             ForEach(items.indices, id: \.self) { itemIndex in
                 let item = items[itemIndex]
                 VStack(alignment: .leading, spacing: 6) {
-                    InlineMarkdownText(item.term, theme: theme)
-                        .font(.system(size: 15, weight: .semibold))
+                    ForEach(item.terms.indices, id: \.self) { termIndex in
+                        InlineMarkdownText(item.terms[termIndex], theme: theme)
+                            .font(.system(size: 15, weight: .semibold))
+                    }
 
                     ForEach(item.definitions.indices, id: \.self) { definitionIndex in
                         let definition = item.definitions[definitionIndex]

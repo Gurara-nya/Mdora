@@ -161,7 +161,7 @@ public enum MarkdownInternalLinkResolver {
                    }
         case .definitionList(let defs):
             return defs.contains { definition in
-                definition.term.lowercased().contains(lowerTerm) ||
+                definition.terms.contains { $0.lowercased().contains(lowerTerm) } ||
                 definition.definitions.contains { $0.lowercased().contains(lowerTerm) }
             }
         case .linkReferenceDefinition(let def):

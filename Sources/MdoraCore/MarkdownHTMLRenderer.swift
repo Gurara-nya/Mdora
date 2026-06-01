@@ -278,11 +278,18 @@ public enum MarkdownHTMLRenderer {
         context: RenderContext
     ) -> String {
         let body = items.map { item in
+            let terms = item.terms.map { term in
+                let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: term)
+                let content = blockID?.content ?? term
+                return "<dt\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</dt>"
+            }.joined(separator: "\n")
             let definitions = item.definitions.map { definition in
-                "<dd>\(renderInline(definition, context: context))</dd>"
+                let blockID = MarkdownBlockIDParser.splitTrailingIdentifier(in: definition)
+                let content = blockID?.content ?? definition
+                return "<dd\(blockIDAttributes(blockID?.identifier))>\(renderInline(content, context: context))</dd>"
             }.joined(separator: "\n")
 
-            return "<dt>\(renderInline(item.term, context: context))</dt>\n\(definitions)"
+            return "\(terms)\n\(definitions)"
         }.joined(separator: "\n")
 
         return "<dl>\n\(body)\n</dl>"

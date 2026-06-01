@@ -1055,6 +1055,49 @@ func runTests() {
     assert(multilineFootnoteHTML.contains(#"<sup>long</sup> First line<br>continued <strong>bold</strong><br><br>second paragraph <a href="https://example.com">link</a>"#))
     print("✅ Multiline Markdown Extra footnotes keep indented continuations and inline formatting!")
 
+    let richDefinitionListMarkdown = """
+    Term One
+    Term Two
+    : First definition
+        continued **bold**
+
+        second paragraph
+    ~ Alternate definition ^definition-id
+    Tail paragraph.
+    """
+    let richDefinitionListDocument = MarkdownParser.parse(richDefinitionListMarkdown)
+    assert(richDefinitionListDocument.blocks.count == 2)
+    guard case .definitionList(let richDefinitionItems) = richDefinitionListDocument.blocks[0] else {
+        fatalError("❌ Expected Markdown Extra definition list with multiple terms")
+    }
+    assert(richDefinitionItems.count == 1)
+    assert(richDefinitionItems[0].terms == ["Term One", "Term Two"])
+    assert(richDefinitionItems[0].definitions == [
+        "First definition\ncontinued **bold**\n\nsecond paragraph",
+        "Alternate definition ^definition-id"
+    ])
+    assert(richDefinitionListDocument.sourceRange(forBlockIndex: 0) == MarkdownBlockSourceRange(blockIndex: 0, startLine: 1, endLine: 7))
+    assert(richDefinitionListDocument.markers.blockIDs.contains("definition-id"))
+    guard case .paragraph("Tail paragraph.") = richDefinitionListDocument.blocks[1] else {
+        fatalError("❌ Expected definition list to stop before following paragraph")
+    }
+    let richDefinitionListHTML = MarkdownHTMLRenderer.renderFragment(richDefinitionListDocument)
+    assert(richDefinitionListHTML.contains("<dt>Term One</dt>\n<dt>Term Two</dt>"))
+    assert(richDefinitionListHTML.contains(#"<dd>First definition<br>continued <strong>bold</strong><br><br>second paragraph</dd>"#))
+    assert(richDefinitionListHTML.contains(#"<dd id="definition-id" data-block-id="definition-id">Alternate definition</dd>"#))
+
+    let emptyDefinitionMarkerMarkdown = """
+    Empty Definition
+    :
+        continued after empty marker
+    """
+    let emptyDefinitionMarkerDocument = MarkdownParser.parse(emptyDefinitionMarkerMarkdown)
+    guard case .definitionList(let emptyDefinitionItems) = emptyDefinitionMarkerDocument.blocks[0] else {
+        fatalError("❌ Expected empty definition marker to remain part of a definition list")
+    }
+    assert(emptyDefinitionItems[0].definitions == ["continued after empty marker"])
+    print("✅ Markdown Extra definition lists support shared terms, loose continuations, and empty markers!")
+
     let invalidReferenceTitleMarkdown = """
     [bad]: https://example.com "Title" trailing
     [Uses bad][bad]

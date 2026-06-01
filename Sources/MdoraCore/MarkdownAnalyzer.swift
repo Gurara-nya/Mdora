@@ -409,7 +409,9 @@ public enum MarkdownAnalyzer {
             }
         case let .definitionList(items):
             for item in items {
-                collectTaskTokens(inText: item.term, into: &tokens)
+                for term in item.terms {
+                    collectTaskTokens(inText: term, into: &tokens)
+                }
                 for definition in item.definitions {
                     collectTaskTokens(inText: definition, into: &tokens)
                 }
@@ -603,7 +605,9 @@ public enum MarkdownAnalyzer {
             appendTrimmed(expression, to: &markers.mathExpressions)
         case let .definitionList(items):
             for item in items {
-                appendBlockID(from: item.term, to: &markers.blockIDs)
+                for term in item.terms {
+                    appendBlockID(from: term, to: &markers.blockIDs)
+                }
                 for definition in item.definitions {
                     appendBlockID(from: definition, to: &markers.blockIDs)
                 }
@@ -657,7 +661,7 @@ public enum MarkdownAnalyzer {
         case let .taskList(items):
             return items.map(\.text)
         case let .definitionList(items):
-            return items.flatMap { [$0.term] + $0.definitions }
+            return items.flatMap { $0.terms + $0.definitions }
         case let .footnoteDefinition(_, text):
             return [text]
         case .frontMatter, .codeBlock, .diagram, .mathBlock, .table, .linkReferenceDefinition, .abbreviationDefinition, .image, .thematicBreak, .htmlComment, .html:
@@ -713,7 +717,9 @@ public enum MarkdownAnalyzer {
             }
         case let .definitionList(items):
             for item in items {
-                visit(item.term)
+                for term in item.terms {
+                    visit(term)
+                }
                 for definition in item.definitions {
                     visit(definition)
                 }

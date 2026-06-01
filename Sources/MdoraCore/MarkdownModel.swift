@@ -341,11 +341,21 @@ public enum DiagramKind: String, CaseIterable, Equatable, Hashable {
 }
 
 public struct DefinitionItem: Equatable {
-    public var term: String
+    public var terms: [String]
     public var definitions: [String]
 
+    public var term: String {
+        get { terms.first ?? "" }
+        set { terms = [newValue] }
+    }
+
     public init(term: String, definitions: [String]) {
-        self.term = term
+        self.terms = [term]
+        self.definitions = definitions
+    }
+
+    public init(terms: [String], definitions: [String]) {
+        self.terms = terms
         self.definitions = definitions
     }
 }

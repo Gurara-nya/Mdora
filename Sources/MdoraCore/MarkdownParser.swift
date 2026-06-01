@@ -607,7 +607,7 @@ private struct BlockParser {
         if isTableSeparator(line) { return true }
         if parseListLine(line) != nil { return true }
         if isFootnoteDefinition(line) { return true }
-        if isDefinitionLine(trimmed) { return true }
+        if definitionText(from: trimmed) != nil { return true }
         if let referenceDefinition = parseLinkReferenceDefinitionLine(trimmed),
            referenceDefinition.destination != nil {
             return true
@@ -771,51 +771,141 @@ private struct BlockParser {
         return nil
     }
 
-    private mutating func parseDefinitionList() -> MarkdownBlock? {
-        guard let definitionLine = line(at: 1)?.trimmed else { return nil }
-        guard definitionLine.hasPrefix(": ") || definitionLine.hasPrefix("~ ") else { return nil }
-        guard !currentLine.trimmed.isEmpty else { return nil }
+    private static func definitionText(from trimmedLine: String) -> String? {
+        guard let marker = trimmedLine.first, marker == ":" || marker == "~" else {
+            return nil
+        }
 
+        let textStart = trimmedLine.index(after: trimmedLine.startIndex)
+        guard textStart < trimmedLine.endIndex else { return "" }
+        guard trimmedLine[textStart].isWhitespace else { return nil }
+
+        return String(trimmedLine[textStart...]).trimmed
+    }
+
+    private static func definitionContinuationText(from line: String) -> String? {
+        if line.hasPrefix("    ") {
+            return String(line.dropFirst(4)).trimmed
+        }
+
+        if line.hasPrefix("\t") {
+            return String(line.dropFirst()).trimmed
+        }
+
+        return nil
+    }
+
+    private static func appendDefinitionBlankLine(to definitions: inout [String]) {
+        guard !definitions.isEmpty else {
+            definitions.append("")
+            return
+        }
+
+        definitions[definitions.count - 1] += "\n"
+    }
+
+    private static func appendDefinitionContinuation(_ text: String, to definitions: inout [String]) {
+        guard !definitions.isEmpty else {
+            definitions.append(text)
+            return
+        }
+
+        if definitions[definitions.count - 1].isEmpty {
+            definitions[definitions.count - 1] = text
+        } else {
+            definitions[definitions.count - 1] += "\n\(text)"
+        }
+    }
+
+    private mutating func parseDefinitionList() -> MarkdownBlock? {
+        let startIndex = index
         var items: [DefinitionItem] = []
 
         while index < lines.count {
-            let term = currentLine.trimmed
-            guard !term.isEmpty else { break }
-            guard let next = line(at: 1)?.trimmed, next.hasPrefix(": ") || next.hasPrefix("~ ") else { break }
-
-            index += 1
-            var definitions: [String] = []
-
-            while index < lines.count {
-                let candidate = currentLine.trimmed
-                if candidate.hasPrefix(": ") || candidate.hasPrefix("~ ") {
-                    definitions.append(String(candidate.dropFirst(2)).trimmed)
-                    index += 1
-                    continue
-                }
-
-                if currentLine.hasPrefix("    ") || currentLine.hasPrefix("\t") {
-                    if definitions.isEmpty {
-                        definitions.append(currentLine.trimmed)
-                    } else {
-                        definitions[definitions.count - 1] += " " + currentLine.trimmed
-                    }
-                    index += 1
-                    continue
-                }
-
+            guard let item = parseDefinitionItem() else {
                 break
             }
 
-            items.append(DefinitionItem(term: term, definitions: definitions))
+            items.append(item)
 
-            guard index + 1 < lines.count else { break }
-            let upcomingDefinition = line(at: 1)?.trimmed ?? ""
-            guard upcomingDefinition.hasPrefix(": ") || upcomingDefinition.hasPrefix("~ ") else { break }
+            if index < lines.count, currentLine.trimmed.isEmpty {
+                break
+            }
         }
 
-        guard !items.isEmpty else { return nil }
+        guard !items.isEmpty else {
+            index = startIndex
+            return nil
+        }
         return .definitionList(items)
+    }
+
+    private mutating func parseDefinitionItem() -> DefinitionItem? {
+        let startIndex = index
+        var terms: [String] = []
+
+        while index < lines.count {
+            let trimmed = currentLine.trimmed
+            guard !trimmed.isEmpty else { break }
+            guard Self.definitionText(from: trimmed) == nil else { break }
+
+            if !terms.isEmpty, Self.isBlockStartLine(currentLine) {
+                break
+            }
+
+            terms.append(trimmed)
+            index += 1
+
+            guard index < lines.count else { break }
+            if Self.definitionText(from: currentLine.trimmed) != nil {
+                break
+            }
+        }
+
+        guard !terms.isEmpty,
+              index < lines.count,
+              Self.definitionText(from: currentLine.trimmed) != nil else {
+            index = startIndex
+            return nil
+        }
+
+        var definitions: [String] = []
+
+        while index < lines.count {
+            let line = currentLine
+            let trimmed = line.trimmed
+
+            if let definition = Self.definitionText(from: trimmed) {
+                definitions.append(definition)
+                index += 1
+                continue
+            }
+
+            if trimmed.isEmpty {
+                guard let nextLine = self.line(at: 1),
+                      Self.definitionContinuationText(from: nextLine) != nil else {
+                    break
+                }
+
+                Self.appendDefinitionBlankLine(to: &definitions)
+                index += 1
+                continue
+            }
+
+            guard let continuation = Self.definitionContinuationText(from: line) else {
+                break
+            }
+
+            Self.appendDefinitionContinuation(continuation, to: &definitions)
+            index += 1
+        }
+
+        guard !definitions.isEmpty else {
+            index = startIndex
+            return nil
+        }
+
+        return DefinitionItem(terms: terms, definitions: definitions)
     }
 
     private mutating func parseHTMLBlock() -> MarkdownBlock? {
@@ -891,7 +981,7 @@ private struct BlockParser {
             if Self.isTableSeparator(line) { break }
             if Self.parseListLine(line) != nil { break }
             if Self.isFootnoteDefinition(line) { break }
-            if Self.isDefinitionLine(self.line(at: 1)) { break }
+            if isDefinitionListStart(at: index) { break }
             if isLinkReferenceDefinitionStart(at: index) { break }
             if Self.parseAbbreviationDefinitionLine(line.trimmed) != nil { break }
             if line.trimmed.hasPrefix("<!--") { break }
@@ -924,6 +1014,33 @@ private struct BlockParser {
         let continuationIndex = lineIndex + 1
         guard lines.indices.contains(continuationIndex) else { return false }
         return Self.parseReferenceDestinationAndTitle(lines[continuationIndex].trimmed) != nil
+    }
+
+    private func isDefinitionListStart(at lineIndex: Int) -> Bool {
+        var cursor = lineIndex
+        var hasTerm = false
+
+        while lines.indices.contains(cursor) {
+            let line = lines[cursor]
+            let trimmed = line.trimmed
+
+            if trimmed.isEmpty {
+                return false
+            }
+
+            if Self.definitionText(from: trimmed) != nil {
+                return hasTerm
+            }
+
+            if hasTerm, Self.isBlockStartLine(line) {
+                return false
+            }
+
+            hasTerm = true
+            cursor += 1
+        }
+
+        return false
     }
 
     private static func isThematicBreakLine(_ line: String) -> Bool {
@@ -1002,12 +1119,6 @@ private struct BlockParser {
         guard let close = trimmed.firstIndex(of: "]") else { return false }
         let colonIndex = trimmed.index(after: close)
         return colonIndex < trimmed.endIndex && trimmed[colonIndex] == ":"
-    }
-
-    private static func isDefinitionLine(_ line: String?) -> Bool {
-        guard let line else { return false }
-        let trimmed = line.trimmed
-        return trimmed.hasPrefix(": ") || trimmed.hasPrefix("~ ")
     }
 
     private static func parseListLine(_ line: String) -> ParsedListLine? {
