@@ -138,6 +138,17 @@ func runTests() {
         AbbreviationDefinition(term: "API Gateway", expansion: "Application Programming Interface Gateway")
     ]).map(\.term)
     assert(sortedAbbreviationTerms == ["API Gateway", "API"])
+    let abbreviationMatcher = MarkdownAbbreviationMatcher([
+        AbbreviationDefinition(term: "API", expansion: "Application Programming Interface"),
+        AbbreviationDefinition(term: "API Gateway", expansion: "Application Programming Interface Gateway")
+    ])
+    let abbreviationStartText = "API Gateway talks to API, not GraphAPI."
+    let abbreviationStart = abbreviationStartText.startIndex
+    let abbreviationInside = abbreviationStartText.range(of: "API,")!.lowerBound
+    let abbreviationWordInside = abbreviationStartText.range(of: "API.")!.lowerBound
+    assert(abbreviationMatcher.matchingDefinition(in: abbreviationStartText, at: abbreviationStart)?.term == "API Gateway")
+    assert(abbreviationMatcher.matchingDefinition(in: abbreviationStartText, at: abbreviationInside)?.term == "API")
+    assert(abbreviationMatcher.matchingDefinition(in: abbreviationStartText, at: abbreviationWordInside) == nil)
 
     let abbreviationMarkdown = """
     API Gateway talks to API.

@@ -3,14 +3,14 @@ import Foundation
 public enum MarkdownHTMLRenderer {
     private struct RenderContext {
         var references: [String: LinkReferenceDefinition]
-        var sortedAbbreviations: [AbbreviationDefinition]
+        var abbreviationMatcher: MarkdownAbbreviationMatcher
 
         init(
             references: [String: LinkReferenceDefinition],
             abbreviations: [String: AbbreviationDefinition]
         ) {
             self.references = references
-            self.sortedAbbreviations = AbbreviationDefinition.sortedForLongestMatch(abbreviations.values)
+            self.abbreviationMatcher = MarkdownAbbreviationMatcher(abbreviations.values)
         }
     }
 
@@ -475,13 +475,13 @@ public enum MarkdownHTMLRenderer {
     }
 
     private static func renderText(_ text: String, context: RenderContext) -> String {
-        guard !context.sortedAbbreviations.isEmpty else { return escapeHTML(text) }
+        guard !context.abbreviationMatcher.isEmpty else { return escapeHTML(text) }
 
         var rendered = ""
         var cursor = text.startIndex
 
         while cursor < text.endIndex {
-            if let definition = matchingAbbreviation(in: text, at: cursor, context: context) {
+            if let definition = context.abbreviationMatcher.matchingDefinition(in: text, at: cursor) {
                 rendered += "<abbr title=\"\(escapeHTML(definition.expansion))\">\(escapeHTML(definition.term))</abbr>"
                 cursor = text.index(cursor, offsetBy: definition.term.count)
                 continue
@@ -492,40 +492,6 @@ public enum MarkdownHTMLRenderer {
         }
 
         return rendered
-    }
-
-    private static func matchingAbbreviation(
-        in text: String,
-        at index: String.Index,
-        context: RenderContext
-    ) -> AbbreviationDefinition? {
-        context.sortedAbbreviations.first { definition in
-            guard text[index...].hasPrefix(definition.term) else { return false }
-
-            let end = text.index(index, offsetBy: definition.term.count)
-            return hasAbbreviationBoundary(before: index, in: text, term: definition.term)
-                && hasAbbreviationBoundary(after: end, in: text, term: definition.term)
-        }
-    }
-
-    private static func hasAbbreviationBoundary(
-        before index: String.Index,
-        in text: String,
-        term: String
-    ) -> Bool {
-        guard let first = term.first, first.isLetter || first.isNumber else { return true }
-        guard index > text.startIndex else { return true }
-        return !text[text.index(before: index)].isAbbreviationWordCharacter
-    }
-
-    private static func hasAbbreviationBoundary(
-        after index: String.Index,
-        in text: String,
-        term: String
-    ) -> Bool {
-        guard let last = term.last, last.isLetter || last.isNumber else { return true }
-        guard index < text.endIndex else { return true }
-        return !text[index].isAbbreviationWordCharacter
     }
 
     private static let css = """
@@ -721,10 +687,4 @@ public enum MarkdownHTMLRenderer {
           }
         }
     """
-}
-
-private extension Character {
-    var isAbbreviationWordCharacter: Bool {
-        isLetter || isNumber || self == "_"
-    }
 }

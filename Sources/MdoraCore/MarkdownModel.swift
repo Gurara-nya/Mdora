@@ -408,6 +408,70 @@ public struct AbbreviationDefinition: Equatable, Hashable, Sendable {
     }
 }
 
+public struct MarkdownAbbreviationMatcher: Equatable, Sendable {
+    private var definitionsByFirstCharacter: [Character: [AbbreviationDefinition]]
+
+    public var isEmpty: Bool {
+        definitionsByFirstCharacter.isEmpty
+    }
+
+    public init<S: Sequence>(_ definitions: S) where S.Element == AbbreviationDefinition {
+        var groupedDefinitions: [Character: [AbbreviationDefinition]] = [:]
+
+        for definition in AbbreviationDefinition.sortedForLongestMatch(definitions) where !definition.term.isEmpty {
+            guard let firstCharacter = definition.term.first else { continue }
+            groupedDefinitions[firstCharacter, default: []].append(definition)
+        }
+
+        self.definitionsByFirstCharacter = groupedDefinitions
+    }
+
+    public func matchingDefinition(in text: String, at index: String.Index) -> AbbreviationDefinition? {
+        guard index < text.endIndex else { return nil }
+        guard let candidates = definitionsByFirstCharacter[text[index]] else { return nil }
+
+        for definition in candidates {
+            guard text[index...].hasPrefix(definition.term) else { continue }
+            guard let end = text.index(index, offsetBy: definition.term.count, limitedBy: text.endIndex) else {
+                continue
+            }
+            guard hasAbbreviationBoundary(before: index, in: text, term: definition.term),
+                  hasAbbreviationBoundary(after: end, in: text, term: definition.term) else {
+                continue
+            }
+            return definition
+        }
+
+        return nil
+    }
+
+    private func hasAbbreviationBoundary(
+        before index: String.Index,
+        in text: String,
+        term: String
+    ) -> Bool {
+        guard let first = term.first, first.isLetter || first.isNumber else { return true }
+        guard index > text.startIndex else { return true }
+        return !text[text.index(before: index)].isAbbreviationWordCharacter
+    }
+
+    private func hasAbbreviationBoundary(
+        after index: String.Index,
+        in text: String,
+        term: String
+    ) -> Bool {
+        guard let last = term.last, last.isLetter || last.isNumber else { return true }
+        guard index < text.endIndex else { return true }
+        return !text[index].isAbbreviationWordCharacter
+    }
+}
+
+private extension Character {
+    var isAbbreviationWordCharacter: Bool {
+        isLetter || isNumber || self == "_"
+    }
+}
+
 public struct CriticSubstitution: Equatable, Hashable {
     public var original: String
     public var replacement: String

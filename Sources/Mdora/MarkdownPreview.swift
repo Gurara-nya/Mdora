@@ -25,8 +25,8 @@ private struct MarkdownReferenceDefinitionsKey: EnvironmentKey {
     static let defaultValue: [String: LinkReferenceDefinition] = [:]
 }
 
-private struct MarkdownAbbreviationsForRenderKey: EnvironmentKey {
-    static let defaultValue: [AbbreviationDefinition] = []
+private struct MarkdownAbbreviationMatcherKey: EnvironmentKey {
+    static let defaultValue = MarkdownAbbreviationMatcher([])
 }
 
 private struct MarkdownAssetBaseURLKey: EnvironmentKey {
@@ -39,9 +39,9 @@ private extension EnvironmentValues {
         set { self[MarkdownReferenceDefinitionsKey.self] = newValue }
     }
 
-    var mdoraAbbreviationsForRender: [AbbreviationDefinition] {
-        get { self[MarkdownAbbreviationsForRenderKey.self] }
-        set { self[MarkdownAbbreviationsForRenderKey.self] = newValue }
+    var mdoraAbbreviationMatcher: MarkdownAbbreviationMatcher {
+        get { self[MarkdownAbbreviationMatcherKey.self] }
+        set { self[MarkdownAbbreviationMatcherKey.self] = newValue }
     }
 
     var mdoraAssetBaseURL: URL? {
@@ -92,8 +92,8 @@ struct MarkdownPreview: View {
             .environment(\.mdoraPreviewStyle, renderStyle)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .environment(
-                \.mdoraAbbreviationsForRender,
-                AbbreviationDefinition.sortedForLongestMatch(parsed.abbreviationDefinitions.values)
+                \.mdoraAbbreviationMatcher,
+                MarkdownAbbreviationMatcher(parsed.abbreviationDefinitions.values)
             )
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
             .environment(\.openURL, OpenURLAction { url in
@@ -1470,7 +1470,7 @@ private struct InlineMarkdownText: View {
     private let theme: MdoraTheme
     @Environment(\.mdoraPreviewStyle) private var style
     @Environment(\.mdoraReferenceDefinitions) private var referenceDefinitions
-    @Environment(\.mdoraAbbreviationsForRender) private var sortedAbbreviations
+    @Environment(\.mdoraAbbreviationMatcher) private var abbreviationMatcher
     @Environment(\.openURL) private var openURL
 
     init(_ text: String, theme: MdoraTheme) {
@@ -1488,71 +1488,71 @@ private struct InlineMarkdownText: View {
     }
 
     private var attributedString: AttributedString {
-        return renderInline(text, sortedAbbreviations: sortedAbbreviations)
+        return renderInline(text, abbreviationMatcher: abbreviationMatcher)
     }
 
     private func renderInline(
         _ source: String,
-        sortedAbbreviations: [AbbreviationDefinition]
+        abbreviationMatcher: MarkdownAbbreviationMatcher
     ) -> AttributedString {
         var result = AttributedString()
         let segments = InlineMarkdownParser.parse(source)
         for segment in segments {
-            result.append(attributedString(for: segment, sortedAbbreviations: sortedAbbreviations))
+            result.append(attributedString(for: segment, abbreviationMatcher: abbreviationMatcher))
         }
         return result
     }
 
     private func attributedString(
         for segment: InlineMarkdownSegment,
-        sortedAbbreviations: [AbbreviationDefinition]
+        abbreviationMatcher: MarkdownAbbreviationMatcher
     ) -> AttributedString {
         var str: AttributedString
 
         switch segment {
         case let .text(value):
-            str = renderText(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderText(value, abbreviationMatcher: abbreviationMatcher)
         case .hardBreak:
             str = AttributedString("\n")
         case let .strong(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .emphasis(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.font = .system(size: style.bodyFontSize).italic()
         case let .strikethrough(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.strikethroughStyle = .single
         case let .highlight(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.backgroundColor = theme.palette.accentColor.opacity(0.18)
             str.foregroundColor = theme.palette.accentColor
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .superscript(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
             str.baselineOffset = 5
         case let .subscriptText(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.font = .system(size: max(10, style.bodyFontSize - 5), weight: .medium)
             str.baselineOffset = -3
         case let .criticAddition(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.foregroundColor = theme.palette.accentColor
             str.underlineStyle = .single
         case let .criticDeletion(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.foregroundColor = theme.palette.mutedColor
             str.strikethroughStyle = .single
         case let .criticSubstitution(original, replacement):
-            var origStr = renderInline(original, sortedAbbreviations: sortedAbbreviations)
+            var origStr = renderInline(original, abbreviationMatcher: abbreviationMatcher)
             origStr.foregroundColor = theme.palette.mutedColor
             origStr.strikethroughStyle = .single
 
             var separator = AttributedString(" -> ")
             separator.foregroundColor = theme.palette.mutedColor
 
-            var replStr = renderInline(replacement, sortedAbbreviations: sortedAbbreviations)
+            var replStr = renderInline(replacement, abbreviationMatcher: abbreviationMatcher)
             replStr.foregroundColor = theme.palette.accentColor
             replStr.underlineStyle = .single
 
@@ -1561,7 +1561,7 @@ private struct InlineMarkdownText: View {
             var prefix = AttributedString("[comment: ")
             prefix.foregroundColor = theme.palette.mutedColor
 
-            var content = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            var content = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             content.foregroundColor = theme.palette.mutedColor
             content.font = .system(size: style.bodyFontSize).italic()
 
@@ -1570,7 +1570,7 @@ private struct InlineMarkdownText: View {
 
             str = prefix + content + suffix
         case let .criticHighlight(value):
-            str = renderInline(value, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(value, abbreviationMatcher: abbreviationMatcher)
             str.backgroundColor = Color.yellow.opacity(0.3)
             str.font = .system(size: style.bodyFontSize, weight: .bold)
         case let .code(value):
@@ -1579,7 +1579,7 @@ private struct InlineMarkdownText: View {
             str.foregroundColor = theme.palette.accentColor
             str.backgroundColor = theme.palette.codeColor
         case let .link(label, destination, _):
-            str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(label, abbreviationMatcher: abbreviationMatcher)
             str.underlineStyle = .single
             str.foregroundColor = theme.palette.accentColor
             if destination.hasPrefix("#") {
@@ -1591,7 +1591,7 @@ private struct InlineMarkdownText: View {
                 str.link = url
             }
         case let .referenceLink(label, reference):
-            str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
+            str = renderInline(label, abbreviationMatcher: abbreviationMatcher)
             str.underlineStyle = .single
             if let definition = resolvedReference(reference) {
                 str.foregroundColor = theme.palette.accentColor
@@ -1608,7 +1608,7 @@ private struct InlineMarkdownText: View {
             }
         case let .shortcutReferenceLink(label):
             if let definition = resolvedReference(label) {
-                str = renderInline(label, sortedAbbreviations: sortedAbbreviations)
+                str = renderInline(label, abbreviationMatcher: abbreviationMatcher)
                 str.underlineStyle = .single
                 str.foregroundColor = theme.palette.accentColor
                 if definition.destination.hasPrefix("#") {
@@ -1767,19 +1767,15 @@ private struct InlineMarkdownText: View {
 
     private func renderText(
         _ value: String,
-        sortedAbbreviations: [AbbreviationDefinition]
+        abbreviationMatcher: MarkdownAbbreviationMatcher
     ) -> AttributedString {
-        guard !sortedAbbreviations.isEmpty else { return AttributedString(value) }
+        guard !abbreviationMatcher.isEmpty else { return AttributedString(value) }
 
         var rendered = AttributedString()
         var cursor = value.startIndex
 
         while cursor < value.endIndex {
-            if let definition = matchingAbbreviation(
-                in: value,
-                at: cursor,
-                sortedAbbreviations: sortedAbbreviations
-            ) {
+            if let definition = abbreviationMatcher.matchingDefinition(in: value, at: cursor) {
                 var termStr = AttributedString(definition.term)
                 termStr.underlineStyle = .single
                 termStr.foregroundColor = theme.palette.accentColor
@@ -1793,40 +1789,6 @@ private struct InlineMarkdownText: View {
         }
 
         return rendered
-    }
-
-    private func matchingAbbreviation(
-        in value: String,
-        at index: String.Index,
-        sortedAbbreviations: [AbbreviationDefinition]
-    ) -> AbbreviationDefinition? {
-        sortedAbbreviations.first { definition in
-            guard value[index...].hasPrefix(definition.term) else { return false }
-
-            let end = value.index(index, offsetBy: definition.term.count)
-            return hasAbbreviationBoundary(before: index, in: value, term: definition.term)
-                && hasAbbreviationBoundary(after: end, in: value, term: definition.term)
-        }
-    }
-
-    private func hasAbbreviationBoundary(
-        before index: String.Index,
-        in value: String,
-        term: String
-    ) -> Bool {
-        guard let first = term.first, first.isLetter || first.isNumber else { return true }
-        guard index > value.startIndex else { return true }
-        return !value[value.index(before: index)].isAbbreviationWordCharacter
-    }
-
-    private func hasAbbreviationBoundary(
-        after index: String.Index,
-        in value: String,
-        term: String
-    ) -> Bool {
-        guard let last = term.last, last.isLetter || last.isNumber else { return true }
-        guard index < value.endIndex else { return true }
-        return !value[index].isAbbreviationWordCharacter
     }
 
     private func parseLaTeXToAttributedString(_ text: String, theme: MdoraTheme, fontSize: CGFloat, isItalic: Bool = true) -> AttributedString {
@@ -2105,12 +2067,6 @@ private extension DiagramKind {
 private extension String {
     var trimmedForPreview: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-private extension Character {
-    var isAbbreviationWordCharacter: Bool {
-        isLetter || isNumber || self == "_"
     }
 }
 
