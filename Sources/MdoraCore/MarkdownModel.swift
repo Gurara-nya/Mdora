@@ -317,8 +317,44 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
     }
 
     public static let editorMarkerList: [Character] = {
-        [" "] + ["x", "X", "v", "V", "✓", "✔", "✅", "☑", "/", "-", ">", "!", "?", "w", "W", "b", "B", "r", "R", "i", "I", "s", "S"]
-            .compactMap { Character(String($0)) }
+        let todoMarkers: [Character] = [" "]
+        let doneMarkers: [Character] = ["x", "X", "v", "V", "✓", "✔", "✅", "☑", "√", "y", "Y"]
+        let inProgressMarkers: [Character] = ["/"]
+        let canceledMarkers: [Character] = ["-"]
+        let forwardedMarkers: [Character] = [">"]
+        let importantMarkers: [Character] = ["!", "☆", "★"]
+        let questionMarkers: [Character] = ["?"]
+        let warningMarkers: [Character] = ["w", "W"]
+        let blockedMarkers: [Character] = ["b", "B", "⊘"]
+        let reviewMarkers: [Character] = ["r", "R"]
+        let ideaMarkers: [Character] = ["i", "I", "💡"]
+        let successMarkers: [Character] = ["s", "S"]
+
+        let orderedMarkers = [
+            todoMarkers,
+            doneMarkers,
+            inProgressMarkers,
+            canceledMarkers,
+            forwardedMarkers,
+            importantMarkers,
+            questionMarkers,
+            warningMarkers,
+            blockedMarkers,
+            reviewMarkers,
+            ideaMarkers,
+            successMarkers
+        ].flatMap { $0 }
+
+        var unique: [Character] = []
+        unique.reserveCapacity(orderedMarkers.count)
+
+        for marker in orderedMarkers {
+            if !unique.contains(marker) {
+                unique.append(marker)
+            }
+        }
+
+        return unique
     }()
 
     public static let editorMarkerSet: Set<Character> = Set(editorMarkerList)

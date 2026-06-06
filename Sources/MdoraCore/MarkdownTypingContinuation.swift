@@ -184,6 +184,12 @@ public enum MarkdownTypingContinuation {
         return taskMarkers.contains(marker)
     }
 
-    private static let taskCheckboxes = ["[ ]", "[x]", "[X]", "[/]", "[-]", "[>]", "[!]", "[?]"]
-    private static let taskMarkers = Set(" xX/->!?")
+    private static let taskCheckboxes: [String] = {
+        let ordered = TaskState.editorMarkerList.filter { $0 != " " }
+        return ordered.map { "[\($0)]" }
+    }()
+
+    private static let taskMarkers: Set<Character> = {
+        Set(TaskState.editorMarkerList.filter { $0 != " " })
+    }()
 }

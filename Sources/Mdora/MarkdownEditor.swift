@@ -742,7 +742,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
             ], requiredScalars: "@")
-            let taskTokenPattern = "(?im)^\\s*(?:(?:[-*+]\\s+|\\d+[.)]\\s+)(?:\\[(?: |x|X|/|-|>|!|\\?)\\]\\s+)?)?(?:<!--\\s*)?\\b(\(TaskTokenKind.regexPattern))\\b.*$"
+            let taskTokenPattern = "(?im)^\\s*(?:(?:[-*+]\\s+|\\d+[.)]\\s+)?(?:\\[(?:\(TaskState.editorMarkerCharacterClass)\\]\\s+)?)?(?:<!--\\s*)?\\b(\(TaskTokenKind.regexPattern))\\b.*$"
             highlightInline(pattern: taskTokenPattern, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
@@ -954,13 +954,13 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                     return
                 }
 
-                if let taskState = self.taskStateMarker(in: trimmed) {
+                if let taskState = self.taskState(in: trimmed) {
                     var attributes: [NSAttributedString.Key: Any] = [
-                        .foregroundColor: taskState == " " ? palette.accent : palette.muted,
+                        .foregroundColor: taskState == .todo ? palette.accent : palette.muted,
                         .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ]
 
-                    if taskState == "x" || taskState == "X" || taskState == "-" {
+                    if taskState.isDone {
                         attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
                     }
 
@@ -969,7 +969,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             }
         }
 
-        private func taskStateMarker(in trimmedLine: String) -> Character? {
+        private func taskState(in trimmedLine: String) -> TaskState? {
             guard let markerOpen = taskMarkerOpenIndex(in: trimmedLine),
                   trimmedLine.distance(from: markerOpen, to: trimmedLine.endIndex) >= 4 else {
                 return nil
@@ -985,7 +985,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             }
 
             let marker = trimmedLine[markerValue]
-            return " xX/->!?".contains(marker) ? marker : nil
+            return TaskState(marker: marker)
         }
 
         private func taskMarkerOpenIndex(in trimmedLine: String) -> String.Index? {
