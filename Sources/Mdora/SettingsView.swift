@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage("mdoraMaxDiagramEdges") private var maxDiagramEdges = 64.0
     @AppStorage("mdoraMaxMathExpressionLength") private var maxMathExpressionLength = 2_400.0
     @AppStorage("mdoraMaxImagePixelDimension") private var maxImagePixelDimension = 1_600.0
+    @AppStorage("mdoraReduceMotion") private var reduceMotion = false
 
     private var selectedTheme: Binding<MdoraTheme> {
         Binding(
@@ -82,6 +83,14 @@ struct SettingsView: View {
 
                 Toggle("启用丝滑的动画过渡效果", isOn: $previewAnimations)
                     .help("当预览内容或布局发生改变时，应用精美的平滑过渡动画。")
+
+                Toggle("减少动画（适配超大文档）", isOn: $reduceMotion)
+                    .help("开启后自动抑制高频动画，优先保证输入和滚动的连续性。")
+                    .onChange(of: reduceMotion) { _, newValue in
+                        if newValue {
+                            previewAnimations = false
+                        }
+                    }
             }
         }
         .padding(14)
@@ -148,6 +157,9 @@ struct SettingsView: View {
                         title: "核心语法覆盖",
                         detail: "标题/列表/任务/表格/脚注/引用/自动链接/数学/图表/Wiki 链接与嵌入/HTML/缩写/评论标记"
                     )
+                    Text("兼容签名摘要：\(compatibilitySignature)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 4)
 
@@ -176,7 +188,7 @@ struct SettingsView: View {
                     Text("任务令牌标记（Todo/Idea/Review/...）")
                         .font(.subheadline.bold())
 
-                    ForEach(TaskTokenKind.allCases, id: \.self) { tokenKind in
+                    ForEach(tokenKindsByCompatibilityPriority, id: \.self) { tokenKind in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(tokenKind.title)
                                 .font(.caption.weight(.semibold))
@@ -186,6 +198,11 @@ struct SettingsView: View {
                                 .font(.system(.caption2, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
+
+                            Text("示例：\(tokenHint(for: tokenKind))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                         .padding(.vertical, 3)
                     }
@@ -426,6 +443,7 @@ struct SettingsView: View {
             maxDiagramEdges = 64.0
             maxMathExpressionLength = 2_400.0
             maxImagePixelDimension = 1_600.0
+            reduceMotion = false
         }
     }
 
@@ -433,6 +451,27 @@ struct SettingsView: View {
         TaskState.editorMarkerList.compactMap { marker in
             TaskState(marker: marker) == state ? "[\(marker)]" : nil
         }
+    }
+
+    private var tokenKindsByCompatibilityPriority: [TaskTokenKind] {
+        TaskTokenKind.allCases
+            .sorted { lhs, rhs in
+                if lhs.aliases.count != rhs.aliases.count {
+                    return lhs.aliases.count > rhs.aliases.count
+                }
+                return lhs.title < rhs.title
+            }
+    }
+
+    private var compatibilitySignature: String {
+        let tokenKinds = TaskTokenKind.allCases.count
+        let tokenAliases = TaskTokenKind.allCases.reduce(0) { $0 + $1.aliases.count }
+        let taskAliases = TaskState.editorMarkerList.count
+        return "TaskTokenKind: \(tokenKinds) 类，别名 \(tokenAliases) 个；任务标记: \(taskAliases) 个"
+    }
+
+    private func tokenHint(for tokenKind: TaskTokenKind) -> String {
+        tokenKind.aliases.prefix(2).joined(separator: ", ")
     }
 
     private func openExternalURL(_ value: String) {

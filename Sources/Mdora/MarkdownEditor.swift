@@ -19,6 +19,7 @@ struct MarkdownEditor: View {
     let focusMode: Bool
     let documentURL: URL?
     let highPerformanceMode: Bool
+    let reduceMotion: Bool
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
     let onDraftCommit: (String, EditorCommitReason) -> Void
@@ -50,6 +51,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     let focusMode: Bool
     let documentURL: URL?
     let highPerformanceMode: Bool
+    let reduceMotion: Bool
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
     let onDraftCommit: (String, EditorCommitReason) -> Void
@@ -221,7 +223,9 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             pendingHighlightTask?.cancel()
             pendingHighlightTask = Task { @MainActor [weak self, weak textView] in
                 let isHighPerformance = self?.parent.highPerformanceMode ?? false
-                let delay: UInt64 = isHighPerformance ? 380_000_000 : 240_000_000
+                let isReduceMotion = self?.parent.reduceMotion ?? false
+                let isHugeDocument = (self?.parent.documentID != nil && (textView?.string.utf16.count ?? 0) > 140_000)
+                let delay: UInt64 = (isHighPerformance || isReduceMotion || isHugeDocument) ? 380_000_000 : 240_000_000
                 do {
                     try await Task.sleep(nanoseconds: delay)
                 } catch {
@@ -544,7 +548,9 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 intersecting: targetRange
             )
             currentInlineHighlightExcludedRanges = syntaxHighlightRanges.inlineExcludedRanges
-            let shouldUseAcceleratedHighlight = parent.highPerformanceMode || fullRange.length > 90_000
+            let shouldUseAcceleratedHighlight = parent.highPerformanceMode
+                || parent.reduceMotion
+                || fullRange.length > 90_000
             if shouldUseAcceleratedHighlight {
                 highlightCodeSpans(
                     syntaxHighlightRanges.codeSpanRanges,
@@ -775,7 +781,12 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             let selectedLineRange = nsString.lineRange(for: selectedRange.clamped(toLength: nsString.length))
             let visibleRange = visibleCharacterRange(in: textView)
-            let margin = nsString.length > 120_000 ? 4_000 : 10_000
+            let margin: Int
+            if parent.reduceMotion {
+                margin = nsString.length > 120_000 ? 2_000 : 4_000
+            } else {
+                margin = nsString.length > 120_000 ? 4_000 : 10_000
+            }
             let anchorRange = visibleRange?.length ?? 0 > 0
                 ? NSUnionRange(visibleRange!, selectedLineRange)
                 : selectedLineRange

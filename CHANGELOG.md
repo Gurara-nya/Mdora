@@ -1,5 +1,22 @@
 # Changelog
 
+# [1.0.5] - 2026-06-07 (Public)
+
+### Added
+
+- Added performance-mode coordination across editor and preview (`Reduce Motion`, larger document thresholds, compact visibility window scheduling).
+- Expanded task token compatibility alias coverage for task markers with more variants (`-`, `_`, and localized semantic labels).
+- Added public packaging metadata and display updates for 1.0.5 release readiness.
+
+### Changed
+
+- Tuned highlight scheduling and preview pulse cadence to reduce high-frequency UI updates under large-document conditions.
+- Updated About/Settings compatibility and compatibility-signature display to improve discoverability of supported task states.
+
+### Fixed
+
+- Reduced preview churn in long documents by reducing visible highlight ranges and motion-sensitive rendering.
+
 # [1.0.4] - 2026-06-07 (Public)
 
 ### Added

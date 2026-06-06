@@ -67,6 +67,7 @@ struct MarkdownPreview: View {
     let documentURL: URL?
     let onTaskStateChange: ((Int, Int, TaskState) -> Void)?
     @State private var updatePulse = false
+    @State private var pulseWorkItem: DispatchWorkItem?
     @State private var pendingActiveScrollWorkItem: DispatchWorkItem?
     @State private var lastSyncedBlockIndex: Int?
 
@@ -98,10 +99,10 @@ struct MarkdownPreview: View {
                 }
                 .frame(maxWidth: renderStyle.lineWidth, alignment: .leading)
                 .padding(.horizontal, 34)
-                .padding(.vertical, 30)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
-            .environment(\.mdoraPreviewStyle, renderStyle)
+            .padding(.vertical, 30)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .environment(\.mdoraPreviewStyle, renderStyle)
             .environment(\.mdoraReferenceDefinitions, parsed.referenceDefinitions)
             .environment(\.mdoraAbbreviationMatcher, parsed.abbreviationMatcher)
             .environment(\.mdoraAssetBaseURL, documentURL?.deletingLastPathComponent())
@@ -120,13 +121,9 @@ struct MarkdownPreview: View {
                     .opacity(renderStyle.animationsEnabled && updatePulse ? 0.75 : 0)
                     .animation(renderStyle.animationsEnabled ? .easeOut(duration: 0.28) : nil, value: updatePulse)
             }
-            .animation(renderStyle.animationsEnabled ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
+            .animation(renderStyle.animationsEnabled && !shouldDisableAnimationOnLargeDocument ? .easeInOut(duration: 0.18) : nil, value: parsed.blocks.count)
             .onChange(of: markdown) { _, _ in
-                guard !isFrozen, renderStyle.animationsEnabled else { return }
-                updatePulse = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
-                    updatePulse = false
-                }
+                scheduleUpdatePulse()
             }
             .onChange(of: activeBlockIndex) { _, blockIndex in
                 guard !isFrozen else {
@@ -162,6 +159,7 @@ struct MarkdownPreview: View {
             }
             .onDisappear {
                 pendingActiveScrollWorkItem?.cancel()
+                pulseWorkItem?.cancel()
             }
             .onReceive(NotificationCenter.default.publisher(for: .mdoraNavigateRequested)) { notification in
                 guard !isFrozen else { return }
@@ -174,6 +172,10 @@ struct MarkdownPreview: View {
     private func activeBlockIndex(in document: ParsedMarkdownDocument) -> Int? {
         guard let activeLine else { return nil }
         return document.blockIndex(containingLine: activeLine)
+    }
+
+    private var shouldDisableAnimationOnLargeDocument: Bool {
+        parsed.blocks.count > 2_000 || markdown.count > (style.maxAnimatedCharacters * 2)
     }
 
     private var effectiveStyle: MarkdownPreviewStyle {
@@ -193,6 +195,21 @@ struct MarkdownPreview: View {
         let isLargeByBlocks = document.blocks.count > style.maxAnimatedBlocks
         let isVeryLarge = markdown.count > (style.maxAnimatedCharacters * 2)
         return isLargeByChars || isLargeByBlocks || isVeryLarge
+    }
+
+    private func scheduleUpdatePulse() {
+        pulseWorkItem?.cancel()
+        guard !isFrozen, effectiveStyle.animationsEnabled else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            updatePulse = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak self] in
+                self?.updatePulse = false
+            }
+        }
+        pulseWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.07, execute: workItem)
     }
 
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {

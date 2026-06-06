@@ -4,8 +4,14 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringLogo = false
     @State private var animateCredits = false
+    @AppStorage("mdoraTheme") private var themeName = MdoraTheme.system.rawValue
     @AppStorage("mdoraPerformanceMode") private var performanceMode = false
     @AppStorage("previewAnimations") private var previewAnimations = true
+    @AppStorage("mdoraReduceMotion") private var reduceMotion = false
+
+    private var selectedTheme: MdoraTheme {
+        MdoraTheme(rawValue: themeName) ?? .system
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,7 +82,29 @@ struct AboutView: View {
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 24)
-                
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("2.0 特性快照")
+                        .font(.headline)
+                    AboutBadgeRow(
+                        title: "版本与主题",
+                        detail: "\(appVersionText) · 当前主题 \(selectedTheme.title)"
+                    )
+                    AboutBadgeRow(
+                        title: "兼容语法",
+                        detail: "\(TaskState.allCases.count) 种任务状态 · \(TaskTokenKind.allCases.count) 种令牌类型 · 任务/图表/公式"
+                    )
+                    AboutBadgeRow(
+                        title: "性能策略",
+                        detail: "\(performanceMode ? "高性能模式" : "标准模式")，\(reduceMotion ? "低动画" : "平滑动画")"
+                    )
+                    AboutBadgeRow(
+                        title: "发布状态",
+                        detail: "公开发布版本，可在 Releases 获取安装包与更新说明。"
+                    )
+                }
+                .padding(.horizontal, 24)
+
                 VStack(alignment: .leading, spacing: 6) {
                     Label("2.0 路线：性能优先、兼容增强、体验打磨", systemImage: "sparkles")
                         .font(.subheadline)
@@ -203,6 +231,26 @@ private struct CompatibilityBadgeRow: View {
         .padding(10)
         .background(Color.black.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct AboutBadgeRow: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.primary)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.blue.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

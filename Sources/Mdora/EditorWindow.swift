@@ -22,6 +22,7 @@ struct EditorWindow: View {
     @AppStorage("mdoraMaxDiagramEdges") private var maxDiagramEdges = 64.0
     @AppStorage("mdoraMaxMathExpressionLength") private var maxMathExpressionLength = 2_400.0
     @AppStorage("mdoraMaxImagePixelDimension") private var maxImagePixelDimension = 1_600.0
+    @AppStorage("mdoraReduceMotion") private var reduceMotion = false
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var statusMessage: String?
@@ -72,7 +73,7 @@ struct EditorWindow: View {
         var resolvedStyle = MarkdownPreviewStyle(
             bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
-            animationsEnabled: previewAnimations && !performanceMode && !shouldAutoReduceForLargeDocument,
+            animationsEnabled: previewAnimations && !performanceMode && !shouldAutoReduceForLargeDocument && !reduceMotion,
             maxAnimatedCharacters: Int(animationCharThreshold.clamped(to: 20_000 ... 200_000)),
             maxAnimatedBlocks: Int(maxAnimatedBlocks.clamped(to: 180 ... 2_000)),
             maxTableRows: Int(maxTableRows.clamped(to: 20 ... 400)),
@@ -123,6 +124,7 @@ struct EditorWindow: View {
                                 focusMode: focusMode,
                                 documentURL: documentURL,
                                 highPerformanceMode: performanceMode,
+                                reduceMotion: reduceMotion,
                                 onSelectionChange: updateEditorSelection,
                                 onEditingActivity: noteEditorEditing,
                                 onDraftCommit: commitEditorDraft
