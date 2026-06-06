@@ -1,4 +1,5 @@
 import SwiftUI
+import MdoraCore
 
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss

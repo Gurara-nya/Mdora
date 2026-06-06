@@ -34,6 +34,7 @@ struct MarkdownEditor: View {
             focusMode: focusMode,
             documentURL: documentURL,
             highPerformanceMode: highPerformanceMode,
+            reduceMotion: reduceMotion,
             onSelectionChange: onSelectionChange,
             onEditingActivity: onEditingActivity,
             onDraftCommit: onDraftCommit
@@ -528,7 +529,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             let selectedRange = textView.selectedRange()
             let fullRange = NSRange(location: 0, length: (textView.string as NSString).length)
-            let targetRange = Self.highlightRange(in: textView, selectedRange: selectedRange)
+            let targetRange = highlightRange(in: textView, selectedRange: selectedRange)
             let resetRange = Self.union(targetRange, lastHighlightedRange).clamped(toLength: fullRange.length)
             let palette = parent.theme.palette
             let baseSize = parent.fontSize
@@ -770,7 +771,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
-        private static func highlightRange(in textView: NSTextView, selectedRange: NSRange) -> NSRange {
+        private func highlightRange(in textView: NSTextView, selectedRange: NSRange) -> NSRange {
             let nsString = textView.string as NSString
             let fullRange = NSRange(location: 0, length: nsString.length)
             guard nsString.length > 0 else { return fullRange }
@@ -787,7 +788,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             } else {
                 margin = nsString.length > 120_000 ? 4_000 : 10_000
             }
-            let anchorRange = visibleRange?.length ?? 0 > 0
+            let anchorRange = (visibleRange?.length ?? 0) > 0
                 ? NSUnionRange(visibleRange!, selectedLineRange)
                 : selectedLineRange
             let lowerBound = max(0, anchorRange.location - margin)
@@ -796,7 +797,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         @MainActor
-        private static func visibleCharacterRange(in textView: NSTextView) -> NSRange? {
+        private func visibleCharacterRange(in textView: NSTextView) -> NSRange? {
             guard let layoutManager = textView.layoutManager,
                   let textContainer = textView.textContainer else {
                 return nil

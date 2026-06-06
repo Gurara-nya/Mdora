@@ -175,7 +175,7 @@ struct MarkdownPreview: View {
     }
 
     private var shouldDisableAnimationOnLargeDocument: Bool {
-        parsed.blocks.count > 2_000 || markdown.count > (style.maxAnimatedCharacters * 2)
+        document.blocks.count > 2_000 || markdown.count > (style.maxAnimatedCharacters * 2)
     }
 
     private var effectiveStyle: MarkdownPreviewStyle {
@@ -201,11 +201,10 @@ struct MarkdownPreview: View {
         pulseWorkItem?.cancel()
         guard !isFrozen, effectiveStyle.animationsEnabled else { return }
 
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+        let workItem = DispatchWorkItem {
             updatePulse = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak self] in
-                self?.updatePulse = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                updatePulse = false
             }
         }
         pulseWorkItem = workItem
