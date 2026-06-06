@@ -1,5 +1,20 @@
 # Changelog
 
+# [1.0.6] - 2026-06-07 (Public)
+
+### Added
+
+- Added public-facing performance degradation notice in preview for large-document mode to make fallback behavior visible to users.
+- Updated release metadata to align app packaging version with README, release assets, and public documentation for this release.
+
+### Changed
+
+- Fine-tuned public release readiness by consolidating banner compatibility and visual alignment for performance status in the preview surface.
+
+### Fixed
+
+- Fixed release build regressions introduced by the new performance banner code path.
+
 # [1.0.5] - 2026-06-07 (Public)
 
 ### Added

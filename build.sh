@@ -17,8 +17,8 @@ NC='\033[0m'
 # ---------- 默认参数 ----------
 LAUNCH=true
 CONFIGURATION="release"
-APP_VERSION="1.0.5"
-APP_BUILD="5"
+APP_VERSION="1.0.6"
+APP_BUILD="6"
 
 for arg in "$@"; do
   case $arg in

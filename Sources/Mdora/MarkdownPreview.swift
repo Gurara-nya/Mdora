@@ -15,6 +15,7 @@ struct MarkdownPreviewStyle: Equatable {
     var maxMathExpressionLength: Int = 2_400
     var maxImagePixelDimension: Int = 1_600
     var syncsToEditor = true
+    var degradationReasons: [String] = []
 }
 
 private struct MarkdownPreviewStyleKey: EnvironmentKey {
@@ -78,23 +79,32 @@ struct MarkdownPreview: View {
 
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    ForEach(parsed.blocks.indices, id: \.self) { index in
-                        let block = parsed.blocks[index]
-                        MarkdownBlockView(
-                            block: block,
-                            blockIndex: index,
-                            taskItemOffset: 0,
-                            theme: theme,
-                            isActive: index == activeBlockIndex,
-                            onTaskStateChange: onTaskStateChange
+                VStack(alignment: .leading, spacing: 12) {
+                    if !renderStyle.degradationReasons.isEmpty {
+                        PerformanceDegradationBanner(
+                            reasons: renderStyle.degradationReasons,
+                            theme: theme
                         )
-                        .id(index)
-                        .transition(
-                            renderStyle.animationsEnabled ?
-                            .opacity.combined(with: .move(edge: .top)) :
-                            .identity
-                        )
+                    }
+
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        ForEach(parsed.blocks.indices, id: \.self) { index in
+                            let block = parsed.blocks[index]
+                            MarkdownBlockView(
+                                block: block,
+                                blockIndex: index,
+                                taskItemOffset: 0,
+                                theme: theme,
+                                isActive: index == activeBlockIndex,
+                                onTaskStateChange: onTaskStateChange
+                            )
+                            .id(index)
+                            .transition(
+                                renderStyle.animationsEnabled ?
+                                .opacity.combined(with: .move(edge: .top)) :
+                                .identity
+                            )
+                        }
                     }
                 }
                 .frame(maxWidth: renderStyle.lineWidth, alignment: .leading)
@@ -289,6 +299,43 @@ struct MarkdownPreview: View {
                 NSWorkspace.shared.open(url)
             }
         }
+    }
+}
+
+private struct PerformanceDegradationBanner: View {
+    let reasons: [String]
+    let theme: MdoraTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(theme.palette.accentColor)
+                Text("预览性能降级")
+                    .font(.caption.weight(.semibold))
+            }
+
+            ForEach(Array(reasons.prefix(3).enumerated()), id: \.offset) { _, reason in
+                Text("• \(reason)")
+                    .font(.caption2)
+                    .foregroundStyle(theme.palette.mutedColor)
+                    .lineLimit(1)
+            }
+
+            if reasons.count > 3 {
+                Text("…共 \(reasons.count) 项降级策略")
+                    .font(.caption2)
+                    .foregroundStyle(theme.palette.mutedColor)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.palette.surfaceColor.opacity(0.75))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(theme.palette.accentColor.opacity(0.55), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
