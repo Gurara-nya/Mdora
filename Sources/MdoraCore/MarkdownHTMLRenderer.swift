@@ -576,6 +576,11 @@ public enum MarkdownHTMLRenderer {
         }
         .task.state-important .task-state { background: rgba(220, 38, 38, 0.16); }
         .task.state-question .task-state { background: rgba(14, 165, 233, 0.16); }
+        .task.state-warning .task-state { background: rgba(245, 158, 11, 0.18); }
+        .task.state-blocked .task-state { background: rgba(220, 38, 38, 0.18); }
+        .task.state-review .task-state { background: rgba(125, 211, 252, 0.18); }
+        .task.state-idea .task-state { background: rgba(16, 185, 129, 0.16); }
+        .task.state-success .task-state { background: rgba(16, 185, 129, 0.24); }
         .code-language { float: right; opacity: 0.58; font-size: 0.82em; text-transform: uppercase; }
         .tag, .mention, .wikilink, .wiki-embed, .math-inline, .image-ref {
           border-radius: 999px;

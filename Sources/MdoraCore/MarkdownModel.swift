@@ -239,15 +239,15 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
             self = .important
         case "?":
             self = .question
-        case "w":
+        case "w", "⚠", "🚧", "⛔":
             self = .warning
-        case "b", "⊘":
+        case "b", "⊘", "🛑":
             self = .blocked
-        case "r":
+        case "r", "▶":
             self = .review
-        case "i", "💡":
+        case "i", "💡", "🧠":
             self = .idea
-        case "s", "√":
+        case "s", "√", "👍":
             self = .success
         default:
             return nil
@@ -325,9 +325,9 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
         let importantMarkers: [Character] = ["!", "☆", "★"]
         let questionMarkers: [Character] = ["?"]
         let warningMarkers: [Character] = ["w", "W"]
-        let blockedMarkers: [Character] = ["b", "B", "⊘"]
+        let blockedMarkers: [Character] = ["b", "B", "⊘", "🛑"]
         let reviewMarkers: [Character] = ["r", "R"]
-        let ideaMarkers: [Character] = ["i", "I", "💡"]
+        let ideaMarkers: [Character] = ["i", "I", "💡", "🧠"]
         let successMarkers: [Character] = ["s", "S"]
 
         let orderedMarkers = [
@@ -911,7 +911,7 @@ public struct TaskToken: Equatable, Hashable {
     }
 }
 
-public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable {
+public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
     case todo
     case fixme
     case bug
@@ -941,26 +941,59 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable {
         "todo": .todo,
         "todoitem": .todo,
         "todo-": .todo,
+        "todolist": .todo,
+        "to-do": .todo,
+        "待办": .todo,
+        "待完成": .todo,
         "fixme": .fixme,
         "fix": .fixme,
+        "issue": .fixme,
         "defect": .bug,
         "bug": .bug,
+        "broken": .bug,
+        "regression": .bug,
         "hack": .hack,
+        "workaround": .hack,
         "note": .note,
         "important": .important,
         "critical": .important,
+        "urgent": .important,
+        "priority": .important,
+        "high": .important,
         "question": .question,
+        "ask": .question,
+        "help": .question,
+        "howto": .question,
         "warn": .warning,
         "warning": .warning,
+        "caution": .warning,
+        "risk": .warning,
+        "alert": .warning,
         "blocked": .blocked,
         "block": .blocked,
+        "hold": .blocked,
+        "pending": .blocked,
+        "stuck": .blocked,
+        "onhold": .blocked,
         "review": .review,
         "check": .review,
+        "verify": .review,
+        "needs-review": .review,
+        "needsreview": .review,
+        "revisit": .review,
         "idea": .idea,
         "insight": .idea,
+        "suggestion": .idea,
+        "thought": .idea,
+        "brainstorm": .idea,
         "success": .success,
         "done": .success,
-        "passed": .success
+        "passed": .success,
+        "resolved": .success,
+        "accepted": .success,
+        "ship": .success,
+        "ready": .success,
+        "readying": .success
     ]
 
     public init?(marker: String) {

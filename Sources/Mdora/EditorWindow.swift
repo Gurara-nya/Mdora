@@ -16,6 +16,12 @@ struct EditorWindow: View {
     @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
     @AppStorage("mdoraPerformanceMode") private var performanceMode = false
     @AppStorage("mdoraAnimationCharThreshold") private var animationCharThreshold = 60_000.0
+    @AppStorage("mdoraMaxAnimatedBlocks") private var maxAnimatedBlocks = 900.0
+    @AppStorage("mdoraMaxTableRows") private var maxTableRows = 120.0
+    @AppStorage("mdoraMaxDiagramNodes") private var maxDiagramNodes = 36.0
+    @AppStorage("mdoraMaxDiagramEdges") private var maxDiagramEdges = 64.0
+    @AppStorage("mdoraMaxMathExpressionLength") private var maxMathExpressionLength = 2_400.0
+    @AppStorage("mdoraMaxImagePixelDimension") private var maxImagePixelDimension = 1_600.0
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var statusMessage: String?
@@ -68,6 +74,12 @@ struct EditorWindow: View {
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
             animationsEnabled: previewAnimations && !performanceMode,
             maxAnimatedCharacters: Int(animationCharThreshold.clamped(to: 20_000 ... 200_000)),
+            maxAnimatedBlocks: Int(maxAnimatedBlocks.clamped(to: 180 ... 2_000)),
+            maxTableRows: Int(maxTableRows.clamped(to: 20 ... 400)),
+            maxDiagramNodes: Int(maxDiagramNodes.clamped(to: 8 ... 120)),
+            maxDiagramEdges: Int(maxDiagramEdges.clamped(to: 8 ... 240)),
+            maxMathExpressionLength: Int(maxMathExpressionLength.clamped(to: 300 ... 6_000)),
+            maxImagePixelDimension: Int(maxImagePixelDimension.clamped(to: 320 ... 3_200)),
             syncsToEditor: syncPreviewWithEditor
         )
     }

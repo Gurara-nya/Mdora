@@ -74,6 +74,24 @@ struct AboutView: View {
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 24)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("2.0 路线：性能优先、兼容增强、体验打磨", systemImage: "sparkles")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+
+                    Text("已开启大文档性能模式：动画阈值、表格和图片资源会按阈值降级，图谱与长公式在超大规模场景下支持折叠与按需渲染。")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Text("标识兼容升级：任务状态支持 warning / blocked / review / idea / success / success 等多种写法，解析、编辑高亮与导出链路保持一致。")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
+                .background(Color.black.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 Divider()
                     .padding(.horizontal, 40)

@@ -8,6 +8,12 @@ struct MarkdownPreviewStyle: Equatable {
     var lineWidth: CGFloat = 820
     var animationsEnabled = true
     var maxAnimatedCharacters: Int = 60_000
+    var maxAnimatedBlocks: Int = 900
+    var maxTableRows: Int = 120
+    var maxDiagramNodes: Int = 36
+    var maxDiagramEdges: Int = 64
+    var maxMathExpressionLength: Int = 2_400
+    var maxImagePixelDimension: Int = 1_600
     var syncsToEditor = true
 }
 
@@ -179,7 +185,7 @@ struct MarkdownPreview: View {
     }
 
     private var shouldDisablePreviewAnimations: Bool {
-        markdown.count > style.maxAnimatedCharacters || document.blocks.count > 900
+        markdown.count > style.maxAnimatedCharacters || document.blocks.count > style.maxAnimatedBlocks
     }
 
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {
@@ -756,6 +762,7 @@ private struct CodeBlockView: View {
 private struct DiagramBlockView: View {
     let diagram: DiagramBlock
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -794,12 +801,23 @@ private struct DiagramPreviewCanvas: View {
     let kind: DiagramKind
     let source: String
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         let graph = MarkdownDiagramGraphParser.parse(kind: kind, source: source)
+        let nodeLimit = max(1, style.maxDiagramNodes)
+        let edgeLimit = max(1, style.maxDiagramEdges)
+        let shouldReduceDiagram = graph.nodes.count > nodeLimit || graph.edges.count > edgeLimit
 
-        if graph.nodes.isEmpty {
-            DiagramSourceSummary(kind: kind, source: source, theme: theme)
+        if graph.nodes.isEmpty || shouldReduceDiagram {
+            DiagramSourceSummary(
+                kind: kind,
+                source: source,
+                theme: theme,
+                nodeCount: graph.nodes.count,
+                edgeCount: graph.edges.count,
+                isReduced: shouldReduceDiagram
+            )
         } else {
             DiagramGraphPreview(graph: graph, theme: theme)
         }
@@ -809,9 +827,7 @@ private struct DiagramPreviewCanvas: View {
 private struct DiagramGraphPreview: View {
     let graph: MarkdownDiagramGraph
     let theme: MdoraTheme
-
-    private let maxVisibleNodes = 8
-    private let maxVisibleEdges = 12
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -865,6 +881,14 @@ private struct DiagramGraphPreview: View {
                     .foregroundStyle(theme.palette.accentColor)
             }
         }
+    }
+
+    private var maxVisibleNodes: Int {
+        max(1, style.maxDiagramNodes)
+    }
+
+    private var maxVisibleEdges: Int {
+        max(1, style.maxDiagramEdges)
     }
 }
 
@@ -944,6 +968,9 @@ private struct DiagramSourceSummary: View {
     let kind: DiagramKind
     let source: String
     let theme: MdoraTheme
+    let nodeCount: Int
+    let edgeCount: Int
+    let isReduced: Bool
 
     var body: some View {
         VStack(spacing: 10) {
@@ -957,9 +984,12 @@ private struct DiagramSourceSummary: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            Text("Diagram source recognized")
-                .font(.caption2)
-                .foregroundStyle(theme.palette.mutedColor)
+            Text(isReduced
+                ? "Diagram preview reduced for speed: \(nodeCount) nodes / \(edgeCount) links"
+                : "Diagram source recognized"
+            )
+            .font(.caption2)
+            .foregroundStyle(theme.palette.mutedColor)
         }
         .frame(maxWidth: .infinity, minHeight: 118)
         .padding(12)
@@ -972,6 +1002,8 @@ private struct MathBlockView: View {
     let expression: String
     let theme: MdoraTheme
     @State private var height: CGFloat = 60
+    @State private var isRenderingEnabled = false
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -979,10 +1011,29 @@ private struct MathBlockView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.palette.accentColor)
 
-            MathWebView(expression: expression, theme: theme, height: $height)
-                .frame(height: height)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+            if shouldRenderMath {
+                MathWebView(expression: expression, theme: theme, height: $height)
+                    .frame(height: height)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("长公式已为性能模式降级。")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(theme.palette.mutedColor)
+
+                    Text("公式长度: \(expression.count) 字符（阈值 \(style.maxMathExpressionLength)）")
+                        .font(.caption)
+                        .foregroundStyle(theme.palette.mutedColor)
+
+                    Button("渲染公式") {
+                        isRenderingEnabled = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .padding(.vertical, 8)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -992,6 +1043,10 @@ private struct MathBlockView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(theme.palette.borderColor.opacity(0.38), lineWidth: 1)
         )
+    }
+
+    private var shouldRenderMath: Bool {
+        expression.count <= max(1, style.maxMathExpressionLength) || isRenderingEnabled
     }
 }
 
@@ -1139,36 +1194,45 @@ private extension WKWebView {
 private struct TableBlockView: View {
     let table: TableBlock
     let theme: MdoraTheme
+    @Environment(\.mdoraPreviewStyle) private var style
 
     var body: some View {
-        ScrollView(.horizontal) {
-            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow {
-                    ForEach(table.headers.indices, id: \.self) { index in
-                        let header = table.headers[index]
-                        TableCell(text: header, alignment: alignment(at: index), isHeader: true, theme: theme)
-                    }
-                }
-
-                ForEach(table.rows.indices, id: \.self) { rowIndex in
-                    let row = table.rows[rowIndex]
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal) {
+                Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                     GridRow {
                         ForEach(table.headers.indices, id: \.self) { index in
-                            TableCell(
-                                text: row.indices.contains(index) ? row[index] : "",
-                                alignment: alignment(at: index),
-                                isHeader: false,
-                                theme: theme
-                            )
+                            let header = table.headers[index]
+                            TableCell(text: header, alignment: alignment(at: index), isHeader: true, theme: theme)
+                        }
+                    }
+
+                    ForEach(visibleRows.indices, id: \.self) { rowIndex in
+                        let row = visibleRows[rowIndex]
+                        GridRow {
+                            ForEach(table.headers.indices, id: \.self) { index in
+                                TableCell(
+                                    text: row.indices.contains(index) ? row[index] : "",
+                                    alignment: alignment(at: index),
+                                    isHeader: false,
+                                    theme: theme
+                                )
+                            }
                         }
                     }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(theme.palette.borderColor.opacity(0.55), lineWidth: 1)
+                )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(theme.palette.borderColor.opacity(0.55), lineWidth: 1)
-            )
+
+            if isClipped {
+                Text("表格行数已裁剪：展示前 \(visibleRows.count) 行（共 \(table.rows.count) 行）")
+                    .font(.caption2)
+                    .foregroundStyle(theme.palette.mutedColor)
+            }
         }
     }
 
@@ -1180,9 +1244,18 @@ private struct TableBlockView: View {
             return .leading
         case .center:
             return .center
-        case .trailing:
-            return .trailing
+            case .trailing:
+                return .trailing
         }
+    }
+
+    private var visibleRows: [[String]] {
+        let maxRows = max(1, style.maxTableRows)
+        return Array(table.rows.prefix(maxRows))
+    }
+
+    private var isClipped: Bool {
+        table.rows.count > visibleRows.count
     }
 }
 
@@ -1321,9 +1394,14 @@ private struct ImageBlockView: View {
     let title: String?
     let theme: MdoraTheme
     @Environment(\.mdoraAssetBaseURL) private var assetBaseURL
+    @Environment(\.mdoraPreviewStyle) private var style
     @State private var isHovered = false
     @State private var loadedLocalImage: CGImage?
     @State private var loadedLocalImageURL: URL?
+
+    private var maxImageSize: Int {
+        max(64, style.maxImagePixelDimension)
+    }
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
@@ -1380,7 +1458,7 @@ private struct ImageBlockView: View {
             } placeholder: {
                 imagePlaceholder
             }
-            .frame(maxWidth: 760, maxHeight: 420)
+            .frame(maxWidth: CGFloat(maxImageSize), maxHeight: CGFloat(maxImageSize))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         } else if let url = localImageURL {
             localImageView(for: url)
@@ -1395,7 +1473,7 @@ private struct ImageBlockView: View {
             Image(decorative: image, scale: 1, orientation: .up)
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: 760, maxHeight: 420)
+                .frame(maxWidth: CGFloat(maxImageSize), maxHeight: CGFloat(maxImageSize))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
             imagePlaceholder
@@ -1410,7 +1488,7 @@ private struct ImageBlockView: View {
     }
 
     private func cachedOrLoadedImage(for url: URL) -> CGImage? {
-        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url) {
+        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url, maxPixelDimension: maxImageSize) {
             return cachedImage
         }
 
@@ -1420,13 +1498,13 @@ private struct ImageBlockView: View {
 
     @MainActor
     private func loadLocalImage(from url: URL) async {
-        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url) {
+        if let cachedImage = MarkdownLocalImageCache.shared.cachedPreviewImage(for: url, maxPixelDimension: maxImageSize) {
             loadedLocalImageURL = url
             loadedLocalImage = cachedImage
             return
         }
 
-        let image = await MarkdownLocalImageCache.shared.loadPreviewImageInBackground(for: url)
+        let image = await MarkdownLocalImageCache.shared.loadPreviewImageInBackground(for: url, maxPixelDimension: maxImageSize)
         guard !Task.isCancelled, localImageURL == url else { return }
         loadedLocalImageURL = url
         loadedLocalImage = image
@@ -2075,6 +2153,16 @@ private extension TaskState {
             "exclamationmark.square.fill"
         case .question:
             "questionmark.square"
+        case .warning:
+            "exclamationmark.triangle"
+        case .blocked:
+            "xmark.octagon.fill"
+        case .review:
+            "doc.text"
+        case .idea:
+            "lightbulb.fill"
+        case .success:
+            "seal.fill"
         }
     }
 
@@ -2106,6 +2194,16 @@ private extension TaskState {
             .red
         case .question:
             .cyan
+        case .warning:
+            .yellow
+        case .blocked:
+            .red
+        case .review:
+            .blue
+        case .idea:
+            .green
+        case .success:
+            .mint
         }
     }
 }

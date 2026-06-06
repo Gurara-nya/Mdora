@@ -1,5 +1,24 @@
 # Changelog
 
+# [1.0.3] - 2026-06-07 (Public)
+
+### Added
+
+- Added 2.0 performance preset controls in Settings for animation, table rows, diagram nodes/edges, math token length, and image resolution.
+- Expanded task marker and task state compatibility for warning/blocked/review/idea/success across parser, analyzer, and editor paths.
+- Added release artifact and documentation references for the 1.0.3 public publish.
+
+### Changed
+
+- Updated image preview rendering behavior to use resolution-aware cache keys for mixed document scenarios.
+- Added background image loading APIs to reduce blocking work in preview rendering.
+- Aligned HTML and in-app preview task-state styling with shared compatibility mapping.
+
+### Fixed
+
+- Fixed duplicated task marker constructor/alias paths in shared model helpers.
+- Reduced stale cache risks for image preview rendering with varying max image size constraints.
+
 # [1.0.2] - 2026-06-07 (Public)
 
 ### Added

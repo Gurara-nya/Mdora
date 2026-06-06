@@ -220,14 +220,15 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         func scheduleHighlight(in textView: NSTextView) {
             pendingHighlightTask?.cancel()
             pendingHighlightTask = Task { @MainActor [weak self, weak textView] in
-                let delay: UInt64 = parent.highPerformanceMode ? 380_000_000 : 240_000_000
+                let isHighPerformance = self?.parent.highPerformanceMode ?? false
+                let delay: UInt64 = isHighPerformance ? 380_000_000 : 240_000_000
                 do {
                     try await Task.sleep(nanoseconds: delay)
                 } catch {
                     return // cancelled
                 }
-                guard let self, let textView else { return }
-                self.highlight(textView)
+                guard let textView else { return }
+                self?.highlight(textView)
             }
         }
 
@@ -960,7 +961,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                         .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .medium)
                     ]
 
-                    if taskState.isDone {
+                    if taskState == .done {
                         attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
                     }
 

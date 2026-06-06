@@ -48,9 +48,9 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
         }
     }
 
-    private let cache = NSCache<NSURL, CachedImage>()
+    private let cache = NSCache<NSString, CachedImage>()
     private let inFlightLock = NSLock()
-    private var inFlightLoads: [NSURL: Task<CGImage?, Never>] = [:]
+    private var inFlightLoads: [NSString: Task<CGImage?, Never>] = [:]
     private let previewMaxPixelDimension = 1_600
 
     private init() {
@@ -59,7 +59,13 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
     }
 
     func cachedPreviewImage(for url: URL) -> CGImage? {
-        let key = url.standardizedFileURL as NSURL
+        cachedPreviewImage(for: url, maxPixelDimension: previewMaxPixelDimension)
+    }
+
+    func cachedPreviewImage(for url: URL, maxPixelDimension: Int) -> CGImage? {
+        let standardizedURL = url.standardizedFileURL
+        let clampedPixelDimension = max(64, maxPixelDimension)
+        let key = cacheKey(for: standardizedURL, maxPixelDimension: clampedPixelDimension)
         if let cached = cache.object(forKey: key) {
             return cached.image
         }
@@ -68,26 +74,36 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
     }
 
     func loadPreviewImage(for url: URL) -> CGImage? {
+        loadPreviewImage(for: url, maxPixelDimension: previewMaxPixelDimension)
+    }
+
+    func loadPreviewImage(for url: URL, maxPixelDimension: Int) -> CGImage? {
         let standardizedURL = url.standardizedFileURL
-        let key = standardizedURL as NSURL
+        let clampedPixelDimension = max(64, maxPixelDimension)
+        let key = cacheKey(for: standardizedURL, maxPixelDimension: clampedPixelDimension)
         if let cached = cache.object(forKey: key) {
             return cached.image
         }
 
-        guard let image = Self.loadThumbnail(from: standardizedURL, maxPixelDimension: previewMaxPixelDimension) else { return nil }
+        guard let image = Self.loadThumbnail(from: standardizedURL, maxPixelDimension: clampedPixelDimension) else { return nil }
         cache.setObject(CachedImage(image), forKey: key, cost: cost(for: image))
         return image
     }
 
     func loadPreviewImageInBackground(for url: URL) async -> CGImage? {
-        let standardizedURL = url.standardizedFileURL
-        let key = standardizedURL as NSURL
+        await loadPreviewImageInBackground(for: url, maxPixelDimension: previewMaxPixelDimension)
+    }
 
-        if let cached = cachedPreviewImage(for: standardizedURL) {
+    func loadPreviewImageInBackground(for url: URL, maxPixelDimension: Int) async -> CGImage? {
+        let standardizedURL = url.standardizedFileURL
+        let clampedPixelDimension = max(64, maxPixelDimension)
+        let key = cacheKey(for: standardizedURL, maxPixelDimension: clampedPixelDimension)
+
+        if let cached = cachedPreviewImage(for: standardizedURL, maxPixelDimension: clampedPixelDimension) {
             return cached
         }
 
-        let task = loadTask(for: standardizedURL, key: key)
+        let task = loadTask(for: standardizedURL, key: key, maxPixelDimension: clampedPixelDimension)
         let image = await task.value
         clearFinishedLoad(for: key)
         return image
@@ -101,7 +117,11 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
         }
     }
 
-    private func loadTask(for url: URL, key: NSURL) -> Task<CGImage?, Never> {
+    private func loadTask(
+        for url: URL,
+        key: NSString,
+        maxPixelDimension: Int
+    ) -> Task<CGImage?, Never> {
         inFlightLock.lock()
         if let existing = inFlightLoads[key] {
             inFlightLock.unlock()
@@ -109,14 +129,18 @@ final class MarkdownLocalImageCache: @unchecked Sendable {
         }
 
         let task = Task.detached(priority: .utility) { [self] in
-            loadPreviewImage(for: url)
+            loadPreviewImage(for: url, maxPixelDimension: maxPixelDimension)
         }
         inFlightLoads[key] = task
         inFlightLock.unlock()
         return task
     }
 
-    private func clearFinishedLoad(for key: NSURL) {
+    private func cacheKey(for url: URL, maxPixelDimension: Int) -> NSString {
+        "\(url.absoluteString)|\(maxPixelDimension)" as NSString
+    }
+
+    private func clearFinishedLoad(for key: NSString) {
         inFlightLock.lock()
         inFlightLoads[key] = nil
         inFlightLock.unlock()

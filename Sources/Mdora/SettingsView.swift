@@ -11,6 +11,12 @@ struct SettingsView: View {
     @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
     @AppStorage("mdoraPerformanceMode") private var performanceMode = false
     @AppStorage("mdoraAnimationCharThreshold") private var animationCharThreshold = 60_000.0
+    @AppStorage("mdoraMaxAnimatedBlocks") private var maxAnimatedBlocks = 900.0
+    @AppStorage("mdoraMaxTableRows") private var maxTableRows = 120.0
+    @AppStorage("mdoraMaxDiagramNodes") private var maxDiagramNodes = 36.0
+    @AppStorage("mdoraMaxDiagramEdges") private var maxDiagramEdges = 64.0
+    @AppStorage("mdoraMaxMathExpressionLength") private var maxMathExpressionLength = 2_400.0
+    @AppStorage("mdoraMaxImagePixelDimension") private var maxImagePixelDimension = 1_600.0
 
     private var selectedTheme: Binding<MdoraTheme> {
         Binding(
@@ -112,20 +118,7 @@ struct SettingsView: View {
 
             HStack {
                 Spacer()
-                Button("恢复默认设置", role: .destructive) {
-                    withAnimation {
-                        themeName = MdoraTheme.system.rawValue
-                        showInspector = true
-                        focusMode = false
-                        editorFontSize = 15.0
-                        previewFontSize = 16.0
-                        previewLineWidth = 820.0
-                        previewAnimations = true
-                        syncPreviewWithEditor = true
-                        performanceMode = false
-                        animationCharThreshold = 60_000.0
-                    }
-                }
+                Button("恢复默认设置", role: .destructive, action: restoreDefaults)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
             }
@@ -155,6 +148,72 @@ struct SettingsView: View {
                     Slider(value: $animationCharThreshold, in: 20_000 ... 200_000, step: 5_000)
                         .help("文本长度超过该值时会自动降级预览动画开销。")
                 }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("最大动画块数")
+                        Spacer()
+                        Text("\(Int(maxAnimatedBlocks))").foregroundColor(.secondary)
+                    }
+
+                    Slider(value: $maxAnimatedBlocks, in: 180 ... 2_000, step: 20)
+                        .help("超出块数后暂时禁用滚动到位动画，保留编辑功能。")
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("表格最大行数（超出折叠）")
+                        Spacer()
+                        Text("\(Int(maxTableRows))").foregroundColor(.secondary)
+                    }
+
+                    Slider(value: $maxTableRows, in: 20 ... 400, step: 10)
+                        .help("超大表格仅展示前 N 行并给出裁剪提示。")
+                }
+
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("图谱最大节点数")
+                            Spacer()
+                            Text("\(Int(maxDiagramNodes))").foregroundColor(.secondary)
+                        }
+                        Slider(value: $maxDiagramNodes, in: 8 ... 120, step: 4)
+                            .help("图谱节点过多时降级为摘要展示。")
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("图谱最大连线数")
+                            Spacer()
+                            Text("\(Int(maxDiagramEdges))").foregroundColor(.secondary)
+                        }
+                        Slider(value: $maxDiagramEdges, in: 8 ... 240, step: 4)
+                            .help("连线过多时不展开全部边信息。")
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("数学公式字符上限（超出降级）")
+                        Spacer()
+                        Text("\(Int(maxMathExpressionLength))").foregroundColor(.secondary)
+                    }
+
+                    Slider(value: $maxMathExpressionLength, in: 300 ... 6_000, step: 100)
+                        .help("长公式默认保留摘要并可按需手动渲染。")
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("本地图片预览边长上限（px）")
+                        Spacer()
+                        Text("\(Int(maxImagePixelDimension))").foregroundColor(.secondary)
+                    }
+
+                    Slider(value: $maxImagePixelDimension, in: 320 ... 3_200, step: 80)
+                        .help("越小越省资源；点击「打开原文件」查看全尺寸。")
+                }
             }
             .padding(.bottom, 12)
 
@@ -164,17 +223,58 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
             }
 
+            Section("2.0 预设") {
+                HStack(spacing: 10) {
+                    Button("极速") {
+                        previewAnimations = false
+                        performanceMode = true
+                        animationCharThreshold = 18_000
+                        maxAnimatedBlocks = 240
+                        maxTableRows = 40
+                        maxDiagramNodes = 16
+                        maxDiagramEdges = 28
+                        maxMathExpressionLength = 300
+                        maxImagePixelDimension = 720
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("均衡") {
+                        previewAnimations = true
+                        performanceMode = true
+                        animationCharThreshold = 60_000
+                        maxAnimatedBlocks = 700
+                        maxTableRows = 120
+                        maxDiagramNodes = 36
+                        maxDiagramEdges = 64
+                        maxMathExpressionLength = 2_400
+                        maxImagePixelDimension = 1_600
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("完整") {
+                        previewAnimations = true
+                        performanceMode = false
+                        animationCharThreshold = 200_000
+                        maxAnimatedBlocks = 2_000
+                        maxTableRows = 400
+                        maxDiagramNodes = 120
+                        maxDiagramEdges = 240
+                        maxMathExpressionLength = 6_000
+                        maxImagePixelDimension = 3_200
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Text("预设会批量调整各性能阈值。若出现卡顿，先切到“极速”并在关键位置逐步恢复。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Spacer()
 
             HStack {
                 Spacer()
-                Button("恢复默认设置", role: .destructive) {
-                    withAnimation {
-                        performanceMode = false
-                        animationCharThreshold = 60_000.0
-                        previewAnimations = true
-                    }
-                }
+                Button("恢复默认设置", role: .destructive, action: restoreDefaults)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
             }
@@ -209,12 +309,33 @@ struct SettingsView: View {
                     Text("• 在待办列表、有序/无序列表、引用或首行缩进处按 **回车 (Return)**，会自动在下一行延续排版标记。")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text("• 在空列表项处按 **回车 (Return)**，会自动清除当前的格式前缀。")
+                Text("• 在空列表项处按 **回车 (Return)**，会自动清除当前的格式前缀。")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             .padding(16)
+        }
+    }
+
+    private func restoreDefaults() {
+        withAnimation {
+            themeName = MdoraTheme.system.rawValue
+            showInspector = true
+            focusMode = false
+            editorFontSize = 15.0
+            previewFontSize = 16.0
+            previewLineWidth = 820.0
+            previewAnimations = true
+            syncPreviewWithEditor = true
+            performanceMode = false
+            animationCharThreshold = 60_000.0
+            maxAnimatedBlocks = 900.0
+            maxTableRows = 120.0
+            maxDiagramNodes = 36.0
+            maxDiagramEdges = 64.0
+            maxMathExpressionLength = 2_400.0
+            maxImagePixelDimension = 1_600.0
         }
     }
 }
