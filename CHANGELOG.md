@@ -1,5 +1,23 @@
 # Changelog
 
+# [1.0.4] - 2026-06-07 (Public)
+
+### Added
+
+- Centralized task-state semantics in `TaskState` (`cycleOrder`, `nextCycleState`, `previewToggleState`, muted/struck-through flags) for consistent behavior across parser, analyzer, editor, and preview layers.
+- Extended task alias compatibility for hyphen/underscore-based state tokens in task detection.
+- Added large-document adaptive preview and editor performance fallback behavior to reduce frame drops in long notes.
+- Added 1.0.4 release notes and README updates for public distribution assets.
+
+### Changed
+
+- Tuned large-document degradation thresholds for preview animations, table/diagram/math/image limits, and editor syntax highlighting windows.
+
+### Fixed
+
+- Reduced local-state mismatches caused by duplicate task-state extension definitions between app and core model layers.
+- Improved parsing stability for unusual task marker variants used in task workflows.
+
 # [1.0.3] - 2026-06-07 (Public)
 
 ### Added

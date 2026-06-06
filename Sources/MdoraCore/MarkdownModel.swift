@@ -208,7 +208,7 @@ public struct TaskItem: Equatable {
     }
 }
 
-public enum TaskState: String, Equatable, Hashable, CaseIterable {
+public enum TaskState: String, Equatable, Hashable, CaseIterable, Sendable {
     case todo = " "
     case done = "x"
     case inProgress = "/"
@@ -378,6 +378,41 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
         default:
             String(marker)
         }
+    }
+
+    public static let cycleOrder: [TaskState] = [
+        .todo,
+        .inProgress,
+        .done,
+        .canceled,
+        .blocked,
+        .warning,
+        .review,
+        .idea,
+        .forwarded,
+        .important,
+        .question,
+        .success
+    ]
+
+    public var nextCycleState: TaskState {
+        guard let currentIndex = Self.cycleOrder.firstIndex(of: self) else {
+            return .todo
+        }
+        let nextIndex = (currentIndex + 1) % Self.cycleOrder.count
+        return Self.cycleOrder[nextIndex]
+    }
+
+    public var previewToggleState: TaskState {
+        self == .done ? .todo : .done
+    }
+
+    public var isMuted: Bool {
+        self == .done || self == .canceled || self == .blocked
+    }
+
+    public var isStruckThrough: Bool {
+        self == .done || self == .canceled
     }
 }
 

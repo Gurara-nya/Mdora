@@ -189,7 +189,10 @@ struct MarkdownPreview: View {
     }
 
     private var shouldDisablePreviewAnimations: Bool {
-        markdown.count > style.maxAnimatedCharacters || document.blocks.count > style.maxAnimatedBlocks
+        let isLargeByChars = markdown.count > style.maxAnimatedCharacters
+        let isLargeByBlocks = document.blocks.count > style.maxAnimatedBlocks
+        let isVeryLarge = markdown.count > (style.maxAnimatedCharacters * 2)
+        return isLargeByChars || isLargeByBlocks || isVeryLarge
     }
 
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {
@@ -2168,42 +2171,6 @@ private extension TaskState {
         case .success:
             "seal.fill"
         }
-    }
-
-    var isMuted: Bool {
-        self == .done || self == .canceled || self == .blocked
-    }
-
-    var isStruckThrough: Bool {
-        self == .done || self == .canceled
-    }
-
-    var nextCycleState: TaskState {
-        let ordered: [TaskState] = [
-            .todo,
-            .inProgress,
-            .done,
-            .canceled,
-            .blocked,
-            .warning,
-            .review,
-            .idea,
-            .forwarded,
-            .important,
-            .question,
-            .success
-        ]
-
-        guard let currentIndex = ordered.firstIndex(of: self) else {
-            return .todo
-        }
-
-        let nextIndex = (currentIndex + 1) % ordered.count
-        return ordered[nextIndex]
-    }
-
-    var previewToggleState: TaskState {
-        self == .done ? .todo : .done
     }
 
     func tint(theme: MdoraTheme) -> Color {

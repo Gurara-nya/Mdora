@@ -69,10 +69,10 @@ struct EditorWindow: View {
     }
 
     private var previewStyle: MarkdownPreviewStyle {
-        MarkdownPreviewStyle(
+        var resolvedStyle = MarkdownPreviewStyle(
             bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
-            animationsEnabled: previewAnimations && !performanceMode,
+            animationsEnabled: previewAnimations && !performanceMode && !shouldAutoReduceForLargeDocument,
             maxAnimatedCharacters: Int(animationCharThreshold.clamped(to: 20_000 ... 200_000)),
             maxAnimatedBlocks: Int(maxAnimatedBlocks.clamped(to: 180 ... 2_000)),
             maxTableRows: Int(maxTableRows.clamped(to: 20 ... 400)),
@@ -82,6 +82,24 @@ struct EditorWindow: View {
             maxImagePixelDimension: Int(maxImagePixelDimension.clamped(to: 320 ... 3_200)),
             syncsToEditor: syncPreviewWithEditor
         )
+
+        if shouldAutoReduceForLargeDocument {
+            resolvedStyle.maxAnimatedCharacters = min(resolvedStyle.maxAnimatedCharacters, 30_000)
+            resolvedStyle.maxAnimatedBlocks = min(resolvedStyle.maxAnimatedBlocks, 300)
+            resolvedStyle.maxTableRows = min(resolvedStyle.maxTableRows, 80)
+            resolvedStyle.maxDiagramNodes = min(resolvedStyle.maxDiagramNodes, 28)
+            resolvedStyle.maxDiagramEdges = min(resolvedStyle.maxDiagramEdges, 56)
+            resolvedStyle.maxMathExpressionLength = min(resolvedStyle.maxMathExpressionLength, 1_600)
+            resolvedStyle.maxImagePixelDimension = min(resolvedStyle.maxImagePixelDimension, 900)
+        }
+
+        return resolvedStyle
+    }
+
+    private var shouldAutoReduceForLargeDocument: Bool {
+        let charCount = parsedDocument.stats.characters
+        let blockCount = parsedDocument.stats.blocks
+        return charCount > 120_000 || blockCount > 1_800
     }
 
     private var layoutPickerTrailingPadding: CGFloat {

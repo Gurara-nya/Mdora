@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MdoraCore
 
 struct SettingsView: View {
     @AppStorage("mdoraTheme") private var themeName = MdoraTheme.system.rawValue

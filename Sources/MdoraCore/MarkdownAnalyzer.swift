@@ -443,9 +443,7 @@ public enum MarkdownAnalyzer {
 
         guard cursor < line.endIndex else { return nil }
         let markerStart = cursor
-        while cursor < line.endIndex, line[cursor].isLetter {
-            cursor = line.index(after: cursor)
-        }
+        cursor = taskTokenEnd(in: line, from: cursor)
 
         guard markerStart < cursor else { return nil }
         let marker = String(line[markerStart ..< cursor])
@@ -466,6 +464,19 @@ public enum MarkdownAnalyzer {
             : rawText
 
         return TaskToken(kind: kind, text: text)
+    }
+
+    private static func taskTokenEnd<S: StringProtocol>(in line: S, from start: S.Index) -> S.Index {
+        var cursor = start
+        while cursor < line.endIndex {
+            let character = line[cursor]
+            if character.isLetter || character.isNumber || character == "-" || character == "_" {
+                cursor = line.index(after: cursor)
+                continue
+            }
+            break
+        }
+        return cursor
     }
 
     private static func stripHeadingPrefix<S: StringProtocol>(in line: S, from cursor: inout S.Index) {

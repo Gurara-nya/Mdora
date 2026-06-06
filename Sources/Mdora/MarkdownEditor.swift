@@ -544,7 +544,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 intersecting: targetRange
             )
             currentInlineHighlightExcludedRanges = syntaxHighlightRanges.inlineExcludedRanges
-            if parent.highPerformanceMode && fullRange.length > 80_000 {
+            let shouldUseAcceleratedHighlight = parent.highPerformanceMode || fullRange.length > 90_000
+            if shouldUseAcceleratedHighlight {
                 highlightCodeSpans(
                     syntaxHighlightRanges.codeSpanRanges,
                     storage: textStorage,
@@ -774,10 +775,10 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
 
             let selectedLineRange = nsString.lineRange(for: selectedRange.clamped(toLength: nsString.length))
             let visibleRange = visibleCharacterRange(in: textView)
+            let margin = nsString.length > 120_000 ? 4_000 : 10_000
             let anchorRange = visibleRange?.length ?? 0 > 0
                 ? NSUnionRange(visibleRange!, selectedLineRange)
                 : selectedLineRange
-            let margin = 10_000
             let lowerBound = max(0, anchorRange.location - margin)
             let upperBound = min(nsString.length, anchorRange.upperBound + margin)
             return nsString.lineRange(for: NSRange(location: lowerBound, length: upperBound - lowerBound))
