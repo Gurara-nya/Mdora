@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @AppStorage("mdoraTheme") private var themeName = MdoraTheme.system.rawValue
@@ -26,7 +27,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView {
+            TabView {
             generalTab
                 .tabItem {
                     Label("常规", systemImage: "gearshape.fill")
@@ -40,6 +41,11 @@ struct SettingsView: View {
             shortcutsTab
                 .tabItem {
                     Label("快捷键", systemImage: "keyboard.fill")
+                }
+
+            compatibilityTab
+                .tabItem {
+                    Label("兼容与解析", systemImage: "checklist")
                 }
 
             performanceTab
@@ -124,6 +130,89 @@ struct SettingsView: View {
             }
         }
         .padding(14)
+    }
+
+    private var compatibilityTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("2.0 兼容与识别目标")
+                        .font(.headline)
+
+                    Text("侧重：任务标记、状态别名、图片与链接兼容、图表与公式降级策略，以及跨块解析一致性。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    RoundedRectLabel(
+                        title: "核心语法覆盖",
+                        detail: "标题/列表/任务/表格/脚注/引用/自动链接/数学/图表/Wiki 链接与嵌入/HTML/缩写/评论标记"
+                    )
+                }
+                .padding(.horizontal, 4)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("任务状态支持（编辑器/预览）")
+                        .font(.subheadline.bold())
+
+                    ForEach(TaskState.allCases, id: \.self) { state in
+                        let markers = taskStateMarkers(for: state)
+                        HStack(alignment: .center, spacing: 8) {
+                            Text(state.title)
+                                .frame(width: 90, alignment: .leading)
+
+                            Text(markers.joined(separator: " / "))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("任务令牌标记（Todo/Idea/Review/...）")
+                        .font(.subheadline.bold())
+
+                    ForEach(TaskTokenKind.allCases, id: \.self) { tokenKind in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(tokenKind.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            Text(tokenKind.aliases.joined(separator: ", "))
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("2.0 页面入口")
+                        .font(.subheadline.bold())
+
+                    HStack(spacing: 10) {
+                        Button("打开 README") {
+                            openExternalURL("https://github.com/Gurara-nya/Mdora#readme")
+                        }
+                        .buttonStyle(.bordered)
+                        Button("查看最新发布") {
+                            openExternalURL("https://github.com/Gurara-nya/Mdora/releases/latest")
+                        }
+                        .buttonStyle(.bordered)
+                        Button("提交 issue") {
+                            openExternalURL("https://github.com/Gurara-nya/Mdora/issues")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .padding(.top, 6)
     }
 
     private var performanceTab: some View {
@@ -337,6 +426,35 @@ struct SettingsView: View {
             maxMathExpressionLength = 2_400.0
             maxImagePixelDimension = 1_600.0
         }
+    }
+
+    private func taskStateMarkers(for state: TaskState) -> [String] {
+        TaskState.editorMarkerList.compactMap { marker in
+            TaskState(marker: marker) == state ? "[\(marker)]" : nil
+        }
+    }
+
+    private func openExternalURL(_ value: String) {
+        guard let url = URL(string: value) else { return }
+        NSWorkspace.shared.open(url)
+    }
+}
+
+private struct RoundedRectLabel: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

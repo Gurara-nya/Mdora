@@ -89,7 +89,11 @@ struct MarkdownPreview: View {
                             onTaskStateChange: onTaskStateChange
                         )
                         .id(index)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(
+                            renderStyle.animationsEnabled ?
+                            .opacity.combined(with: .move(edge: .top)) :
+                            .identity
+                        )
                     }
                 }
                 .frame(maxWidth: renderStyle.lineWidth, alignment: .leading)
@@ -632,7 +636,7 @@ private struct TaskListBlockView: View {
         if let blockIndex, let onTaskStateChange {
             let sourceItemIndex = taskItemOffset + itemIndex
             Button {
-                onTaskStateChange(blockIndex, sourceItemIndex, item.state.previewToggleState)
+                onTaskStateChange(blockIndex, sourceItemIndex, item.state.nextCycleState)
             } label: {
                 taskStateIcon(for: item.state, depth: item.depth)
             }
@@ -646,7 +650,7 @@ private struct TaskListBlockView: View {
                     }
                 }
             }
-            .help("切换任务状态")
+            .help("点击顺序切换任务状态（长按可选择其他状态）")
         } else {
             taskStateIcon(for: item.state, depth: item.depth)
         }
@@ -2167,11 +2171,35 @@ private extension TaskState {
     }
 
     var isMuted: Bool {
-        self == .done || self == .canceled
+        self == .done || self == .canceled || self == .blocked
     }
 
     var isStruckThrough: Bool {
         self == .done || self == .canceled
+    }
+
+    var nextCycleState: TaskState {
+        let ordered: [TaskState] = [
+            .todo,
+            .inProgress,
+            .done,
+            .canceled,
+            .blocked,
+            .warning,
+            .review,
+            .idea,
+            .forwarded,
+            .important,
+            .question,
+            .success
+        ]
+
+        guard let currentIndex = ordered.firstIndex(of: self) else {
+            return .todo
+        }
+
+        let nextIndex = (currentIndex + 1) % ordered.count
+        return ordered[nextIndex]
     }
 
     var previewToggleState: TaskState {

@@ -4,6 +4,8 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringLogo = false
     @State private var animateCredits = false
+    @AppStorage("mdoraPerformanceMode") private var performanceMode = false
+    @AppStorage("previewAnimations") private var previewAnimations = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -84,7 +86,7 @@ struct AboutView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
 
-                    Text("标识兼容升级：任务状态支持 warning / blocked / review / idea / success / success 等多种写法，解析、编辑高亮与导出链路保持一致。")
+                    Text("标识兼容升级：任务状态支持 todo / warning / blocked / review / idea / success / inProgress / done 等多种写法，解析、编辑高亮与导出链路保持一致。")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -92,6 +94,13 @@ struct AboutView: View {
                 .padding(.vertical, 10)
                 .background(Color.black.opacity(0.04))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                CompatibilityBadgeRow(
+                    performanceEnabled: performanceMode,
+                    animationsEnabled: previewAnimations,
+                    statusText: statusText
+                )
+                .padding(.horizontal, 24)
 
                 Divider()
                     .padding(.horizontal, 40)
@@ -131,6 +140,10 @@ struct AboutView: View {
                     LinkButton(title: "问题反馈", systemImage: "bubble.left.and.exclamationmark.bubble.right") {
                         openURLOrFallback("https://github.com/Gurara-nya/Mdora/issues")
                     }
+
+                    LinkButton(title: "兼容说明", systemImage: "checklist") {
+                        openURLOrFallback("https://github.com/Gurara-nya/Mdora/blob/main/CHANGELOG.md")
+                    }
                 }
                 .padding(.top, 8)
 
@@ -156,9 +169,40 @@ struct AboutView: View {
         return "\(version) (Build \(build))"
     }
 
+    private var statusText: String {
+        let mode = performanceMode ? "高性能预览（自动降级）" : "标准模式"
+        return "\(mode)，动画 \(previewAnimations ? "已开启" : "已关闭")"
+    }
+
     private func openURLOrFallback(_ value: String) {
         guard let url = URL(string: value) else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+private struct CompatibilityBadgeRow: View {
+    let performanceEnabled: Bool
+    let animationsEnabled: Bool
+    let statusText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("兼容运行状态")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text(statusText)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
+            Text("解析栈：Markdown 标准 + Mdora 2.0 扩展标识（任务标记 / Wiki / 图表 / 数学 / 审阅块）")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color.black.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

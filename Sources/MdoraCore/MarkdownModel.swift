@@ -943,23 +943,35 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
         "todo-": .todo,
         "todolist": .todo,
         "to-do": .todo,
+        "backlog": .todo,
+        "next": .todo,
+        "nextup": .todo,
         "待办": .todo,
         "待完成": .todo,
         "fixme": .fixme,
         "fix": .fixme,
         "issue": .fixme,
+        "todo-fix": .fixme,
         "defect": .bug,
         "bug": .bug,
         "broken": .bug,
+        "error": .bug,
+        "problem": .bug,
         "regression": .bug,
         "hack": .hack,
         "workaround": .hack,
+        "quickfix": .hack,
+        "patch": .hack,
         "note": .note,
+        "memo": .note,
+        "remark": .note,
         "important": .important,
         "critical": .important,
         "urgent": .important,
         "priority": .important,
         "high": .important,
+        "must": .important,
+        "musthave": .important,
         "question": .question,
         "ask": .question,
         "help": .question,
@@ -969,11 +981,15 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
         "caution": .warning,
         "risk": .warning,
         "alert": .warning,
+        "attention": .warning,
+        "needsattention": .warning,
         "blocked": .blocked,
         "block": .blocked,
         "hold": .blocked,
         "pending": .blocked,
         "stuck": .blocked,
+        "waiting": .blocked,
+        "dependency": .blocked,
         "onhold": .blocked,
         "review": .review,
         "check": .review,
@@ -981,11 +997,15 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
         "needs-review": .review,
         "needsreview": .review,
         "revisit": .review,
+        "inspect": .review,
+        "recheck": .review,
         "idea": .idea,
         "insight": .idea,
         "suggestion": .idea,
         "thought": .idea,
         "brainstorm": .idea,
+        "proposal": .idea,
+        "concept": .idea,
         "success": .success,
         "done": .success,
         "passed": .success,
@@ -993,8 +1013,23 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
         "accepted": .success,
         "ship": .success,
         "ready": .success,
-        "readying": .success
+        "readying": .success,
+        "ok": .success,
+        "fixed": .success,
+        "closed": .success,
     ]
+
+    public var aliases: [String] {
+        TaskTokenKind.tokenAliasMap.compactMap { key, value in
+            value == self ? key : nil
+        }
+        .sorted(by: { lhs, rhs in
+            if lhs.count != rhs.count {
+                return lhs.count > rhs.count
+            }
+            return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+        })
+    }
 
     public init?(marker: String) {
         let normalized = marker.lowercased()
