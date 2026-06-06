@@ -1,5 +1,11 @@
 # Mdora
 
+[![Release](https://img.shields.io/github/v/release/Gurara-nya/Mdora?label=Latest)](https://github.com/Gurara-nya/Mdora/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![macOS](https://img.shields.io/badge/platform-macOS%20Sonoma+-blue.svg)](https://www.apple.com/macos)
+
+**Current public version:** `1.0.0`
+
 Mdora is a Typora-inspired Markdown editor project: local-first, distraction-free, and designed around a live editing experience where Markdown feels close to the final document.
 
 The goal is not to copy Typora's product or interface, but to build a personal Markdown workspace with a clear architecture, open roadmap, and room for experiments.
@@ -19,6 +25,12 @@ Build it:
 ```sh
 swift build
 ```
+
+## Download
+
+- [Download latest release package/assets](https://github.com/Gurara-nya/Mdora/releases/latest)
+- [Release notes and changelog](CHANGELOG.md)
+- [Fork or clone the project and run locally](https://github.com/Gurara-nya/Mdora)
 
 The first build includes:
 
@@ -92,9 +104,14 @@ Future stack candidates:
 - Export to HTML.
 - Keyboard shortcuts for common formatting.
 
+## Release Notes
+
+- 1.0.0 (2026-06-07): Public beta release with a full native macOS document workflow, markdown live preview, multi-mode inspector and export support.
+- See [CHANGELOG.md](CHANGELOG.md) for the full list of tracked updates.
+
 ## Repository Status
 
-This repository starts as planning and architecture notes. Implementation can begin once the initial shell and editor stack are selected.
+This repository contains a working local-first Markdown editor app and is now suitable for public use.
 
 ## License
 
