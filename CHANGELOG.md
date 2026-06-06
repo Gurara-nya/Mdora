@@ -1,11 +1,21 @@
 # Changelog
 
-# [1.0.2] - 2026-06-07
+# [1.0.2] - 2026-06-07 (Public)
+
+### Added
+
+- Added release-public metadata polish for changelog, README and GitHub release display consistency.
+- Added compatibility fixes around extended task-state markers across model/parser/analyzer/editor flow.
+
+### Changed
+
+- Updated release-facing documentation and public package links.
+- Prepared stable release artifact path naming for `Mdora-1.0.2-macOS.zip`.
 
 ### Fixed
 
-- Fixed task marker parsing helper compatibility for extended task states in editor/parser integrations.
-- Resolved duplicate task marker constructor definitions in `TaskState` / `TaskTokenKind` shared model helpers.
+- Fixed duplicated task marker constructor paths in `TaskState` and `TaskTokenKind` shared model helpers.
+- Resolved task marker compatibility gaps during parsing and editor continuation operations.
 
 ## [1.0.1] - 2026-06-07
 
