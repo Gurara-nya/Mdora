@@ -17,6 +17,8 @@ NC='\033[0m'
 # ---------- 默认参数 ----------
 LAUNCH=true
 CONFIGURATION="release"
+APP_VERSION="1.0.1"
+APP_BUILD="2"
 
 for arg in "$@"; do
   case $arg in
@@ -74,7 +76,7 @@ PLIST_SRC="$SCRIPT_DIR/Info.plist"
 if [ -f "$PLIST_SRC" ]; then
   cp "$PLIST_SRC" "$INFO_PLIST"
 else
-  cat > "$INFO_PLIST" << 'PLIST'
+  cat > "$INFO_PLIST" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -116,9 +118,9 @@ else
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>${APP_BUILD}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>

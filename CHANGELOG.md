@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.1] - 2026-06-07
+
+### Added
+
+- Added a dedicated Performance settings panel with high-performance mode and animation threshold controls.
+- Added expanded task-token support for compatibility: warning, blocked, review, idea, success, done.
+- About page now reads version/build from bundle metadata and links directly to repository, releases, and issue tracker.
+
+### Changed
+
+- Improved preview performance gating by limiting animated characters under large documents and large block counts.
+- Tuned editor highlight scheduling and introduced fast-path highlighting when performance mode is enabled.
+
+### Fixed
+
+- Adjusted task-token regex generation to stay in sync with supported marker definitions automatically.
+
 ## [1.0.0] - 2026-06-07
 
 ### Added

@@ -18,6 +18,7 @@ struct MarkdownEditor: View {
     let fontSize: CGFloat
     let focusMode: Bool
     let documentURL: URL?
+    let highPerformanceMode: Bool
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
     let onDraftCommit: (String, EditorCommitReason) -> Void
@@ -31,6 +32,7 @@ struct MarkdownEditor: View {
             fontSize: fontSize,
             focusMode: focusMode,
             documentURL: documentURL,
+            highPerformanceMode: highPerformanceMode,
             onSelectionChange: onSelectionChange,
             onEditingActivity: onEditingActivity,
             onDraftCommit: onDraftCommit
@@ -47,6 +49,7 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
     let fontSize: CGFloat
     let focusMode: Bool
     let documentURL: URL?
+    let highPerformanceMode: Bool
     let onSelectionChange: (EditorSelection) -> Void
     let onEditingActivity: () -> Void
     let onDraftCommit: (String, EditorCommitReason) -> Void
@@ -217,8 +220,9 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
         func scheduleHighlight(in textView: NSTextView) {
             pendingHighlightTask?.cancel()
             pendingHighlightTask = Task { @MainActor [weak self, weak textView] in
+                let delay: UInt64 = parent.highPerformanceMode ? 380_000_000 : 240_000_000
                 do {
-                    try await Task.sleep(nanoseconds: 240_000_000)
+                    try await Task.sleep(nanoseconds: delay)
                 } catch {
                     return // cancelled
                 }
@@ -539,6 +543,60 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
                 intersecting: targetRange
             )
             currentInlineHighlightExcludedRanges = syntaxHighlightRanges.inlineExcludedRanges
+            if parent.highPerformanceMode && fullRange.length > 80_000 {
+                highlightCodeSpans(
+                    syntaxHighlightRanges.codeSpanRanges,
+                    storage: textStorage,
+                    attributes: [
+                        .foregroundColor: palette.text,
+                        .backgroundColor: palette.code
+                    ]
+                )
+                highlightInline(pattern: #"(?<!\!)\[([^\]]+)\]\(([^\)]+)\)"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue
+                ], requiredScalars: "[")
+                highlightInline(pattern: #"(?<!\!)\[[^\]]+\]\[[^\]]*\]"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue
+                ], requiredScalars: "[")
+                highlightInline(pattern: #"\[\^[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent,
+                    .baselineOffset: 3,
+                    .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 3), weight: .medium)
+                ], requiredScalars: "[")
+                highlightInline(pattern: #"\[@[^\]]+\]"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.muted,
+                    .font: NSFont.monospacedSystemFont(ofSize: max(10, baseSize - 2), weight: .medium)
+                ], requiredScalars: "[")
+                highlightInline(pattern: #"\!\[[^\]]+\]\([^)]+\)"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent,
+                    .backgroundColor: palette.accent.withAlphaComponent(0.10)
+                ], requiredScalars: "!")
+                highlightAutoLinks(in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue
+                ])
+                highlightInline(pattern: #"(?<!\w)#([A-Za-z0-9_\-/\p{Han}]+)"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent
+                ], requiredScalars: "#")
+                highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
+                    .foregroundColor: palette.accent
+                ], requiredScalars: "@")
+                highlightCurrentLine(in: textView, storage: textStorage)
+                textStorage.endEditing()
+
+                currentHighlightRange = nil
+                currentHighlightScalars = []
+                currentInlineHighlightExcludedRanges = []
+                lastHighlightedRange = targetRange
+                textView.typingAttributes = baseAttributes
+                let restoredSelection = selectedRange.clamped(toLength: fullRange.length)
+                if textView.selectedRange() != restoredSelection {
+                    textView.setSelectedRange(restoredSelection)
+                }
+                return
+            }
             highlightMathBlocks(syntaxHighlightRanges.mathBlockRanges, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .backgroundColor: palette.code,
@@ -684,7 +742,8 @@ private struct NativeMarkdownTextView: NSViewRepresentable {
             highlightInline(pattern: #"(?<!\w)@([A-Za-z0-9_\-\.]+)"#, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent
             ], requiredScalars: "@")
-            highlightInline(pattern: #"(?im)^\s*(?:(?:[-*+]\s+|\d+[.)]\s+)(?:\[(?: |x|X|/|-|>|!|\?)\]\s+)?)?(?:<!--\s*)?\b(TODO|FIXME|BUG|HACK|NOTE|IMPORTANT|QUESTION)\b.*$"#, in: textView, storage: textStorage, attributes: [
+            let taskTokenPattern = "(?im)^\\s*(?:(?:[-*+]\\s+|\\d+[.)]\\s+)(?:\\[(?: |x|X|/|-|>|!|\\?)\\]\\s+)?)?(?:<!--\\s*)?\\b(\(TaskTokenKind.regexPattern))\\b.*$"
+            highlightInline(pattern: taskTokenPattern, in: textView, storage: textStorage, attributes: [
                 .foregroundColor: palette.accent,
                 .font: NSFont.monospacedSystemFont(ofSize: baseSize, weight: .semibold)
             ])

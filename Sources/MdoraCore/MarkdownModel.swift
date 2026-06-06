@@ -803,6 +803,19 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable {
     case note
     case important
     case question
+    case warning
+    case blocked
+    case review
+    case idea
+    case success
+    case done
+
+    public static var regexPattern: String {
+        allCases
+            .map(\.rawValue)
+            .sorted { $0.count > $1.count }
+            .joined(separator: "|")
+    }
 
     public init?(marker: String) {
         self.init(rawValue: marker.lowercased())

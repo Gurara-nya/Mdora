@@ -14,6 +14,8 @@ struct EditorWindow: View {
     @AppStorage("previewLineWidth") private var previewLineWidth = 820.0
     @AppStorage("previewAnimations") private var previewAnimations = true
     @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
+    @AppStorage("mdoraPerformanceMode") private var performanceMode = false
+    @AppStorage("mdoraAnimationCharThreshold") private var animationCharThreshold = 60_000.0
     @StateObject private var commandCenter = EditorCommandCenter()
     @State private var isExportingHTML = false
     @State private var statusMessage: String?
@@ -64,7 +66,8 @@ struct EditorWindow: View {
         MarkdownPreviewStyle(
             bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
-            animationsEnabled: previewAnimations,
+            animationsEnabled: previewAnimations && !performanceMode,
+            maxAnimatedCharacters: Int(animationCharThreshold.clamped(to: 20_000 ... 200_000)),
             syncsToEditor: syncPreviewWithEditor
         )
     }
@@ -81,18 +84,19 @@ struct EditorWindow: View {
             ZStack(alignment: .topTrailing) {
                 HSplitView {
                     if selectedLayout.wrappedValue.showsEditor {
-                        MarkdownEditor(
-                            documentID: document.id,
-                            committedText: document.text,
-                            commandCenter: commandCenter,
-                            theme: theme,
-                            fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
-                            focusMode: focusMode,
-                            documentURL: documentURL,
-                            onSelectionChange: updateEditorSelection,
-                            onEditingActivity: noteEditorEditing,
-                            onDraftCommit: commitEditorDraft
-                        )
+                            MarkdownEditor(
+                                documentID: document.id,
+                                committedText: document.text,
+                                commandCenter: commandCenter,
+                                theme: theme,
+                                fontSize: CGFloat(editorFontSize.clamped(to: 12 ... 22)),
+                                focusMode: focusMode,
+                                documentURL: documentURL,
+                                highPerformanceMode: performanceMode,
+                                onSelectionChange: updateEditorSelection,
+                                onEditingActivity: noteEditorEditing,
+                                onDraftCommit: commitEditorDraft
+                            )
                             .frame(minWidth: 360, idealWidth: 560)
                     }
 

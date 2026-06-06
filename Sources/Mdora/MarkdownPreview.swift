@@ -7,6 +7,7 @@ struct MarkdownPreviewStyle: Equatable {
     var bodyFontSize: CGFloat = 16
     var lineWidth: CGFloat = 820
     var animationsEnabled = true
+    var maxAnimatedCharacters: Int = 60_000
     var syncsToEditor = true
 }
 
@@ -178,7 +179,7 @@ struct MarkdownPreview: View {
     }
 
     private var shouldDisablePreviewAnimations: Bool {
-        markdown.count > 60_000 || document.blocks.count > 900
+        markdown.count > style.maxAnimatedCharacters || document.blocks.count > 900
     }
 
     private func scheduleActiveBlockScroll(_ blockIndex: Int?, proxy: ScrollViewProxy) {

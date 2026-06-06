@@ -51,7 +51,7 @@ struct AboutView: View {
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
 
-                        Text("版本 1.1 (Build 2026.0528)")
+                        Text("版本 \(appVersionText)")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
@@ -66,6 +66,13 @@ struct AboutView: View {
                     .lineSpacing(4)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.primary.opacity(0.85))
+                    .padding(.horizontal, 24)
+
+                Text("当前支持 macOS 原生文档、分屏编辑、实时预览和多语法兼容识别（任务标记、Wiki 链接、图表、数学、审阅标记）。")
+                    .font(.caption)
+                    .lineSpacing(3)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 24)
 
                 Divider()
@@ -91,16 +98,20 @@ struct AboutView: View {
 
                 // Link buttons
                 HStack(spacing: 16) {
-                    LinkButton(title: "开源许可证 (MIT)", systemImage: "doc.text") {
-                        if let url = URL(string: "https://opensource.org/licenses/MIT") {
-                            NSWorkspace.shared.open(url)
-                        }
+                    LinkButton(title: "开源许可", systemImage: "doc.text") {
+                        openURLOrFallback("https://github.com/Gurara-nya/Mdora/blob/main/LICENSE")
                     }
 
-                    LinkButton(title: "GitHub 开源仓库", systemImage: "network") {
-                        if let url = URL(string: "https://github.com") {
-                            NSWorkspace.shared.open(url)
-                        }
+                    LinkButton(title: "GitHub 仓库", systemImage: "network") {
+                        openURLOrFallback("https://github.com/Gurara-nya/Mdora")
+                    }
+
+                    LinkButton(title: "最新发布", systemImage: "tag.fill") {
+                        openURLOrFallback("https://github.com/Gurara-nya/Mdora/releases/latest")
+                    }
+
+                    LinkButton(title: "问题反馈", systemImage: "bubble.left.and.exclamationmark.bubble.right") {
+                        openURLOrFallback("https://github.com/Gurara-nya/Mdora/issues")
                     }
                 }
                 .padding(.top, 8)
@@ -119,6 +130,17 @@ struct AboutView: View {
         }
         .frame(width: 420, height: 460)
         .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+    }
+
+    private var appVersionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "dev"
+        return "\(version) (Build \(build))"
+    }
+
+    private func openURLOrFallback(_ value: String) {
+        guard let url = URL(string: value) else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 

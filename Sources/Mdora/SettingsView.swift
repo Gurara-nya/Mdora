@@ -9,6 +9,8 @@ struct SettingsView: View {
     @AppStorage("previewLineWidth") private var previewLineWidth = 820.0
     @AppStorage("previewAnimations") private var previewAnimations = true
     @AppStorage("syncPreviewWithEditor") private var syncPreviewWithEditor = true
+    @AppStorage("mdoraPerformanceMode") private var performanceMode = false
+    @AppStorage("mdoraAnimationCharThreshold") private var animationCharThreshold = 60_000.0
 
     private var selectedTheme: Binding<MdoraTheme> {
         Binding(
@@ -32,6 +34,11 @@ struct SettingsView: View {
             shortcutsTab
                 .tabItem {
                     Label("快捷键", systemImage: "keyboard.fill")
+                }
+
+            performanceTab
+                .tabItem {
+                    Label("性能", systemImage: "speedometer")
                 }
         }
         .padding(20)
@@ -115,6 +122,57 @@ struct SettingsView: View {
                         previewLineWidth = 820.0
                         previewAnimations = true
                         syncPreviewWithEditor = true
+                        performanceMode = false
+                        animationCharThreshold = 60_000.0
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+            }
+        }
+        .padding(14)
+    }
+
+    private var performanceTab: some View {
+        Form {
+            Section("2.0 流畅体验") {
+                Toggle("开启高性能模式", isOn: $performanceMode)
+                    .help("面向超大文档的编辑场景，优先保证输入和滚动顺滑。")
+
+                Toggle("启用动画和同步刷新", isOn: $previewAnimations)
+                    .help("若编辑有明显卡顿，可先关闭本项再逐步恢复。")
+
+                Toggle("预览跟随光标同步滚动", isOn: $syncPreviewWithEditor)
+                    .help("高性能模式下建议保留开启，避免频繁跳动。")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("预览动画自动降级阈值（字符）")
+                        Spacer()
+                        Text("\(Int(animationCharThreshold))").foregroundColor(.secondary)
+                    }
+
+                    Slider(value: $animationCharThreshold, in: 20_000 ... 200_000, step: 5_000)
+                        .help("文本长度超过该值时会自动降级预览动画开销。")
+                }
+            }
+            .padding(.bottom, 12)
+
+            Section("性能说明") {
+                Text("高性能模式会降低部分高消耗样式计算，核心解析、导出和状态统计功能不变。适合处理长文档与多媒体密集文档。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            HStack {
+                Spacer()
+                Button("恢复默认设置", role: .destructive) {
+                    withAnimation {
+                        performanceMode = false
+                        animationCharThreshold = 60_000.0
+                        previewAnimations = true
                     }
                 }
                 .buttonStyle(.borderedProminent)
