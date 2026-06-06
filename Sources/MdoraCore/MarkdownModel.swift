@@ -962,14 +962,19 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
     case done
 
     public static var regexPattern: String {
-        tokenAliasMap
+        normalizedAliasMap
             .keys
             .sorted { $0.count > $1.count }
+            .map { NSRegularExpression.escapedPattern(for: $0) }
             .joined(separator: "|")
     }
 
     public var title: String {
         rawValue.uppercased()
+    }
+
+    public static var compatibilitySignature: String {
+        "TokenKinds: \(allCases.count)，原始别名 \(tokenAliasMap.count) 个，规范化别名 \(normalizedAliasMap.count) 个"
     }
 
     public static let tokenAliasMap: [String: TaskTokenKind] = [
@@ -1071,6 +1076,16 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
         "通过审核": .success
     ]
 
+    private static let normalizedAliasMap: [String: TaskTokenKind] = {
+        var normalizedMap: [String: TaskTokenKind] = [:]
+        for (alias, kind) in tokenAliasMap {
+            for normalized in normalizedAliases(for: alias) {
+                normalizedMap[normalized] = kind
+            }
+        }
+        return normalizedMap
+    }()
+
     public var aliases: [String] {
         TaskTokenKind.tokenAliasMap.compactMap { key, value in
             value == self ? key : nil
@@ -1084,13 +1099,80 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
     }
 
     public init?(marker: String) {
-        let normalized = marker.lowercased()
-        guard let kind = TaskTokenKind.tokenAliasMap[normalized] else {
-            return nil
+        for normalized in TaskTokenKind.normalizedAliases(for: marker) {
+            if let kind = TaskTokenKind.normalizedAliasMap[normalized] {
+                self = kind
+                return
+            }
+        }
+        return nil
+    }
+
+    private static func normalizedAliases(for marker: String) -> [String] {
+        let normalized = normalizedAlias(for: marker)
+        if normalized.isEmpty {
+            return []
         }
 
-        self = kind
+        let compacted = normalized.replacingOccurrences(of: "-", with: "")
+        if compacted == normalized {
+            return [normalized]
+        }
+
+        return [
+            normalized,
+            compacted
+        ]
     }
+
+    private static func normalizedAlias(for marker: String) -> String {
+        let cleaned = marker
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "\t", with: "-")
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "_", with: "-")
+            .replacingOccurrences(of: "·", with: "-")
+            .replacingOccurrences(of: "－", with: "-")
+            .replacingOccurrences(of: "—", with: "-")
+            .replacingOccurrences(of: "–", with: "-")
+
+        var collapsed = ""
+        var previousWasSeparator = false
+        for character in cleaned {
+            if character == "-" {
+                if previousWasSeparator {
+                    continue
+                }
+                previousWasSeparator = true
+                collapsed.append("-")
+            } else {
+                previousWasSeparator = false
+                collapsed.append(character)
+            }
+        }
+
+        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+}
+
+public extension TaskTokenKind {
+    static var normalizedAliasesCount: Int {
+        normalizedAliasMap.count
+    }
+
+    static func aliases(for kind: TaskTokenKind) -> [String] {
+        tokenAliasMap.compactMap { key, value in
+            value == kind ? key : nil
+        }
+    }
+}
+
+public struct MarkdownTaskTokenCompatibility {
+    public static var signatureText: String {
+        TaskTokenKind.compatibilitySignature
+    }
+}
 }
 
 public struct MarkdownStats: Equatable {
