@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.0.2] - 2026-06-07
+
+### Fixed
+
+- Fixed task marker parsing helper compatibility for extended task states in editor/parser integrations.
+- Resolved duplicate task marker constructor definitions in `TaskState` / `TaskTokenKind` shared model helpers.
+
 ## [1.0.1] - 2026-06-07
 
 ### Added

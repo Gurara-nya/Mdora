@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![macOS](https://img.shields.io/badge/platform-macOS%2014%2B-blue.svg)](https://www.apple.com/macos)
 
-**Current public version:** `1.0.1` · **Default language:** English / 中文
+**Current public version:** `1.0.2` · **Default language:** English / 中文
 
 <div align="center">
 
@@ -43,7 +43,7 @@ Mdora is a Typora-inspired Markdown editor for macOS, currently focused on a fas
 - Theme support for writing and reading comfort
 - Local image rendering and path-aware wiki image embedding
 
-### Features (1.0.1)
+### Features (1.0.2)
 
 - CommonMark and GFM-compatible block parsing
 - CommonMark headings, lists, tasks, tables, links, front matter
@@ -64,11 +64,11 @@ swift run Mdora
 swift build
 ```
 
-### Download this release package (1.0.1)
+### Download this release package (1.0.2)
 
 To download the packaged app directly:
 
-- **Mac app bundle (zip):** https://github.com/Gurara-nya/Mdora/releases/download/v1.0.1/Mdora-1.0.1-macOS.zip
+- **Mac app bundle (zip):** https://github.com/Gurara-nya/Mdora/releases/download/v1.0.2/Mdora-1.0.2-macOS.zip
 
 ---
 
@@ -91,7 +91,7 @@ Mdora 是一款类 Typora 风格的 macOS Markdown 编辑器，当前版本聚�
 - 提供多套阅读/书写主题
 - 本地图片路径解析与 wiki 图片内嵌展示
 
-### 1.0.1 功能
+### 1.0.2 功能
 
 - 支持 CommonMark / GFM 兼容块解析
 - 标题、列表、任务、表格、链接、Front Matter 全链路处理
@@ -112,18 +112,18 @@ swift run Mdora
 swift build
 ```
 
-### 下载当前发布包（1.0.1）
+### 下载当前发布包（1.0.2）
 
 直接下载可运行 app 包：
 
-- **Mac 应用压缩包（zip）：** https://github.com/Gurara-nya/Mdora/releases/download/v1.0.1/Mdora-1.0.1-macOS.zip
+- **Mac 应用压缩包（zip）：** https://github.com/Gurara-nya/Mdora/releases/download/v1.0.2/Mdora-1.0.2-macOS.zip
 
 ---
 
-## Release 1.0.1 Notes
+## Release 1.0.2 Notes
 
 - Public beta release with native document workflow, live preview, syntax-rich parser, inspector insights, and app packaging.
-- Version: `1.0.1`
+- Version: `1.0.2`
 - Public release date: `2026-06-07`
 - Build highlights: performance mode, animation tuning, and expanded task token compatibility.
 - Full changelog: [CHANGELOG.md](CHANGELOG.md)
