@@ -1173,7 +1173,6 @@ public struct MarkdownTaskTokenCompatibility {
         TaskTokenKind.compatibilitySignature
     }
 }
-}
 
 public struct MarkdownStats: Equatable {
     public var words: Int

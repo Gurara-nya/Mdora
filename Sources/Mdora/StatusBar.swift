@@ -9,6 +9,7 @@ struct StatusBar: View {
     let focusMode: Bool
     let selection: EditorSelection
     let message: String?
+    let performanceReasons: [String]
 
     // Toggle states persisted in AppStorage
     @AppStorage("statusBar_showWords") private var showWords = true
@@ -107,6 +108,12 @@ struct StatusBar: View {
                     if focusMode {
                         Text("专注模式")
                             .foregroundStyle(theme.palette.accentColor)
+                    }
+
+                    if !performanceReasons.isEmpty {
+                        Text("降级: \(performanceReasons.joined(separator: " | "))")
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                 }
             }

@@ -1,5 +1,20 @@
 # Changelog
 
+# [1.0.7] - 2026-06-07 (Public)
+
+### Added
+
+- Added explicit preview performance degradation indicators in the status bar so users can see why fallback mode is active.
+
+### Changed
+
+- Refactored preview style calculation by separating base style and resolved fallback adjustments, keeping degradation reason mapping explicit.
+
+### Fixed
+
+- Prevented inconsistent performance messaging when large-document auto-reduction is triggered.
+- Updated public release metadata (README/release-notes/asset naming) for version alignment.
+
 # [1.0.6] - 2026-06-07 (Public)
 
 ### Added

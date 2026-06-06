@@ -70,7 +70,24 @@ struct EditorWindow: View {
     }
 
     private var previewStyle: MarkdownPreviewStyle {
-        var resolvedStyle = MarkdownPreviewStyle(
+        var resolvedStyle = basePreviewStyle
+
+        if shouldAutoReduceForLargeDocument {
+            resolvedStyle.maxAnimatedCharacters = min(resolvedStyle.maxAnimatedCharacters, 30_000)
+            resolvedStyle.maxAnimatedBlocks = min(resolvedStyle.maxAnimatedBlocks, 300)
+            resolvedStyle.maxTableRows = min(resolvedStyle.maxTableRows, 80)
+            resolvedStyle.maxDiagramNodes = min(resolvedStyle.maxDiagramNodes, 28)
+            resolvedStyle.maxDiagramEdges = min(resolvedStyle.maxDiagramEdges, 56)
+            resolvedStyle.maxMathExpressionLength = min(resolvedStyle.maxMathExpressionLength, 1_600)
+            resolvedStyle.maxImagePixelDimension = min(resolvedStyle.maxImagePixelDimension, 900)
+        }
+
+        resolvedStyle.degradationReasons = previewDegradationReasons(for: resolvedStyle)
+        return resolvedStyle
+    }
+
+    private var basePreviewStyle: MarkdownPreviewStyle {
+        MarkdownPreviewStyle(
             bodyFontSize: CGFloat(previewFontSize.clamped(to: 13 ... 22)),
             lineWidth: CGFloat(previewLineWidth.clamped(to: 620 ... 1040)),
             animationsEnabled: previewAnimations && !performanceMode && !shouldAutoReduceForLargeDocument && !reduceMotion,
@@ -83,24 +100,49 @@ struct EditorWindow: View {
             maxImagePixelDimension: Int(maxImagePixelDimension.clamped(to: 320 ... 3_200)),
             syncsToEditor: syncPreviewWithEditor
         )
-
-        if shouldAutoReduceForLargeDocument {
-            resolvedStyle.maxAnimatedCharacters = min(resolvedStyle.maxAnimatedCharacters, 30_000)
-            resolvedStyle.maxAnimatedBlocks = min(resolvedStyle.maxAnimatedBlocks, 300)
-            resolvedStyle.maxTableRows = min(resolvedStyle.maxTableRows, 80)
-            resolvedStyle.maxDiagramNodes = min(resolvedStyle.maxDiagramNodes, 28)
-            resolvedStyle.maxDiagramEdges = min(resolvedStyle.maxDiagramEdges, 56)
-            resolvedStyle.maxMathExpressionLength = min(resolvedStyle.maxMathExpressionLength, 1_600)
-            resolvedStyle.maxImagePixelDimension = min(resolvedStyle.maxImagePixelDimension, 900)
-        }
-
-        return resolvedStyle
     }
 
     private var shouldAutoReduceForLargeDocument: Bool {
         let charCount = parsedDocument.stats.characters
         let blockCount = parsedDocument.stats.blocks
         return charCount > 120_000 || blockCount > 1_800
+    }
+
+    private var previewDegradationReasons: [String] {
+        previewStyle.degradationReasons
+    }
+
+    private func previewDegradationReasons(for style: MarkdownPreviewStyle) -> [String] {
+        var reasons: [String] = []
+        let chars = parsedDocument.stats.characters
+        let blocks = parsedDocument.stats.blocks
+
+        if performanceMode {
+            reasons.append("高性能模式：降低实时高消耗效果。")
+        }
+
+        if reduceMotion {
+            reasons.append("Reduce Motion 开启：关闭过渡动画。")
+        }
+
+        if !previewAnimations {
+            reasons.append("预览动画已关闭。")
+        }
+
+        if chars > style.maxAnimatedCharacters {
+            reasons.append("字符超限：已关闭部分块级动画（阈值 \(style.maxAnimatedCharacters)）。")
+        }
+
+        if blocks > style.maxAnimatedBlocks {
+            reasons.append("区块超限：采用轻量滚动策略（阈值 \(style.maxAnimatedBlocks)）。")
+        }
+
+        if shouldAutoReduceForLargeDocument {
+            reasons.append("大文档自动降级：表格≤\(style.maxTableRows)、图谱节点≤\(style.maxDiagramNodes)、边≤\(style.maxDiagramEdges)。")
+            reasons.append("大文档自动降级：数学长度≤\(style.maxMathExpressionLength)，图片边长≤\(style.maxImagePixelDimension)。")
+        }
+
+        return reasons
     }
 
     private var layoutPickerTrailingPadding: CGFloat {
@@ -178,7 +220,8 @@ struct EditorWindow: View {
                 theme: theme,
                 focusMode: focusMode,
                 selection: editorSelection,
-                message: statusMessage
+                message: statusMessage,
+                performanceReasons: previewDegradationReasons
             )
         }
         .frame(minWidth: 760, minHeight: 520)
