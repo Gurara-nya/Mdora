@@ -216,10 +216,42 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
     case forwarded = ">"
     case important = "!"
     case question = "?"
+    case warning = "w"
+    case blocked = "b"
+    case review = "r"
+    case idea = "i"
+    case success = "s"
 
     public init?(marker: Character) {
-        let normalized = String(marker).lowercased()
-        self.init(rawValue: normalized)
+        let markerText = String(marker).lowercased()
+        switch markerText {
+        case " ", "\t":
+            self = .todo
+        case "x", "v", "y", "✓", "✔", "✅", "☑":
+            self = .done
+        case "/":
+            self = .inProgress
+        case "-":
+            self = .canceled
+        case ">":
+            self = .forwarded
+        case "!", "☆", "★":
+            self = .important
+        case "?":
+            self = .question
+        case "w":
+            self = .warning
+        case "b", "⊘":
+            self = .blocked
+        case "r":
+            self = .review
+        case "i", "💡":
+            self = .idea
+        case "s", "√":
+            self = .success
+        default:
+            return nil
+        }
     }
 
     public var marker: String {
@@ -242,6 +274,16 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
             "important"
         case .question:
             "question"
+        case .warning:
+            "warning"
+        case .blocked:
+            "blocked"
+        case .review:
+            "review"
+        case .idea:
+            "idea"
+        case .success:
+            "success"
         }
     }
 
@@ -261,6 +303,44 @@ public enum TaskState: String, Equatable, Hashable, CaseIterable {
             "Important"
         case .question:
             "Question"
+        case .warning:
+            "Warning"
+        case .blocked:
+            "Blocked"
+        case .review:
+            "Review"
+        case .idea:
+            "Idea"
+        case .success:
+            "Success"
+        }
+    }
+
+    public static let editorMarkerList: [Character] = {
+        [" "] + ["x", "X", "v", "V", "✓", "✔", "✅", "☑", "/", "-", ">", "!", "?", "w", "W", "b", "B", "r", "R", "i", "I", "s", "S"]
+            .compactMap { Character(String($0)) }
+    }()
+
+    public static let editorMarkerSet: Set<Character> = Set(editorMarkerList)
+
+    public static func supports(marker: Character) -> Bool {
+        editorMarkerSet.contains(marker)
+    }
+
+    public static var editorMarkerCharacterClass: String {
+        editorMarkerList
+            .map { escapedCharacterClassPart(for: $0) }
+            .joined()
+    }
+
+    private static func escapedCharacterClassPart(for marker: Character) -> String {
+        switch marker {
+        case "-", "]", "[", "^":
+            "\\\(marker)"
+        case "\\":
+            "\\\\"
+        default:
+            String(marker)
         }
     }
 }
@@ -811,18 +891,49 @@ public enum TaskTokenKind: String, CaseIterable, Equatable, Hashable {
     case done
 
     public static var regexPattern: String {
-        allCases
-            .map(\.rawValue)
+        tokenAliasMap
+            .keys
             .sorted { $0.count > $1.count }
             .joined(separator: "|")
     }
 
-    public init?(marker: String) {
-        self.init(rawValue: marker.lowercased())
-    }
-
     public var title: String {
         rawValue.uppercased()
+    }
+
+    public static let tokenAliasMap: [String: TaskTokenKind] = [
+        "todo": .todo,
+        "todoitem": .todo,
+        "todo-": .todo,
+        "fixme": .fixme,
+        "fix": .fixme,
+        "defect": .bug,
+        "bug": .bug,
+        "hack": .hack,
+        "note": .note,
+        "important": .important,
+        "critical": .important,
+        "question": .question,
+        "warn": .warning,
+        "warning": .warning,
+        "blocked": .blocked,
+        "block": .blocked,
+        "review": .review,
+        "check": .review,
+        "idea": .idea,
+        "insight": .idea,
+        "success": .success,
+        "done": .success,
+        "passed": .success
+    ]
+
+    public init?(marker: String) {
+        let normalized = marker.lowercased()
+        guard let kind = TaskTokenKind.tokenAliasMap[normalized] else {
+            return nil
+        }
+
+        self = kind
     }
 }
 
